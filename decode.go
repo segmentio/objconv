@@ -423,6 +423,7 @@ type streamDecoder struct {
 	reader *Reader
 	array  ArrayParser
 	err    error
+	count  int
 }
 
 func (d *streamDecoder) Decode(v interface{}) (err error) {
@@ -454,6 +455,7 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 		d.decodeValue(d.reader, x, to)
 	}
 
+	d.count++
 	return
 }
 
@@ -461,7 +463,11 @@ func (d *streamDecoder) Len() int {
 	if d.array == nil {
 		return -1
 	}
-	return d.array.Len()
+	n := d.array.Len()
+	if n >= 0 {
+		n -= d.count
+	}
+	return n
 }
 
 func (d *streamDecoder) Error() error {
