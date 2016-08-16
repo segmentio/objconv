@@ -436,9 +436,9 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 	}
 
 	defer func() { err = d.convertPanicToError(recover()) }()
-	from, to := d.parse(d.reader, v)
 
 	if d.array == nil {
+		from, _ := d.parse(d.reader, v)
 		switch x := from.(type) {
 		case ArrayParser:
 			d.array = x
@@ -449,10 +449,10 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 		}
 	}
 
-	if x, ok := d.array.Parse(d.reader, to.Interface()); !ok {
+	if x, ok := d.array.Parse(d.reader, v); !ok {
 		panic(io.EOF)
 	} else {
-		d.decodeValue(d.reader, x, to)
+		d.decodeValue(d.reader, x, reflect.ValueOf(v).Elem())
 	}
 
 	d.count++
