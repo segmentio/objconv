@@ -1,6 +1,9 @@
 package objconv
 
-import "reflect"
+import (
+	"io"
+	"reflect"
+)
 
 // Array is an interface representing iterable sequences of values.
 type Array interface {
@@ -82,12 +85,7 @@ type ArrayValue reflect.Value
 func (a ArrayValue) Len() int { return 1 }
 
 // Iter returns an iterator pointing to the first element of the array.
-func (a ArrayValue) Iter() ArrayIter {
-	return &arrayValueIter{
-		v:  reflect.Value(a),
-		ok: true,
-	}
-}
+func (a ArrayValue) Iter() ArrayIter { return &arrayValueIter{v: reflect.Value(a), ok: true} }
 
 // NewArrayValue returns an ArrayValue that wraps v.
 func NewArrayValue(v interface{}) ArrayValue {
@@ -105,6 +103,36 @@ type arrayValueIter struct {
 func (it *arrayValueIter) Next() (v interface{}, ok bool) {
 	if ok, it.ok = it.ok, false; ok {
 		v = it.v.Interface()
+	}
+	return
+}
+
+// ArrayStream is an adapter for a StreamDecoder that implements the Array
+// interface.
+//
+// The array has a single iterator and its length is the initial number of
+// values that can be read from the stream.
+type ArrayStream struct {
+	d StreamDecoder
+	n int
+}
+
+// Len returns the number of elements in the array.
+func (a ArrayStream) Len() int { return a.n }
+
+// Iter returns an iterator pointing to the first element of the array.
+func (a ArrayStream) Iter() ArrayIter { return arrayStreamIter{a.d} }
+
+// NewArrayStream returns an ArrayStream that adapts the StreamDecoder d.
+func NewArrayStream(d StreamDecoder) ArrayStream { return ArrayStream{d, d.Len()} }
+
+type arrayStreamIter struct{ StreamDecoder }
+
+func (it arrayStreamIter) Next() (v interface{}, ok bool) {
+	if err := it.Decode(&v); err == nil {
+		ok = true
+	} else if err != io.EOF {
+		panic(err)
 	}
 	return
 }
