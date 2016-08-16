@@ -71,10 +71,27 @@ type StreamDecoder interface {
 	// Depending on the actual format that the stream is decoding this value
 	// may or may not be accurate, some formats may also return a negative
 	// value to indicate that the number of elements is unknown.
+	//
+	// Note: the value returned by this method will not be meaningful until the
+	// first value was decoded from the stream.
 	Len() int
 
 	// Error returns the last error encountered by the decoder.
 	Error() error
+
+	// Enoder returns a stream encoder that can be used to re-encode the values
+	// read from the decoder.
+	//
+	// This is useful because the stream decoder abstracts the underlying types
+	// of the data it reads, the application cannot tell whether it's reading
+	// from a sequence or a single value.
+	// If it needs to re-encode the values with the same type that they had
+	// before decoding the application needs to use an encoder returned by this
+	// method.
+	//
+	// Note: the encoder returned by this method will be nil until the first
+	// value was decoded from the stream.
+	Encoder(EncoderConfig) StreamEncoder
 }
 
 // NewDecoder returns a new decoder configured with config.
@@ -421,9 +438,10 @@ func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t 
 type streamDecoder struct {
 	decoder
 	reader *Reader
-	array  ArrayParser
+	parser ArrayParser
 	err    error
 	count  int
+	array  bool
 }
 
 func (d *streamDecoder) Decode(v interface{}) (err error) {
@@ -437,19 +455,20 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 
 	defer func() { err = d.convertPanicToError(recover()) }()
 
-	if d.array == nil {
+	if d.parser == nil {
 		from, _ := d.parse(d.reader, v)
 		switch x := from.(type) {
 		case ArrayParser:
-			d.array = x
+			d.parser = x
+			d.array = true
 		default:
-			d.array = ArrayParserLen(1, ArrayParserFunc(func(r *Reader, hint interface{}) (interface{}, bool) {
+			d.parser = ArrayParserLen(1, ArrayParserFunc(func(r *Reader, hint interface{}) (interface{}, bool) {
 				return x, true
 			}))
 		}
 	}
 
-	if x, ok := d.array.Parse(d.reader, v); !ok {
+	if x, ok := d.parser.Parse(d.reader, v); !ok {
 		panic(io.EOF)
 	} else {
 		d.decodeValue(d.reader, x, reflect.ValueOf(v).Elem())
@@ -460,10 +479,10 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 }
 
 func (d *streamDecoder) Len() int {
-	if d.array == nil {
+	if d.parser == nil {
 		return -1
 	}
-	n := d.array.Len()
+	n := d.parser.Len()
 	if n >= 0 {
 		n -= d.count
 	}
@@ -472,6 +491,25 @@ func (d *streamDecoder) Len() int {
 
 func (d *streamDecoder) Error() error {
 	return d.err
+}
+
+func (d *streamDecoder) Encoder(config EncoderConfig) StreamEncoder {
+	if d.parser == nil {
+		return nil
+	}
+
+	if d.array {
+		return NewStreamEncoder(config)
+	}
+
+	config = setEncoderConfigDefault(config)
+	return &nonstreamEncoder{
+		encoder: encoder{
+			w: config.Output,
+			e: config.Emitter,
+			t: config.Tag,
+		},
+	}
 }
 
 func (d *streamDecoder) convertPanicToError(v interface{}) (err error) {

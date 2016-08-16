@@ -443,7 +443,6 @@ func (e *streamEncoder) check() {
 	if e.err != nil {
 		panic(e.err)
 	}
-
 	if e.closed {
 		panic(ErrClosed)
 	}
@@ -467,6 +466,69 @@ func (e *streamEncoder) close() {
 }
 
 func (e *streamEncoder) convertPanicToError(v interface{}) (err error) {
+	if err = convertPanicToError(v); err != nil {
+		e.err = err
+	}
+	return
+}
+
+type nonstreamEncoder struct {
+	encoder
+	writer *Writer
+	err    error
+	opened bool
+	closed bool
+}
+
+func (e *nonstreamEncoder) Open(n int) (err error) {
+	defer func() { err = e.convertPanicToError(recover()) }()
+	e.check()
+	e.open()
+	return
+}
+
+func (e *nonstreamEncoder) Close() (err error) {
+	defer func() { err = e.convertPanicToError(recover()) }()
+	e.check()
+	e.open()
+	e.close()
+	return
+}
+
+func (e *nonstreamEncoder) Encode(v interface{}) (err error) {
+	defer func() { err = e.convertPanicToError(recover()) }()
+	e.check()
+	e.open()
+	e.encode(e.writer, v)
+	e.close()
+	return
+}
+
+func (e *nonstreamEncoder) check() {
+	if e.err != nil {
+		panic(e.err)
+	}
+	if e.closed {
+		panic(ErrClosed)
+	}
+}
+
+func (e *nonstreamEncoder) open() {
+	if !e.opened {
+		e.opened = true
+		e.writer = NewWriter(e.w)
+		e.encodeBegin(e.writer)
+	}
+}
+
+func (e *nonstreamEncoder) close() {
+	if !e.closed {
+		e.closed = true
+		e.encodeEnd(e.writer)
+	}
+}
+
+func (e *nonstreamEncoder) convertPanicToError(v interface{}) (err error) {
 	if err = convertPanicToError(v); err != nil {
 		e.err = err
 	}
