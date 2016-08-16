@@ -11,9 +11,11 @@ import (
 // Emitter implements a RESP emitter that satisfies the objconv.Emitter
 // interface.
 type Emitter struct {
-	// EmitBulkOnly controls whether the emitter is allowed to emit simple
-	// strings or should only emit bulk strings.
+	// EmitBulkStringsOnly forces the emitter to only output bulk strings.
 	EmitBulkStringsOnly bool
+
+	// buffer
+	b [64]byte
 }
 
 func (f *Emitter) EmitBegin(w *objconv.Writer) {}
@@ -41,10 +43,13 @@ func (f *Emitter) EmitInt16(w *objconv.Writer, v int16) { f.EmitInt64(w, int64(v
 func (f *Emitter) EmitInt32(w *objconv.Writer, v int32) { f.EmitInt64(w, int64(v)) }
 
 func (f *Emitter) EmitInt64(w *objconv.Writer, v int64) {
-	var a [64]byte
-	w.WriteByte(':')
-	w.Write(strconv.AppendInt(a[:0], v, 10))
-	f.crlf(w)
+	if b := strconv.AppendInt(f.b[:0], v, 10); f.EmitBulkStringsOnly {
+		f.emitBulkString(w, string(b))
+	} else {
+		w.WriteByte(':')
+		w.Write(strconv.AppendInt(f.b[:0], v, 10))
+		f.crlf(w)
+	}
 }
 
 func (f *Emitter) EmitUint(w *objconv.Writer, v uint) { f.EmitUint64(w, uint64(v)) }
@@ -56,35 +61,35 @@ func (f *Emitter) EmitUint16(w *objconv.Writer, v uint16) { f.EmitUint64(w, uint
 func (f *Emitter) EmitUint32(w *objconv.Writer, v uint32) { f.EmitUint64(w, uint64(v)) }
 
 func (f *Emitter) EmitUint64(w *objconv.Writer, v uint64) {
-	var a [64]byte
-	w.WriteByte(':')
-	w.Write(strconv.AppendUint(a[:0], v, 10))
-	f.crlf(w)
+	if b := strconv.AppendUint(f.b[:0], v, 10); f.EmitBulkStringsOnly {
+		f.emitBulkString(w, string(b))
+	} else {
+		w.WriteByte(':')
+		w.Write(b)
+		f.crlf(w)
+	}
 }
 
 func (f *Emitter) EmitUintptr(w *objconv.Writer, v uintptr) { f.EmitUint64(w, uint64(v)) }
 
-func (f *Emitter) EmitFloat32(w *objconv.Writer, v float32) { f.formatFloat(w, float64(v), 32) }
+func (f *Emitter) EmitFloat32(w *objconv.Writer, v float32) { f.emitFloat(w, float64(v), 32) }
 
-func (f *Emitter) EmitFloat64(w *objconv.Writer, v float64) { f.formatFloat(w, v, 64) }
+func (f *Emitter) EmitFloat64(w *objconv.Writer, v float64) { f.emitFloat(w, v, 64) }
 
-func (f *Emitter) formatFloat(w *objconv.Writer, v float64, p int) {
-	var a [64]byte
-	w.WriteByte('+')
-	w.Write(strconv.AppendFloat(a[:0], v, 'g', -1, p))
-	f.crlf(w)
+func (f *Emitter) emitFloat(w *objconv.Writer, v float64, p int) {
+	f.EmitString(w, string(strconv.AppendFloat(f.b[:0], v, 'g', -1, p)))
 }
 
 func (f *Emitter) EmitString(w *objconv.Writer, v string) {
 	if f.EmitBulkStringsOnly || len(v) > 100 || strings.IndexByte(v, '\r') >= 0 || strings.IndexByte(v, '\n') >= 0 {
-		f.formatBulkString(w, v)
+		f.emitBulkString(w, v)
 	} else {
-		f.formatSimpleString(w, v)
+		f.emitSimpleString(w, v)
 	}
 }
 
 func (f *Emitter) EmitBytes(w *objconv.Writer, v []byte) {
-	f.formatBulkLength(w, len(v))
+	f.emitBulkLength(w, len(v))
 	w.Write(v)
 	f.crlf(w)
 }
@@ -98,15 +103,18 @@ func (f *Emitter) EmitDuration(w *objconv.Writer, v time.Duration) {
 }
 
 func (f *Emitter) EmitError(w *objconv.Writer, v error) {
-	w.WriteByte('-')
-	w.WriteString(v.Error())
-	f.crlf(w)
+	if s := v.Error(); f.EmitBulkStringsOnly {
+		f.emitBulkString(w, s)
+	} else {
+		w.WriteByte('-')
+		w.WriteString(s)
+		f.crlf(w)
+	}
 }
 
 func (f *Emitter) EmitArrayBegin(w *objconv.Writer, n int) {
-	var a [64]byte
 	w.WriteByte('*')
-	w.Write(strconv.AppendInt(a[:0], int64(n), 10))
+	w.Write(strconv.AppendInt(f.b[:0], int64(n), 10))
 	f.crlf(w)
 }
 
@@ -122,20 +130,20 @@ func (f *Emitter) EmitMapValue(w *objconv.Writer) {}
 
 func (f *Emitter) EmitMapNext(w *objconv.Writer) {}
 
-func (f *Emitter) formatBulkLength(w *objconv.Writer, n int) {
+func (f *Emitter) emitBulkLength(w *objconv.Writer, n int) {
 	var a [64]byte
 	w.WriteByte('$')
 	w.Write(strconv.AppendInt(a[:0], int64(n), 10))
 	f.crlf(w)
 }
 
-func (f *Emitter) formatBulkString(w *objconv.Writer, v string) {
-	f.formatBulkLength(w, len(v))
+func (f *Emitter) emitBulkString(w *objconv.Writer, v string) {
+	f.emitBulkLength(w, len(v))
 	w.WriteString(v)
 	f.crlf(w)
 }
 
-func (f *Emitter) formatSimpleString(w *objconv.Writer, v string) {
+func (f *Emitter) emitSimpleString(w *objconv.Writer, v string) {
 	w.WriteByte('+')
 	w.WriteString(v)
 	f.crlf(w)
