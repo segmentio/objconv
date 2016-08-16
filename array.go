@@ -50,6 +50,15 @@ func (a ArraySlice) Iter() ArrayIter {
 	}
 }
 
+// NewArraySlice returns an ArraySlice that wraps v, assuming v is a slice or an
+// array.
+func NewArraySlice(v interface{}) ArraySlice {
+	if a, ok := v.(ArraySlice); ok {
+		return a
+	}
+	return ArraySlice(reflect.ValueOf(v))
+}
+
 type arraySliceIter struct {
 	v reflect.Value
 	n int
@@ -78,6 +87,14 @@ func (a ArrayValue) Iter() ArrayIter {
 		v:  reflect.Value(a),
 		ok: true,
 	}
+}
+
+// NewArrayValue returns an ArrayValue that wraps v.
+func NewArrayValue(v interface{}) ArrayValue {
+	if a, ok := v.(ArrayValue); ok {
+		return a
+	}
+	return ArrayValue(reflect.ValueOf(v))
 }
 
 type arrayValueIter struct {
@@ -122,19 +139,36 @@ func NewArray(v interface{}) Array {
 	}
 }
 
-// NewArraySlice returns an ArraySlice that wraps v, assuming v is a slice or an
-// array.
-func NewArraySlice(v interface{}) ArraySlice {
-	if a, ok := v.(ArraySlice); ok {
-		return a
+// MultiArray combines multiple arrays into one.
+func MultiArray(a ...Array) Array { return multiArray(a) }
+
+type multiArray []Array
+
+func (m multiArray) Len() (n int) {
+	for _, a := range m {
+		n += a.Len()
 	}
-	return ArraySlice(reflect.ValueOf(v))
+	return
 }
 
-// NewArrayValue returns an ArrayValue that wraps v.
-func NewArrayValue(v interface{}) ArrayValue {
-	if a, ok := v.(ArrayValue); ok {
-		return a
+func (m multiArray) Iter() ArrayIter {
+	it := make([]ArrayIter, len(m))
+	for i, a := range m {
+		it[i] = a.Iter()
 	}
-	return ArrayValue(reflect.ValueOf(v))
+	return &multiArrayIter{it}
+}
+
+type multiArrayIter struct {
+	it []ArrayIter
+}
+
+func (m *multiArrayIter) Next() (v interface{}, ok bool) {
+	for len(m.it) != 0 {
+		if v, ok = m.it[0].Next(); ok {
+			break
+		}
+		m.it = m.it[1:]
+	}
+	return
 }
