@@ -8,6 +8,8 @@ import (
 	"github.com/segmentio/objconv"
 )
 
+// Emitter implements a RESP emitter that satisfies the objconv.Emitter
+// interface.
 type Emitter struct{}
 
 func (f *Emitter) EmitBegin(w *objconv.Writer) {}

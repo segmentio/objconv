@@ -10,8 +10,10 @@ import (
 	"github.com/segmentio/objconv"
 )
 
+// Parser implements a RESP parser that satisfies the objconv.Parser interface.
 type Parser struct{}
 
+// Parse returns the next value read from r.
 func (p *Parser) Parse(r *objconv.Reader, hint interface{}) interface{} {
 	switch b, _ := r.ReadByte(); b {
 	case ':':

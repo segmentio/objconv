@@ -70,7 +70,7 @@ type StreamDecoder interface {
 	//
 	// Depending on the actual format that the stream is decoding this value
 	// may or may not be accurate, some formats may also return a negative
-	// value to indicate that the number of elements is unkonwn.
+	// value to indicate that the number of elements is unknown.
 	Len() int
 
 	// Error returns the last error encountered by the decoder.

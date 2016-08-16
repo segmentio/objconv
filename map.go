@@ -28,7 +28,7 @@ type MapItem struct {
 
 // MapFunc is a type alias for a function that implements the Map interface.
 //
-// The Map has an unkonwn length and only one iterator which produces values
+// The Map has an unknown length and only one iterator which produces values
 // returned by successive calls to the function.
 type MapFunc func() (MapItem, bool)
 

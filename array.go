@@ -21,7 +21,7 @@ type ArrayIter interface {
 
 // ArrayFunc is a type alias for a function that implements the Array interface.
 //
-// The Array has an unkonwn length and only one iterator which produces values
+// The Array has an unknown length and only one iterator which produces values
 // returned by successive calls to the function.
 type ArrayFunc func() (interface{}, bool)
 
