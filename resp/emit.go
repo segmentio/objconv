@@ -10,7 +10,11 @@ import (
 
 // Emitter implements a RESP emitter that satisfies the objconv.Emitter
 // interface.
-type Emitter struct{}
+type Emitter struct {
+	// EmitBulkOnly controls whether the emitter is allowed to emit simple
+	// strings or should only emit bulk strings.
+	EmitBulkStringsOnly bool
+}
 
 func (f *Emitter) EmitBegin(w *objconv.Writer) {}
 
@@ -72,7 +76,7 @@ func (f *Emitter) formatFloat(w *objconv.Writer, v float64, p int) {
 }
 
 func (f *Emitter) EmitString(w *objconv.Writer, v string) {
-	if len(v) > 100 || strings.IndexByte(v, '\r') >= 0 || strings.IndexByte(v, '\n') >= 0 {
+	if f.EmitBulkStringsOnly || len(v) > 100 || strings.IndexByte(v, '\r') >= 0 || strings.IndexByte(v, '\n') >= 0 {
 		f.formatBulkString(w, v)
 	} else {
 		f.formatSimpleString(w, v)
