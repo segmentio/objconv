@@ -372,7 +372,12 @@ func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) {
 		t = reflect.TypeOf(([]interface{})(nil))
 	}
 
-	s := reflect.MakeSlice(t, 0, v.Len())
+	n := v.Len()
+	if n <= 0 {
+		n = 20
+	}
+
+	s := reflect.MakeSlice(t, 0, n)
 	z := reflect.Zero(t.Elem())
 	h := z.Interface()
 
