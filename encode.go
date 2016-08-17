@@ -450,6 +450,7 @@ func (e *streamEncoder) check() {
 
 func (e *streamEncoder) open(n int) {
 	if !e.opened {
+		e.len = n
 		e.opened = true
 		e.writer = NewWriter(e.w)
 		e.encodeBegin(e.writer)

@@ -71,9 +71,6 @@ type StreamDecoder interface {
 	// Depending on the actual format that the stream is decoding this value
 	// may or may not be accurate, some formats may also return a negative
 	// value to indicate that the number of elements is unknown.
-	//
-	// Note: the value returned by this method will not be meaningful until the
-	// first value was decoded from the stream.
 	Len() int
 
 	// Error returns the last error encountered by the decoder.
@@ -454,21 +451,18 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 		return
 	}
 
-	if d.reader == nil {
-		d.reader = NewReader(d.r)
-	}
-
 	defer func() { err = d.convertPanicToError(recover()) }()
 
 	if d.parser == nil {
+		d.reader = NewReader(d.r)
 		from, _ := d.parse(d.reader, v)
-		switch x := from.(type) {
+		switch a := from.(type) {
 		case ArrayParser:
-			d.parser = x
+			d.parser = a
 			d.array = true
 		default:
 			d.parser = ArrayParserLen(1, ArrayParserFunc(func(r *Reader, hint interface{}) (interface{}, bool) {
-				return x, true
+				return a, true
 			}))
 		}
 	}
@@ -483,15 +477,42 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 	return
 }
 
-func (d *streamDecoder) Len() int {
+func (d *streamDecoder) Len() (n int) {
+	defer func() { d.convertPanicToError(recover()) }()
+	n = -1
+
 	if d.parser == nil {
-		return -1
+		// The length was requested but we have no idea what value the program
+		// will try to decode from the stream so calling d.parse will likely
+		// produce a value of an mismatching type.
+		// We need to be able to roll back to the stream after reading what the
+		// length was.
+		// To achieve this behavior in a seamless way we use an intermediary
+		// buffer that records everything the parser consumes, then rebuild the
+		// base reader to include the recorded bytes.
+		// This is kind of tricky but it works like a charm!
+		var z interface{}
+
+		b := &bytes.Buffer{}
+		r := io.TeeReader(d.r, b)
+
+		v, _ := d.parse(NewReader(r), &z)
+		switch a := v.(type) {
+		case ArrayParser:
+			n = a.Len()
+		default:
+			n = 1
+		}
+
+		d.r = io.MultiReader(b, d.r)
+		return
 	}
-	n := d.parser.Len()
-	if n > 0 {
+
+	if n = d.parser.Len(); n > 0 {
 		n -= d.count
 	}
-	return n
+
+	return
 }
 
 func (d *streamDecoder) Error() error {
