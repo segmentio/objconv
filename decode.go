@@ -373,7 +373,7 @@ func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) {
 	}
 
 	n := v.Len()
-	if n <= 0 {
+	if n < 0 {
 		n = 20
 	}
 
@@ -488,7 +488,7 @@ func (d *streamDecoder) Len() int {
 		return -1
 	}
 	n := d.parser.Len()
-	if n >= 0 {
+	if n > 0 {
 		n -= d.count
 	}
 	return n
