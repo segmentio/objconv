@@ -444,7 +444,7 @@ func (e *streamEncoder) check() {
 		panic(e.err)
 	}
 	if e.closed {
-		panic(ErrClosed)
+		panic(io.ErrClosedPipe)
 	}
 }
 
@@ -510,7 +510,7 @@ func (e *nonstreamEncoder) check() {
 		panic(e.err)
 	}
 	if e.closed {
-		panic(ErrClosed)
+		panic(io.ErrClosedPipe)
 	}
 }
 

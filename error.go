@@ -1,19 +1,8 @@
 package objconv
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
-)
-
-var (
-	// ErrClosed is an error returned by a stream encoder when it is used after
-	// being closed.
-	ErrClosed = errors.New("objconv: stream encoder alread closed")
-
-	// ErrUnexpectedEOF is an error returned by decoders when they encounter an
-	// EOF while decoding from the input stream.
-	ErrUnexpectedEOF = errors.New("objconv: unexpected EOF")
 )
 
 // OutOfBoundsError is returned when decoding numeric values that do not fit

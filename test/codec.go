@@ -229,8 +229,8 @@ func StreamCodec(t *testing.T, e objconv.Emitter, p objconv.Parser) {
 			t.Error("closing encoder:", err)
 		}
 
-		if err := enc.Close(); err != objconv.ErrClosed {
-			t.Error("closed encoder did not returned ErrClosed when closed again")
+		if err := enc.Close(); err != io.ErrClosedPipe {
+			t.Error("closed encoder did not returned io.ErrClosedPipe when closed again")
 		}
 	}()
 

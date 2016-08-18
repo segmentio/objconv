@@ -48,7 +48,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 		r.n += n
 	} else if err != nil {
 		if err == io.EOF && r.n != 0 {
-			err = ErrUnexpectedEOF
+			err = io.ErrUnexpectedEOF
 		}
 		panic(err)
 	}
