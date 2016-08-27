@@ -32,10 +32,50 @@ func BenchmarkEncodeFloatZero(b *testing.B)  { test.BenchmarkEncodeFloatZero(b, 
 func BenchmarkEncodeFloatShort(b *testing.B) { test.BenchmarkEncodeFloatShort(b, benchmarkEncoder) }
 func BenchmarkEncodeFloatLong(b *testing.B)  { test.BenchmarkEncodeFloatLong(b, benchmarkEncoder) }
 
-func BenchmarkEncodeStringZero(b *testing.B)  { test.BenchmarkEncodeStringZero(b, benchmarkEncoder) }
+func BenchmarkEncodeStringEmpty(b *testing.B) { test.BenchmarkEncodeStringEmpty(b, benchmarkEncoder) }
 func BenchmarkEncodeStringShort(b *testing.B) { test.BenchmarkEncodeStringShort(b, benchmarkEncoder) }
 func BenchmarkEncodeStringLong(b *testing.B)  { test.BenchmarkEncodeStringLong(b, benchmarkEncoder) }
 
-func BenchmarkEncodeBytesZero(b *testing.B)  { test.BenchmarkEncodeBytesZero(b, benchmarkEncoder) }
+func BenchmarkEncodeBytesEmpty(b *testing.B) { test.BenchmarkEncodeBytesEmpty(b, benchmarkEncoder) }
 func BenchmarkEncodeBytesShort(b *testing.B) { test.BenchmarkEncodeBytesShort(b, benchmarkEncoder) }
 func BenchmarkEncodeBytesLong(b *testing.B)  { test.BenchmarkEncodeBytesLong(b, benchmarkEncoder) }
+
+func BenchmarkEncodeSliceInterfaceEmpty(b *testing.B) {
+	test.BenchmarkEncodeSliceInterfaceEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceInterfaceShort(b *testing.B) {
+	test.BenchmarkEncodeSliceInterfaceShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceInterfaceLong(b *testing.B) {
+	test.BenchmarkEncodeSliceInterfaceLong(b, benchmarkEncoder)
+}
+
+func BenchmarkEncodeSliceStringEmpty(b *testing.B) {
+	test.BenchmarkEncodeSliceStringEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceStringShort(b *testing.B) {
+	test.BenchmarkEncodeSliceStringShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceStringLong(b *testing.B) {
+	test.BenchmarkEncodeSliceStringLong(b, benchmarkEncoder)
+}
+
+func BenchmarkEncodeSliceBytesEmpty(b *testing.B) {
+	test.BenchmarkEncodeSliceBytesEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceBytesShort(b *testing.B) {
+	test.BenchmarkEncodeSliceBytesShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceBytesLong(b *testing.B) {
+	test.BenchmarkEncodeSliceBytesLong(b, benchmarkEncoder)
+}
+
+func BenchmarkEncodeSliceStructEmpty(b *testing.B) {
+	test.BenchmarkEncodeSliceStructEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceStructShort(b *testing.B) {
+	test.BenchmarkEncodeSliceStructShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeSliceStructLong(b *testing.B) {
+	test.BenchmarkEncodeSliceStructLong(b, benchmarkEncoder)
+}

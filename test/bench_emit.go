@@ -55,7 +55,7 @@ func BenchmarkEncodeFloatLong(b *testing.B, e objconv.Encoder) {
 	BenchmarkEncode(b, e, float64(math.MaxFloat64))
 }
 
-func BenchmarkEncodeStringZero(b *testing.B, e objconv.Encoder) {
+func BenchmarkEncodeStringEmpty(b *testing.B, e objconv.Encoder) {
 	BenchmarkEncode(b, e, "")
 }
 
@@ -67,16 +67,64 @@ func BenchmarkEncodeStringLong(b *testing.B, e objconv.Encoder) {
 	BenchmarkEncode(b, e, longString)
 }
 
-func BenchmarkEncodeBytesZero(b *testing.B, e objconv.Encoder) {
-	BenchmarkEncode(b, e, zeroBytes)
+func BenchmarkEncodeBytesEmpty(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, bytesEmpty)
 }
 
 func BenchmarkEncodeBytesShort(b *testing.B, e objconv.Encoder) {
-	BenchmarkEncode(b, e, shortBytes)
+	BenchmarkEncode(b, e, bytesShort)
 }
 
 func BenchmarkEncodeBytesLong(b *testing.B, e objconv.Encoder) {
-	BenchmarkEncode(b, e, longBytes)
+	BenchmarkEncode(b, e, bytesLong)
+}
+
+func BenchmarkEncodeSliceInterfaceEmpty(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceInterfaceEmpty)
+}
+
+func BenchmarkEncodeSliceInterfaceShort(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceInterfaceShort)
+}
+
+func BenchmarkEncodeSliceInterfaceLong(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceInterfaceLong)
+}
+
+func BenchmarkEncodeSliceStringEmpty(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceStringEmpty)
+}
+
+func BenchmarkEncodeSliceStringShort(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceStringShort)
+}
+
+func BenchmarkEncodeSliceStringLong(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceStringLong)
+}
+
+func BenchmarkEncodeSliceBytesEmpty(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceBytesEmpty)
+}
+
+func BenchmarkEncodeSliceBytesShort(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceBytesShort)
+}
+
+func BenchmarkEncodeSliceBytesLong(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceBytesLong)
+}
+
+func BenchmarkEncodeSliceStructEmpty(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceStructEmpty)
+}
+
+func BenchmarkEncodeSliceStructShort(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceStructShort)
+}
+
+func BenchmarkEncodeSliceStructLong(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, sliceStructLong)
 }
 
 func BenchmarkEncode(b *testing.B, e objconv.Encoder, v interface{}) {
@@ -88,7 +136,67 @@ func BenchmarkEncode(b *testing.B, e objconv.Encoder, v interface{}) {
 const longString = `Package json implements encoding and decoding of JSON objects as defined in RFC 4627. The mapping between JSON objects and Go values is described in the documentation for the Marshal and Unmarshal functions.`
 
 var (
-	zeroBytes  = []byte{}
-	shortBytes = []byte("Hello World!")
-	longBytes  = []byte(`Package json implements encoding and decoding of JSON objects as defined in RFC 4627. The mapping between JSON objects and Go values is described in the documentation for the Marshal and Unmarshal functions.`)
+	bytesEmpty = []byte{}
+	bytesShort = []byte("Hello World!")
+	bytesLong  = []byte(`Package json implements encoding and decoding of JSON objects as defined in RFC 4627. The mapping between JSON objects and Go values is described in the documentation for the Marshal and Unmarshal functions.`)
+
+	sliceInterfaceEmpty = []interface{}{}
+	sliceInterfaceShort = []interface{}{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil} // 10 items
+	sliceInterfaceLong  = []interface{}{
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	} // 100 items
+
+	sliceStringEmpty = []string{}
+	sliceStringShort = []string{"", "", "", "", "", "", "", "", "", ""} // 10 items
+	sliceStringLong  = []string{
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+	} // 100 items
+
+	sliceBytesEmpty = [][]byte{}
+	sliceBytesShort = [][]byte{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil} // 10 items
+	sliceBytesLong  = [][]byte{
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	} // 100 items
+
+	sliceStructEmpty = []struct{}{}
+	sliceStructShort = []struct{}{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}} // 10 items
+	sliceStructLong  = []struct{}{
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+	} // 100 items
 )

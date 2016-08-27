@@ -208,6 +208,15 @@ func (e *encoder) encode(w *Writer, v interface{}) {
 	case time.Duration:
 		e.encodeDuration(w, x)
 
+	case []interface{}:
+		e.encodeSliceInterface(w, x)
+
+	case []string:
+		e.encodeSliceString(w, x)
+
+	case [][]byte:
+		e.encodeSliceBytes(w, x)
+
 	case Array:
 		e.encodeArray(w, x)
 
@@ -346,6 +355,45 @@ func (e *encoder) encodeTime(w *Writer, v time.Time) { e.e.EmitTime(w, v) }
 func (e *encoder) encodeDuration(w *Writer, v time.Duration) { e.e.EmitDuration(w, v) }
 
 func (e *encoder) encodeError(w *Writer, v error) { e.e.EmitError(w, v) }
+
+func (e *encoder) encodeSliceInterface(w *Writer, v []interface{}) {
+	n := len(v)
+	e.encodeArrayBegin(w, n)
+	if n != 0 {
+		e.encode(w, v[0])
+		for i := 1; i != n; i++ {
+			e.encodeArrayNext(w)
+			e.encode(w, v[i])
+		}
+	}
+	e.encodeArrayEnd(w)
+}
+
+func (e *encoder) encodeSliceString(w *Writer, v []string) {
+	n := len(v)
+	e.encodeArrayBegin(w, n)
+	if n != 0 {
+		e.encode(w, v[0])
+		for i := 1; i != n; i++ {
+			e.encodeArrayNext(w)
+			e.encodeString(w, v[i])
+		}
+	}
+	e.encodeArrayEnd(w)
+}
+
+func (e *encoder) encodeSliceBytes(w *Writer, v [][]byte) {
+	n := len(v)
+	e.encodeArrayBegin(w, n)
+	if n != 0 {
+		e.encode(w, v[0])
+		for i := 1; i != n; i++ {
+			e.encodeArrayNext(w)
+			e.encodeBytes(w, v[i])
+		}
+	}
+	e.encodeArrayEnd(w)
+}
 
 func (e *encoder) encodeArray(w *Writer, v Array) {
 	e.encodeArrayBegin(w, v.Len())
