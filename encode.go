@@ -288,11 +288,11 @@ func (e *encoder) encodeValue(w *Writer, v reflect.Value) {
 		if t.Elem().Kind() == reflect.Uint8 {
 			e.encodeBytes(w, v.Bytes())
 		} else {
-			e.encodeArray(w, ArraySlice(v))
+			e.encodeSliceValue(w, v)
 		}
 
 	case reflect.Array:
-		e.encodeArray(w, ArraySlice(v))
+		e.encodeSliceValue(w, v)
 
 	case reflect.Map:
 		e.encodeMap(w, MapMap(v))
@@ -395,10 +395,22 @@ func (e *encoder) encodeSliceBytes(w *Writer, v [][]byte) {
 	e.encodeArrayEnd(w)
 }
 
+func (e *encoder) encodeSliceValue(w *Writer, v reflect.Value) {
+	n := v.Len()
+	e.encodeArrayBegin(w, n)
+	if n != 0 {
+		e.encode(w, v.Index(0))
+		for i := 1; i != n; i++ {
+			e.encodeArrayNext(w)
+			e.encodeValue(w, v.Index(i))
+		}
+	}
+	e.encodeArrayEnd(w)
+}
+
 func (e *encoder) encodeArray(w *Writer, v Array) {
 	e.encodeArrayBegin(w, v.Len())
 	it := v.Iter()
-
 	for i := 0; true; i++ {
 		if v, ok := it.Next(); !ok {
 			break
@@ -409,7 +421,6 @@ func (e *encoder) encodeArray(w *Writer, v Array) {
 			e.encode(w, v)
 		}
 	}
-
 	e.encodeArrayEnd(w)
 }
 
