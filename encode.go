@@ -95,9 +95,9 @@ type StreamEncoder interface {
 func NewEncoder(config EncoderConfig) Encoder {
 	config = setEncoderConfigDefault(config)
 	return &encoder{
-		w: Writer{W: config.Output},
 		e: config.Emitter,
 		t: config.Tag,
+		w: Writer{W: config.Output},
 	}
 }
 
@@ -106,9 +106,9 @@ func NewStreamEncoder(config EncoderConfig) StreamEncoder {
 	config = setEncoderConfigDefault(config)
 	return &streamEncoder{
 		encoder: encoder{
-			w: Writer{W: config.Output},
 			e: config.Emitter,
 			t: config.Tag,
+			w: Writer{W: config.Output},
 		},
 	}
 }
@@ -130,9 +130,9 @@ func setEncoderConfigDefault(config EncoderConfig) EncoderConfig {
 }
 
 type encoder struct {
-	w Writer
 	e Emitter
 	t string
+	w Writer
 }
 
 func (e *encoder) Encode(v interface{}) (err error) {

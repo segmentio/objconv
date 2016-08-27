@@ -120,8 +120,8 @@ func (r *Reader) ReadFull(b []byte) {
 // It's not safe to use the writer concurrently from multiple goroutines.
 type Writer struct {
 	W io.Writer
-	c [utf8.UTFMax]byte // byte and rune buffer
-	b []byte            // string buffer for WriteString
+	b []byte   // WriteString buffer
+	c [64]byte // WriteByte, WriteRune buffer, also used for short strings
 }
 
 // NewWriter returns a Writer that reads from r.
@@ -183,11 +183,20 @@ func (w *Writer) WriteString(s string) (n int, err error) {
 		}
 
 	default:
-		if w.b == nil {
-			w.b = make([]byte, 0, 512)
+		var b []byte
+
+		if n = len(s); n < len(w.c) {
+			b = w.c[:n]
+			copy(b, s)
+		} else {
+			if w.b == nil {
+				w.b = make([]byte, 0, 512)
+			}
+			w.b = append(w.b[:0], s...)
+			b = w.b
 		}
-		w.b = append(w.b, s...)
-		n, err = w.Write(w.b)
+
+		n, err = w.Write(b)
 	}
 
 	return
@@ -197,6 +206,23 @@ type counter struct{ n int }
 
 func (c *counter) Write(b []byte) (n int, err error) {
 	n = len(b)
+	c.n += n
+	return
+}
+
+func (c *counter) WriteByte(b byte) (err error) {
+	c.n++
+	return
+}
+
+func (c *counter) WriteRune(r rune) (n int, err error) {
+	n = utf8.RuneLen(r)
+	c.n += n
+	return
+}
+
+func (c *counter) WriteString(s string) (n int, err error) {
+	n = len(s)
 	c.n += n
 	return
 }
