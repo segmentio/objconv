@@ -6,13 +6,15 @@ import (
 	"testing"
 )
 
-func TestWriter(t *testing.T) {
+func TestWriteString(t *testing.T) {
+	const longString = `Package json implements encoding and decoding of JSON objects as defined in RFC 4627. The mapping between JSON objects and Go values is described in the documentation for the Marshal and Unmarshal functions.`
+
 	b := &bytes.Buffer{}
 	w := Writer{W: b}
 
-	n, e := w.WriteString("Hello World!")
+	n, e := w.WriteString(longString)
 
-	if n != 12 {
+	if n != len(longString) {
 		t.Errorf("invalid number of bytes written: %d", n)
 	}
 
@@ -20,7 +22,7 @@ func TestWriter(t *testing.T) {
 		t.Errorf("unexpected error returned: %s", e)
 	}
 
-	if s := b.String(); s != "Hello World!" {
+	if s := b.String(); s != longString {
 		t.Errorf("invalid buffer content: %#v", s)
 	}
 }

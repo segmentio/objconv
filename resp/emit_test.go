@@ -37,8 +37,8 @@ func TestEmit(t *testing.T) {
 		{uintptr(42), ":42\r\n"},
 
 		// float
-		{float32(0.5), "+0.5\r\n"},
-		{float64(0.5), "+0.5\r\n"},
+		{float32(0.5), "$3\r\n0.5\r\n"},
+		{float64(0.5), "$3\r\n0.5\r\n"},
 
 		// string
 		{"", "+\r\n"},

@@ -14,23 +14,44 @@ type Emitter struct {
 	// EmitBulkStringsOnly forces the emitter to only output bulk strings.
 	EmitBulkStringsOnly bool
 
-	// buffer
-	b [64]byte
+	// general purpose buffer
+	b [32]byte
+
+	// bulk length buffer
+	c [32]byte
 }
+
+var (
+	nilBulk = [...]byte{'$', '-', '1', '\r', '\n'}
+
+	boolBulkTrue  = [...]byte{'$', '1', '\r', '\n', '1', '\r', '\n'}
+	boolBulkFalse = [...]byte{'$', '1', '\r', '\n', '0', '\r', '\n'}
+
+	boolIntTrue  = [...]byte{':', '1', '\r', '\n'}
+	boolIntFalse = [...]byte{':', '0', '\r', '\n'}
+
+	crlf = [...]byte{'\r', '\n'}
+)
 
 func (e *Emitter) EmitBegin(w *objconv.Writer) {}
 
 func (e *Emitter) EmitEnd(w *objconv.Writer) {}
 
-func (e *Emitter) EmitNil(w *objconv.Writer) {
-	w.WriteString("$-1\r\n")
-}
+func (e *Emitter) EmitNil(w *objconv.Writer) { w.Write(nilBulk[:]) }
 
 func (e *Emitter) EmitBool(w *objconv.Writer, v bool) {
-	if v {
-		e.EmitInt(w, 1)
+	if e.EmitBulkStringsOnly {
+		if v {
+			w.Write(boolBulkTrue[:])
+		} else {
+			w.Write(boolBulkFalse[:])
+		}
 	} else {
-		e.EmitInt(w, 0)
+		if v {
+			w.Write(boolIntTrue[:])
+		} else {
+			w.Write(boolIntFalse[:])
+		}
 	}
 }
 
@@ -47,7 +68,7 @@ func (e *Emitter) EmitInt64(w *objconv.Writer, v int64) {
 		e.emitBulkString(w, string(b))
 	} else {
 		w.WriteByte(':')
-		w.Write(strconv.AppendInt(e.b[:0], v, 10))
+		w.Write(b)
 		e.crlf(w)
 	}
 }
@@ -77,7 +98,7 @@ func (e *Emitter) EmitFloat32(w *objconv.Writer, v float32) { e.emitFloat(w, flo
 func (e *Emitter) EmitFloat64(w *objconv.Writer, v float64) { e.emitFloat(w, v, 64) }
 
 func (e *Emitter) emitFloat(w *objconv.Writer, v float64, p int) {
-	e.EmitString(w, string(strconv.AppendFloat(e.b[:0], v, 'g', -1, p)))
+	e.EmitBytes(w, strconv.AppendFloat(e.b[:0], v, 'g', -1, p))
 }
 
 func (e *Emitter) EmitString(w *objconv.Writer, v string) {
@@ -131,9 +152,8 @@ func (e *Emitter) EmitMapValue(w *objconv.Writer) {}
 func (e *Emitter) EmitMapNext(w *objconv.Writer) {}
 
 func (e *Emitter) emitBulkLength(w *objconv.Writer, n int) {
-	var a [64]byte
 	w.WriteByte('$')
-	w.Write(strconv.AppendInt(a[:0], int64(n), 10))
+	w.Write(strconv.AppendInt(e.c[:0], int64(n), 10))
 	e.crlf(w)
 }
 
@@ -149,7 +169,19 @@ func (e *Emitter) emitSimpleString(w *objconv.Writer, v string) {
 	e.crlf(w)
 }
 
-func (e *Emitter) crlf(w *objconv.Writer) { w.WriteString(string(objconv.CRLF)) }
+func (e *Emitter) emitBulkBytes(w *objconv.Writer, v []byte) {
+	e.emitBulkLength(w, len(v))
+	w.Write(v)
+	e.crlf(w)
+}
+
+func (e *Emitter) emitSimpleBytes(w *objconv.Writer, v []byte) {
+	w.WriteByte('+')
+	w.Write(v)
+	e.crlf(w)
+}
+
+func (e *Emitter) crlf(w *objconv.Writer) { w.Write(crlf[:]) }
 
 func init() {
 	f := func() objconv.Emitter { return &Emitter{} }

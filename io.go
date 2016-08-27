@@ -120,8 +120,7 @@ func (r *Reader) ReadFull(b []byte) {
 // It's not safe to use the writer concurrently from multiple goroutines.
 type Writer struct {
 	W io.Writer
-	b []byte   // WriteString buffer
-	c [64]byte // WriteByte, WriteRune buffer, also used for short strings
+	b [64]byte // buffer
 }
 
 // NewWriter returns a Writer that reads from r.
@@ -144,62 +143,43 @@ func (w *Writer) Write(b []byte) (n int, err error) {
 
 // WriteByte writes b to w, panics if there was an error.
 func (w *Writer) WriteByte(b byte) (err error) {
-	switch x := w.W.(type) {
-	case io.ByteWriter:
-		if err = x.WriteByte(b); err != nil {
-			panic(err)
-		}
-	default:
-		w.c[0] = b
-		_, err = w.Write(w.c[:1])
-	}
+	w.b[0] = b
+	w.Write(w.b[:1])
 	return
 }
 
 // WriteRune writes r to w, panics if there was an error.
 func (w *Writer) WriteRune(r rune) (n int, err error) {
-	switch x := w.W.(type) {
-	case interface {
-		WriteRune(rune) (int, error)
-	}:
-		if n, err = x.WriteRune(r); err != nil {
-			panic(err)
-		}
-	default:
-		n = utf8.EncodeRune(w.c[:], r)
-		n, err = w.Write(w.c[:n])
-	}
-	return
+	return w.Write(w.b[:utf8.EncodeRune(w.b[:], r)])
 }
 
 // WriteString writes s to w, panics if there was an error.
 func (w *Writer) WriteString(s string) (n int, err error) {
-	switch x := w.W.(type) {
-	case interface {
-		WriteString(string) (int, error)
-	}:
-		if n, err = x.WriteString(s); err != nil {
-			panic(err)
+	// Writes the string by chunks of len(w.b) at a time.
+	for len(s) != 0 {
+		n1 := len(w.b)
+		n2 := len(s)
+		n3 := n1
+		n4 := 0
+
+		if n3 > n2 {
+			n3 = n2
 		}
 
-	default:
-		var b []byte
-
-		if n = len(s); n < len(w.c) {
-			b = w.c[:n]
-			copy(b, s)
-		} else {
-			if w.b == nil {
-				w.b = make([]byte, 0, 512)
-			}
-			w.b = append(w.b[:0], s...)
-			b = w.b
-		}
-
-		n, err = w.Write(b)
+		copy(w.b[:], s[:n3])
+		n4, _ = w.Write(w.b[:n3])
+		n += n4
+		s = s[n3:]
 	}
-
 	return
+}
+
+type runeWriter interface {
+	WriteRune(rune) (int, error)
+}
+
+type stringWriter interface {
+	WriteString(string) (int, error)
 }
 
 type counter struct{ n int }
