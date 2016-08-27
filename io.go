@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 )
 
-// EOL represent end-of-line terminaators.
+// EOL represent end-of-line terminators.
 type EOL string
 
 const (
