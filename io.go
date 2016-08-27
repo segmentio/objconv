@@ -121,6 +121,7 @@ func (r *Reader) ReadFull(b []byte) {
 type Writer struct {
 	W io.Writer
 	b [64]byte // buffer
+	e error
 }
 
 // NewWriter returns a Writer that reads from r.
@@ -135,8 +136,9 @@ func NewWriter(w io.Writer) *Writer {
 
 // Write writes b to w, panics if there was an error.
 func (w *Writer) Write(b []byte) (n int, err error) {
-	if n, err = w.W.Write(b); err != nil {
-		panic(err)
+	if err = w.e; err == nil {
+		n, err = w.W.Write(b)
+		w.e = err
 	}
 	return
 }
@@ -144,7 +146,7 @@ func (w *Writer) Write(b []byte) (n int, err error) {
 // WriteByte writes b to w, panics if there was an error.
 func (w *Writer) WriteByte(b byte) (err error) {
 	w.b[0] = b
-	w.Write(w.b[:1])
+	_, err = w.Write(w.b[:1])
 	return
 }
 
@@ -167,7 +169,7 @@ func (w *Writer) WriteString(s string) (n int, err error) {
 		}
 
 		copy(w.b[:], s[:n3])
-		n4, _ = w.Write(w.b[:n3])
+		n4, err = w.Write(w.b[:n3])
 		n += n4
 		s = s[n3:]
 	}

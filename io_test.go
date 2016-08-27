@@ -27,14 +27,13 @@ func TestWriteString(t *testing.T) {
 	}
 }
 
-func TestWriterPanic(t *testing.T) {
-	defer func() {
-		if x := recover(); x != io.EOF {
-			t.Errorf("expected error to be reported in panic bu %#v was found", x)
-		}
-	}()
-	w := Writer{W: errorWriter{io.EOF}}
-	w.WriteString("Hello World!")
+func TestWriterError(t *testing.T) {
+	w := Writer{W: errorWriter{io.ErrUnexpectedEOF}}
+	_, err := w.WriteString("Hello World!")
+
+	if err != io.ErrUnexpectedEOF {
+		t.Error("bad error:", err)
+	}
 }
 
 type errorWriter struct{ error }

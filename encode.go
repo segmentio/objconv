@@ -12,11 +12,16 @@ import (
 // The format must be a string describing the content type of the data
 // (like json, resp, ...).
 func Encode(out io.Writer, format string, value interface{}) (err error) {
-	defer func() { err = convertPanicToError(recover()) }()
-	return NewEncoder(EncoderConfig{
-		Output:  out,
-		Emitter: NewEmitter(format),
-	}).Encode(value)
+	var emitter Emitter
+
+	if emitter, err = GetEmitter(format); err == nil {
+		err = NewEncoder(EncoderConfig{
+			Output:  out,
+			Emitter: emitter,
+		}).Encode(value)
+	}
+
+	return
 }
 
 // EncodeBytes returns a byte slice containing a representation of the value in
@@ -136,11 +141,10 @@ type encoder struct {
 }
 
 func (e *encoder) Encode(v interface{}) (err error) {
-	defer func() { err = convertPanicToError(recover()) }()
 	e.encodeBegin(&e.w)
 	e.encode(&e.w, v)
 	e.encodeEnd(&e.w)
-	return
+	return e.w.e
 }
 
 func (e *encoder) encode(w *Writer, v interface{}) {
@@ -405,23 +409,27 @@ type streamEncoder struct {
 }
 
 func (e *streamEncoder) Open(n int) (err error) {
-	defer func() { err = e.convertPanicToError(recover()) }()
-	e.check()
+	if err = e.check(); err != nil {
+		return
+	}
 	e.open(n)
-	return
+	return e.w.e
 }
 
 func (e *streamEncoder) Close() (err error) {
-	defer func() { err = e.convertPanicToError(recover()) }()
-	e.check()
+	if err = e.check(); err != nil {
+		return
+	}
 	e.open(-1)
 	e.close()
-	return
+	return e.w.e
 }
 
 func (e *streamEncoder) Encode(v interface{}) (err error) {
-	defer func() { err = e.convertPanicToError(recover()) }()
-	e.check()
+	if err = e.check(); err != nil {
+		return
+	}
+
 	e.open(-1)
 
 	if e.off != 0 {
@@ -434,16 +442,16 @@ func (e *streamEncoder) Encode(v interface{}) (err error) {
 		e.close()
 	}
 
-	return
+	return e.w.e
 }
 
-func (e *streamEncoder) check() {
-	if e.err != nil {
-		panic(e.err)
+func (e *streamEncoder) check() (err error) {
+	if err = e.err; err == nil {
+		if e.closed {
+			err = io.ErrClosedPipe
+		}
 	}
-	if e.closed {
-		panic(io.ErrClosedPipe)
-	}
+	return
 }
 
 func (e *streamEncoder) open(n int) {
@@ -478,36 +486,39 @@ type nonstreamEncoder struct {
 }
 
 func (e *nonstreamEncoder) Open(n int) (err error) {
-	defer func() { err = e.convertPanicToError(recover()) }()
-	e.check()
+	if err = e.check(); err != nil {
+		return
+	}
 	e.open()
-	return
+	return e.w.e
 }
 
 func (e *nonstreamEncoder) Close() (err error) {
-	defer func() { err = e.convertPanicToError(recover()) }()
-	e.check()
+	if err = e.check(); err != nil {
+		return
+	}
 	e.open()
 	e.close()
-	return
+	return e.w.e
 }
 
 func (e *nonstreamEncoder) Encode(v interface{}) (err error) {
-	defer func() { err = e.convertPanicToError(recover()) }()
-	e.check()
+	if err = e.check(); err != nil {
+		return
+	}
 	e.open()
 	e.encode(&e.w, v)
 	e.close()
-	return
+	return e.w.e
 }
 
-func (e *nonstreamEncoder) check() {
-	if e.err != nil {
-		panic(e.err)
+func (e *nonstreamEncoder) check() (err error) {
+	if err = e.err; err == nil {
+		if e.closed {
+			err = io.ErrClosedPipe
+		}
 	}
-	if e.closed {
-		panic(io.ErrClosedPipe)
-	}
+	return
 }
 
 func (e *nonstreamEncoder) open() {
@@ -522,11 +533,4 @@ func (e *nonstreamEncoder) close() {
 		e.closed = true
 		e.encodeEnd(&e.w)
 	}
-}
-
-func (e *nonstreamEncoder) convertPanicToError(v interface{}) (err error) {
-	if err = convertPanicToError(v); err != nil {
-		e.err = err
-	}
-	return
 }
