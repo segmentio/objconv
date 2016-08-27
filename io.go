@@ -119,7 +119,7 @@ func (r *Reader) ReadFull(b []byte) {
 // The writer is used to optimize output operations throughout the objconv
 // package and sub-packages. It wraps around a generic io.Writer and capture
 // the errors it would return, allowing the encoder to detect whether an
-// error occured or not after serializing values. It makes it easier to write
+// error occurred or not after serializing values. It makes it easier to write
 // emitters since they don't need to do error checking in their implementations.
 //
 // It's not safe to use the writer concurrently from multiple goroutines.
