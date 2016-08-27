@@ -114,8 +114,13 @@ func (r *Reader) ReadFull(b []byte) {
 	io.ReadFull(r, b)
 }
 
-// Writer implements the io.Writer interface but reports errors through panics
-// instead of returning them.
+// Writer implements the io.Writer interface.
+//
+// The writer is used to optimize output operations throughout the objconv
+// package and sub-packages. It wraps around a generic io.Writer and capture
+// the errors it would return, allowing the encoder to detect whether an
+// error occured or not after serializing values. It makes it easier to write
+// emitters since they don't need to do error checking in their implementations.
 //
 // It's not safe to use the writer concurrently from multiple goroutines.
 type Writer struct {
@@ -134,7 +139,7 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Write writes b to w, panics if there was an error.
+// Write writes b to w.
 func (w *Writer) Write(b []byte) (n int, err error) {
 	if err = w.e; err == nil {
 		n, err = w.W.Write(b)
@@ -143,19 +148,19 @@ func (w *Writer) Write(b []byte) (n int, err error) {
 	return
 }
 
-// WriteByte writes b to w, panics if there was an error.
+// WriteByte writes b to w.
 func (w *Writer) WriteByte(b byte) (err error) {
 	w.b[0] = b
 	_, err = w.Write(w.b[:1])
 	return
 }
 
-// WriteRune writes r to w, panics if there was an error.
+// WriteRune writes r to w.
 func (w *Writer) WriteRune(r rune) (n int, err error) {
 	return w.Write(w.b[:utf8.EncodeRune(w.b[:], r)])
 }
 
-// WriteString writes s to w, panics if there was an error.
+// WriteString writes s to w.
 func (w *Writer) WriteString(s string) (n int, err error) {
 	// Writes the string by chunks of len(w.b) at a time.
 	for len(s) != 0 {
