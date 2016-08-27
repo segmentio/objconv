@@ -125,8 +125,8 @@ func (r *Reader) ReadFull(b []byte) {
 // It's not safe to use the writer concurrently from multiple goroutines.
 type Writer struct {
 	W io.Writer
-	b [64]byte // buffer
 	e error
+	b [64]byte // buffer
 }
 
 // NewWriter returns a Writer that reads from r.
