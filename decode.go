@@ -531,7 +531,7 @@ func (d *streamDecoder) Encoder(config EncoderConfig) StreamEncoder {
 	config = setEncoderConfigDefault(config)
 	return &nonstreamEncoder{
 		encoder: encoder{
-			w: config.Output,
+			w: Writer{W: config.Output},
 			e: config.Emitter,
 			t: config.Tag,
 		},

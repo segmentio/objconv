@@ -19,8 +19,10 @@ const (
 
 // Reader implements the io.Reader interface but reports errors through panics
 // instead of returning them.
+//
+// It's not safe to use the reader concurrently from multiple goroutines.
 type Reader struct {
-	r io.Reader
+	R io.Reader
 	n int
 	c [4]byte   // ReadByte and ReadRune buffer
 	b [100]byte // ReadLine buffer
@@ -32,7 +34,7 @@ func NewReader(r io.Reader) *Reader {
 	case *Reader:
 		return v
 	default:
-		return &Reader{r: r}
+		return &Reader{R: r}
 	}
 }
 
@@ -41,7 +43,7 @@ func NewReader(r io.Reader) *Reader {
 // The method returns an error to satisfy the io.Read interface, it will always
 // be nil and can be ignored.
 func (r *Reader) Read(b []byte) (n int, err error) {
-	n, err = r.r.Read(b)
+	n, err = r.R.Read(b)
 
 	if n > 0 {
 		err = nil
@@ -114,7 +116,13 @@ func (r *Reader) ReadFull(b []byte) {
 
 // Writer implements the io.Writer interface but reports errors through panics
 // instead of returning them.
-type Writer struct{ w io.Writer }
+//
+// It's not safe to use the writer concurrently from multiple goroutines.
+type Writer struct {
+	W io.Writer
+	c [utf8.UTFMax]byte // byte and rune buffer
+	b []byte            // string buffer for WriteString
+}
 
 // NewWriter returns a Writer that reads from r.
 func NewWriter(w io.Writer) *Writer {
@@ -122,13 +130,13 @@ func NewWriter(w io.Writer) *Writer {
 	case *Writer:
 		return x
 	default:
-		return &Writer{w}
+		return &Writer{W: w}
 	}
 }
 
 // Write writes b to w, panics if there was an error.
 func (w *Writer) Write(b []byte) (n int, err error) {
-	if n, err = w.w.Write(b); err != nil {
+	if n, err = w.W.Write(b); err != nil {
 		panic(err)
 	}
 	return
@@ -136,20 +144,21 @@ func (w *Writer) Write(b []byte) (n int, err error) {
 
 // WriteByte writes b to w, panics if there was an error.
 func (w *Writer) WriteByte(b byte) (err error) {
-	switch x := w.w.(type) {
+	switch x := w.W.(type) {
 	case io.ByteWriter:
 		if err = x.WriteByte(b); err != nil {
 			panic(err)
 		}
 	default:
-		_, err = w.Write([]byte{b})
+		w.c[0] = b
+		_, err = w.Write(w.c[:1])
 	}
 	return
 }
 
 // WriteRune writes r to w, panics if there was an error.
 func (w *Writer) WriteRune(r rune) (n int, err error) {
-	switch x := w.w.(type) {
+	switch x := w.W.(type) {
 	case interface {
 		WriteRune(rune) (int, error)
 	}:
@@ -157,25 +166,30 @@ func (w *Writer) WriteRune(r rune) (n int, err error) {
 			panic(err)
 		}
 	default:
-		b := [4]byte{}
-		n = utf8.EncodeRune(b[:], r)
-		n, err = w.Write(b[:n])
+		n = utf8.EncodeRune(w.c[:], r)
+		n, err = w.Write(w.c[:n])
 	}
 	return
 }
 
 // WriteString writes s to w, panics if there was an error.
 func (w *Writer) WriteString(s string) (n int, err error) {
-	switch x := w.w.(type) {
+	switch x := w.W.(type) {
 	case interface {
 		WriteString(string) (int, error)
 	}:
 		if n, err = x.WriteString(s); err != nil {
 			panic(err)
 		}
+
 	default:
-		n, err = w.Write([]byte(s))
+		if w.b == nil {
+			w.b = make([]byte, 0, 512)
+		}
+		w.b = append(w.b, s...)
+		n, err = w.Write(w.b)
 	}
+
 	return
 }
 

@@ -95,7 +95,7 @@ type StreamEncoder interface {
 func NewEncoder(config EncoderConfig) Encoder {
 	config = setEncoderConfigDefault(config)
 	return &encoder{
-		w: config.Output,
+		w: Writer{W: config.Output},
 		e: config.Emitter,
 		t: config.Tag,
 	}
@@ -106,7 +106,7 @@ func NewStreamEncoder(config EncoderConfig) StreamEncoder {
 	config = setEncoderConfigDefault(config)
 	return &streamEncoder{
 		encoder: encoder{
-			w: config.Output,
+			w: Writer{W: config.Output},
 			e: config.Emitter,
 			t: config.Tag,
 		},
@@ -130,17 +130,16 @@ func setEncoderConfigDefault(config EncoderConfig) EncoderConfig {
 }
 
 type encoder struct {
-	w io.Writer
+	w Writer
 	e Emitter
 	t string
 }
 
 func (e *encoder) Encode(v interface{}) (err error) {
 	defer func() { err = convertPanicToError(recover()) }()
-	w := NewWriter(e.w)
-	e.encodeBegin(w)
-	e.encode(w, v)
-	e.encodeEnd(w)
+	e.encodeBegin(&e.w)
+	e.encode(&e.w, v)
+	e.encodeEnd(&e.w)
 	return
 }
 
@@ -398,7 +397,6 @@ func (e *encoder) encodeMapNext(w *Writer) { e.e.EmitMapNext(w) }
 
 type streamEncoder struct {
 	encoder
-	writer *Writer
 	err    error
 	len    int
 	off    int
@@ -427,10 +425,10 @@ func (e *streamEncoder) Encode(v interface{}) (err error) {
 	e.open(-1)
 
 	if e.off != 0 {
-		e.encodeArrayNext(e.writer)
+		e.encodeArrayNext(&e.w)
 	}
 
-	e.encode(e.writer, v)
+	e.encode(&e.w, v)
 
 	if e.off++; e.len >= 0 && e.off >= e.len {
 		e.close()
@@ -452,17 +450,16 @@ func (e *streamEncoder) open(n int) {
 	if !e.opened {
 		e.len = n
 		e.opened = true
-		e.writer = NewWriter(e.w)
-		e.encodeBegin(e.writer)
-		e.encodeArrayBegin(e.writer, n)
+		e.encodeBegin(&e.w)
+		e.encodeArrayBegin(&e.w, n)
 	}
 }
 
 func (e *streamEncoder) close() {
 	if !e.closed {
 		e.closed = true
-		e.encodeArrayEnd(e.writer)
-		e.encodeEnd(e.writer)
+		e.encodeArrayEnd(&e.w)
+		e.encodeEnd(&e.w)
 	}
 }
 
@@ -475,7 +472,6 @@ func (e *streamEncoder) convertPanicToError(v interface{}) (err error) {
 
 type nonstreamEncoder struct {
 	encoder
-	writer *Writer
 	err    error
 	opened bool
 	closed bool
@@ -500,7 +496,7 @@ func (e *nonstreamEncoder) Encode(v interface{}) (err error) {
 	defer func() { err = e.convertPanicToError(recover()) }()
 	e.check()
 	e.open()
-	e.encode(e.writer, v)
+	e.encode(&e.w, v)
 	e.close()
 	return
 }
@@ -517,15 +513,14 @@ func (e *nonstreamEncoder) check() {
 func (e *nonstreamEncoder) open() {
 	if !e.opened {
 		e.opened = true
-		e.writer = NewWriter(e.w)
-		e.encodeBegin(e.writer)
+		e.encodeBegin(&e.w)
 	}
 }
 
 func (e *nonstreamEncoder) close() {
 	if !e.closed {
 		e.closed = true
-		e.encodeEnd(e.writer)
+		e.encodeEnd(&e.w)
 	}
 }
 

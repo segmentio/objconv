@@ -8,7 +8,7 @@ import (
 
 func TestWriter(t *testing.T) {
 	b := &bytes.Buffer{}
-	w := Writer{b}
+	w := Writer{W: b}
 
 	n, e := w.WriteString("Hello World!")
 
@@ -31,7 +31,7 @@ func TestWriterPanic(t *testing.T) {
 			t.Errorf("expected error to be reported in panic bu %#v was found", x)
 		}
 	}()
-	w := Writer{errorWriter{io.EOF}}
+	w := Writer{W: errorWriter{io.EOF}}
 	w.WriteString("Hello World!")
 }
 
