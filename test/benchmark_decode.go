@@ -18,18 +18,10 @@ func NewBenchmarkReader(b []byte) *BenchmarkReader {
 
 func (r *BenchmarkReader) Reset() { r.Reader.Reset(r.b) }
 
-func BenchmarkDecode(b *testing.B, p objconv.Parser, r *BenchmarkReader) {
-	var v interface{}
-	var d = objconv.NewDecoder(objconv.DecoderConfig{
-		Input:  r,
-		Parser: p,
-	})
-
-	b.ResetTimer()
-
+func BenchmarkDecode(b *testing.B, d objconv.Decoder, r *BenchmarkReader) {
 	for i := 0; i != b.N; i++ {
+		var v interface{}
 		d.Decode(&v)
 		r.Reset()
-		v = nil
 	}
 }
