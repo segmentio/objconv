@@ -138,6 +138,12 @@ type encoder struct {
 	e Emitter
 	t string
 	w Writer
+	f []structField // buffer for struct fields
+}
+
+type structField struct {
+	name  string
+	value interface{}
 }
 
 func (e *encoder) Encode(v interface{}) (err error) {
@@ -298,7 +304,7 @@ func (e *encoder) encodeValue(w *Writer, v reflect.Value) {
 		e.encodeMap(w, MapMap(v))
 
 	case reflect.Struct:
-		e.encodeMap(w, newMapStruct(e.t, v))
+		e.encodeStruct(w, v)
 
 	case reflect.Ptr, reflect.Interface:
 		if v.IsNil() {
@@ -399,10 +405,10 @@ func (e *encoder) encodeSliceValue(w *Writer, v reflect.Value) {
 	n := v.Len()
 	e.encodeArrayBegin(w, n)
 	if n != 0 {
-		e.encode(w, v.Index(0))
+		e.encode(w, v.Index(0).Interface())
 		for i := 1; i != n; i++ {
 			e.encodeArrayNext(w)
-			e.encodeValue(w, v.Index(i))
+			e.encode(w, v.Index(i).Interface())
 		}
 	}
 	e.encodeArrayEnd(w)
@@ -457,6 +463,45 @@ func (e *encoder) encodeMapEnd(w *Writer) { e.e.EmitMapEnd(w) }
 func (e *encoder) encodeMapValue(w *Writer) { e.e.EmitMapValue(w) }
 
 func (e *encoder) encodeMapNext(w *Writer) { e.e.EmitMapNext(w) }
+
+func (e *encoder) encodeStruct(w *Writer, v reflect.Value) {
+	f := e.f[:0]
+	s := LookupStruct(v.Type())
+
+	if n := len(s.Fields); n > cap(e.f) {
+		const minFieldCapacity = 20
+		if n < minFieldCapacity {
+			n = minFieldCapacity
+		}
+		f = make([]structField, 0, n)
+		e.f = f
+	}
+
+	it := s.IterValue(e.t, v, FilterUnexported|FilterAnonymous|FilterSkipped|FilterOmitempty)
+
+	for {
+		if k, v, ok := it.NextValue(); !ok {
+			break
+		} else {
+			f = append(f, structField{name: k, value: v.Interface()})
+		}
+	}
+
+	n := len(f)
+	e.encodeMapBegin(w, n)
+	if n != 0 {
+		e.encodeString(w, f[0].name)
+		e.encodeMapValue(w)
+		e.encode(w, f[0].value)
+		for i := 1; i != n; i++ {
+			e.encodeMapNext(w)
+			e.encodeString(w, f[i].name)
+			e.encodeMapValue(w)
+			e.encode(w, f[i].value)
+		}
+	}
+	e.encodeMapEnd(w)
+}
 
 type streamEncoder struct {
 	encoder

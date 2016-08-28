@@ -79,3 +79,7 @@ func BenchmarkEncodeSliceStructShort(b *testing.B) {
 func BenchmarkEncodeSliceStructLong(b *testing.B) {
 	test.BenchmarkEncodeSliceStructLong(b, benchmarkEncoder)
 }
+
+func BenchmarkEncodeStructEmpty(b *testing.B) { test.BenchmarkEncodeStructEmpty(b, benchmarkEncoder) }
+func BenchmarkEncodeStructShort(b *testing.B) { test.BenchmarkEncodeStructShort(b, benchmarkEncoder) }
+func BenchmarkEncodeStructLong(b *testing.B)  { test.BenchmarkEncodeStructLong(b, benchmarkEncoder) }

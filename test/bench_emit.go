@@ -127,6 +127,18 @@ func BenchmarkEncodeSliceStructLong(b *testing.B, e objconv.Encoder) {
 	BenchmarkEncode(b, e, sliceStructLong)
 }
 
+func BenchmarkEncodeStructEmpty(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, &structEmpty)
+}
+
+func BenchmarkEncodeStructShort(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, &structShort)
+}
+
+func BenchmarkEncodeStructLong(b *testing.B, e objconv.Encoder) {
+	BenchmarkEncode(b, e, &structLong)
+}
+
 func BenchmarkEncode(b *testing.B, e objconv.Encoder, v interface{}) {
 	for i := 0; i != b.N; i++ {
 		e.Encode(v)
@@ -199,4 +211,39 @@ var (
 		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
 		{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
 	} // 100 items
+
+	structEmpty = struct{}{}
+	structShort = struct {
+		A interface{}
+		B interface{}
+		C interface{}
+	}{}
+	structLong = struct {
+		A interface{}
+		B interface{}
+		C interface{}
+		D interface{}
+		E interface{}
+		F interface{}
+		G interface{}
+		H interface{}
+		I interface{}
+		J interface{}
+		K interface{}
+		L interface{}
+		M interface{}
+		N interface{}
+		O interface{}
+		P interface{}
+		Q interface{}
+		R interface{}
+		S interface{}
+		T interface{}
+		U interface{}
+		V interface{}
+		W interface{}
+		X interface{}
+		Y interface{}
+		Z interface{}
+	}{}
 )

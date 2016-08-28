@@ -102,7 +102,7 @@ func (e *Emitter) emitFloat(w *objconv.Writer, v float64, p int) {
 }
 
 func (e *Emitter) EmitString(w *objconv.Writer, v string) {
-	if e.EmitBulkStringsOnly || len(v) > 100 || strings.IndexByte(v, '\r') >= 0 || strings.IndexByte(v, '\n') >= 0 {
+	if e.EmitBulkStringsOnly || strings.IndexByte(v, '\r') >= 0 || strings.IndexByte(v, '\n') >= 0 {
 		e.emitBulkString(w, v)
 	} else {
 		e.emitSimpleString(w, v)
