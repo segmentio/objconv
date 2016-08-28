@@ -5,7 +5,7 @@
 // Package bytesconv implements conversions to and from string representations
 // of basic data types.
 //
-// The functions are equivalents to the ones found in the standard bytesconv
+// The functions are equivalents to the ones found in the standard strconv
 // package but accept a byte slice instead of strings to avoid the memory
 // allocation and copy that currently occurs when converting the byte slice to
 // a string.
