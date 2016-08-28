@@ -45,3 +45,10 @@ var (
 )
 
 func BenchmarkDecodeArray(b *testing.B) { test.BenchmarkDecode(b, arrayDecoder, arrayReader) }
+
+var (
+	mapReader  = test.NewBenchmarkReader(`{"A":1,"B":2,"C":3}`)
+	mapDecoder = json.NewDecoder(mapReader)
+)
+
+func BenchmarkDecodeMap(b *testing.B) { test.BenchmarkDecode(b, mapDecoder, mapReader) }

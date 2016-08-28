@@ -148,7 +148,11 @@ func (d *decoder) Decode(v interface{}) (err error) {
 
 func (d *decoder) parse(r *Reader, v interface{}) (interface{}, reflect.Value) {
 	to := reflect.ValueOf(v).Elem()
-	return d.p.Parse(r, to.Interface()), to
+	v, err := d.p.Parse(r, to.Interface())
+	if err != nil {
+		panic(err)
+	}
+	return v, to
 }
 
 func (d *decoder) decode(r *Reader, v interface{}) {
@@ -408,12 +412,16 @@ func (d *decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value,
 	z := reflect.Zero(t.Elem())
 	h := z.Interface()
 
+decodeLoop:
 	for i := 0; true; i++ {
-		if x, ok := v.Parse(r, h); !ok {
-			break
-		} else {
+		switch x, err := v.Parse(r, h); err {
+		case nil:
 			s = reflect.Append(s, z)
 			d.decodeValue(r, x, s.Index(i))
+		case io.EOF:
+			break decodeLoop
+		default:
+			panic(err)
 		}
 	}
 
@@ -429,16 +437,20 @@ func (d *decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Va
 
 	s := make([]interface{}, 0, n)
 
+decodeLoop:
 	for i := 0; true; i++ {
-		if x, ok := v.Parse(r, nil); !ok {
-			break
-		} else {
+		switch x, err := v.Parse(r, nil); err {
+		case nil:
 			switch s = append(s, nil); x.(type) {
 			case ArrayParser, MapParser:
 				d.decodeValue(r, x, reflect.ValueOf(&s[i]).Elem())
 			default:
 				s[i] = x
 			}
+		case io.EOF:
+			break decodeLoop
+		default:
+			panic(err)
 		}
 	}
 
@@ -455,20 +467,37 @@ func (d *decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) {
 
 func (d *decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t reflect.Type) {
 	m := reflect.MakeMap(t)
+
 	kt := t.Key()
 	vt := t.Elem()
 
+	ke := reflect.New(kt).Elem()
+	ve := reflect.New(vt).Elem()
+
+	ki := ke.Interface()
+	vi := ve.Interface()
+
+decodeLoop:
 	for {
-		key := reflect.New(kt).Elem()
-		if x, ok := v.ParseKey(r, key.Interface()); !ok {
-			break
-		} else {
-			d.decodeValue(r, x, key)
+		switch x, err := v.ParseKey(r, ki); err {
+		case nil:
+			d.decodeValue(r, x, ke)
+		case io.EOF:
+			break decodeLoop
+		default:
+			panic(err)
 		}
 
-		val := reflect.New(vt).Elem()
-		d.decodeValue(r, v.ParseValue(r, val.Interface()), val)
-		m.SetMapIndex(key, val)
+		switch x, err := v.ParseValue(r, vi); err {
+		case nil:
+			d.decodeValue(r, x, ve)
+		case io.EOF:
+			panic(io.ErrUnexpectedEOF)
+		default:
+			panic(err)
+		}
+
+		m.SetMapIndex(ke, ve)
 	}
 
 	to.Set(m)
@@ -476,19 +505,32 @@ func (d *decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t ref
 
 func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t reflect.Type) {
 	s := LookupStruct(t).SetterValue(d.t, to)
+	f := ""
 
+	fv := reflect.ValueOf(&f).Elem()
+	fi := fv.Interface()
+
+decodeLoop:
 	for {
-		var f string
-
-		if x, ok := v.ParseKey(r, f); !ok {
-			break
-		} else {
-			d.decodeValue(r, x, reflect.ValueOf(&f).Elem())
+		switch x, err := v.ParseKey(r, fi); err {
+		case nil:
+			d.decodeValue(r, x, fv)
+		case io.EOF:
+			break decodeLoop
+		default:
+			panic(err)
 		}
 
 		if fv, ok := s[f]; ok {
-			d.decodeValue(r, v.ParseValue(r, fv.Interface()), fv)
+			switch x, err := v.ParseValue(r, fv.Interface()); err {
+			case nil:
+				d.decodeValue(r, x, fv)
+			default:
+				panic(err)
+			}
 		}
+
+		f = ""
 	}
 }
 
@@ -507,6 +549,9 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 
 	defer func() { err = d.convertPanicToError(recover()) }()
 
+	ve := reflect.ValueOf(v).Elem()
+	vi := ve.Interface()
+
 	if d.parser == nil {
 		from, _ := d.parse(&d.r, v)
 		switch a := from.(type) {
@@ -514,16 +559,16 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 			d.parser = a
 			d.array = true
 		default:
-			d.parser = ArrayParserLen(1, ArrayParserFunc(func(r *Reader, hint interface{}) (interface{}, bool) {
-				return a, true
+			d.parser = ArrayParserLen(1, ArrayParserFunc(func(r *Reader, hint interface{}) (interface{}, error) {
+				return a, nil
 			}))
 		}
 	}
 
-	if x, ok := d.parser.Parse(&d.r, v); !ok {
-		panic(io.EOF)
+	if x, err := d.parser.Parse(&d.r, vi); err != nil {
+		panic(err)
 	} else {
-		d.decodeValue(&d.r, x, reflect.ValueOf(v).Elem())
+		d.decodeValue(&d.r, x, ve)
 	}
 
 	d.count++

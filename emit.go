@@ -101,27 +101,27 @@ type Emitter interface {
 // RegisterEmitter adds a new emitter factory under the given name.
 func RegisterEmitter(format string, factory func() Emitter) {
 	emitterMutex.Lock()
-	defer emitterMutex.Unlock()
 	emitterStore[format] = factory
+	emitterMutex.Unlock()
 }
 
 // UnregisterEmitter removes the emitter registered under the given name.
 func UnregisterEmitter(format string) {
 	emitterMutex.Lock()
-	defer emitterMutex.Unlock()
 	delete(emitterStore, format)
+	emitterMutex.Unlock()
 }
 
 // GetEmitter returns a new emitter for the given format, or an error if no emitter
 // was registered for that format prior to the call.
 func GetEmitter(format string) (p Emitter, err error) {
 	emitterMutex.RLock()
-	defer emitterMutex.RUnlock()
 	if f := emitterStore[format]; f == nil {
 		err = &UnsupportedFormatError{format}
 	} else {
 		p = f()
 	}
+	emitterMutex.RUnlock()
 	return
 }
 

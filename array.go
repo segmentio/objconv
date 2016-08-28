@@ -1,9 +1,6 @@
 package objconv
 
-import (
-	"io"
-	"reflect"
-)
+import "reflect"
 
 // Array is an interface representing iterable sequences of values.
 type Array interface {
@@ -46,12 +43,7 @@ type ArraySlice reflect.Value
 func (a ArraySlice) Len() int { return reflect.Value(a).Len() }
 
 // Iter returns an iterator pointing to the first element of the array.
-func (a ArraySlice) Iter() ArrayIter {
-	return &arraySliceIter{
-		v: reflect.Value(a),
-		n: a.Len(),
-	}
-}
+func (a ArraySlice) Iter() ArrayIter { return &arraySliceIter{v: reflect.Value(a), n: a.Len()} }
 
 // NewArraySlice returns an ArraySlice that wraps v, assuming v is a slice or an
 // array.
@@ -129,11 +121,7 @@ func NewArrayStream(d StreamDecoder) ArrayStream { return ArrayStream{d, d.Len()
 type arrayStreamIter struct{ StreamDecoder }
 
 func (it arrayStreamIter) Next() (v interface{}, ok bool) {
-	if err := it.Decode(&v); err == nil {
-		ok = true
-	} else if err != io.EOF {
-		panic(err)
-	}
+	ok = it.Decode(&v) == nil
 	return
 }
 

@@ -63,3 +63,13 @@ var (
 )
 
 func BenchmarkDecodeArray(b *testing.B) { test.BenchmarkDecode(b, arrayDecoder, arrayReader) }
+
+var (
+	mapReader  = test.NewBenchmarkReader("*6\r\n+A\r\n:1\r\n+B\r\n:2\r\n+C\r\n:3\r\n")
+	mapDecoder = objconv.NewDecoder(objconv.DecoderConfig{
+		Input:  mapReader,
+		Parser: &Parser{},
+	})
+)
+
+func BenchmarkDecodeMap(b *testing.B) { test.BenchmarkDecode(b, mapDecoder, mapReader) }
