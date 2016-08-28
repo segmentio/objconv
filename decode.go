@@ -389,15 +389,17 @@ func (d *decoder) decodeTime(v time.Time, to reflect.Value) { to.Set(reflect.Val
 func (d *decoder) decodeError(v error, to reflect.Value) { to.Set(reflect.ValueOf(v)) }
 
 func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) {
-	t := to.Type()
-
-	switch t.Kind() {
+	switch t := to.Type(); t.Kind() {
 	case reflect.Slice:
+		d.decodeArrayToSlice(r, v, to, t)
 	default:
-		t = reflect.TypeOf(([]interface{})(nil))
+		d.decodeArrayToInterface(r, v, to)
 	}
+}
 
+func (d *decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value, t reflect.Type) {
 	n := v.Len()
+
 	if n < 0 {
 		n = 20
 	}
@@ -416,6 +418,31 @@ func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) {
 	}
 
 	to.Set(s)
+}
+
+func (d *decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Value) {
+	n := v.Len()
+
+	if n < 0 {
+		n = 20
+	}
+
+	s := make([]interface{}, 0, n)
+
+	for i := 0; true; i++ {
+		if x, ok := v.Parse(r, nil); !ok {
+			break
+		} else {
+			switch s = append(s, nil); x.(type) {
+			case ArrayParser, MapParser:
+				d.decodeValue(r, x, reflect.ValueOf(&s[i]).Elem())
+			default:
+				s[i] = x
+			}
+		}
+	}
+
+	to.Set(reflect.ValueOf(s))
 }
 
 func (d *decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) {

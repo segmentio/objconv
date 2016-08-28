@@ -8,17 +8,17 @@ import (
 )
 
 var (
-	nilReader  = test.NewBenchmarkReader("null")
+	nilReader  = test.NewBenchmarkReader(`null`)
 	nilDecoder = json.NewDecoder(nilReader)
 )
 
 func BenchmarkDecodeNil(b *testing.B) { test.BenchmarkDecode(b, nilDecoder, nilReader) }
 
 var (
-	trueReader  = test.NewBenchmarkReader("true")
+	trueReader  = test.NewBenchmarkReader(`true`)
 	trueDecoder = json.NewDecoder(trueReader)
 
-	falseReader  = test.NewBenchmarkReader("false")
+	falseReader  = test.NewBenchmarkReader(`false`)
 	falseDecoder = json.NewDecoder(falseReader)
 )
 
@@ -26,7 +26,7 @@ func BenchmarkDecodeBoolTrue(b *testing.B)  { test.BenchmarkDecode(b, trueDecode
 func BenchmarkDecodeBoolFalse(b *testing.B) { test.BenchmarkDecode(b, falseDecoder, falseReader) }
 
 var (
-	intReader  = test.NewBenchmarkReader("42")
+	intReader  = test.NewBenchmarkReader(`42`)
 	intDecoder = json.NewDecoder(intReader)
 )
 
@@ -38,3 +38,10 @@ var (
 )
 
 func BenchmarkDecodeString(b *testing.B) { test.BenchmarkDecode(b, stringDecoder, stringReader) }
+
+var (
+	arrayReader  = test.NewBenchmarkReader(`[1,2,3]`)
+	arrayDecoder = json.NewDecoder(arrayReader)
+)
+
+func BenchmarkDecodeArray(b *testing.B) { test.BenchmarkDecode(b, arrayDecoder, arrayReader) }

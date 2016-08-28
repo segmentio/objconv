@@ -53,3 +53,13 @@ var (
 )
 
 func BenchmarkDecodeString(b *testing.B) { test.BenchmarkDecode(b, stringDecoder, stringReader) }
+
+var (
+	arrayReader  = test.NewBenchmarkReader("*3\r\n:1\r\n:2\r\n:3\r\n")
+	arrayDecoder = objconv.NewDecoder(objconv.DecoderConfig{
+		Input:  arrayReader,
+		Parser: &Parser{},
+	})
+)
+
+func BenchmarkDecodeArray(b *testing.B) { test.BenchmarkDecode(b, arrayDecoder, arrayReader) }
