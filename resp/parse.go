@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/bytesconv"
 )
 
 // Parser implements a RESP parser that satisfies the objconv.Parser interface.
@@ -38,12 +38,12 @@ func (p *Parser) Parse(r *objconv.Reader, hint interface{}) interface{} {
 }
 
 func (p *Parser) parseInt(r *objconv.Reader, hint interface{}) interface{} {
-	line := string(p.readLine(r))
+	line := p.readLine(r)
 
-	if v, err := strconv.ParseInt(line, 10, 64); err != nil {
+	if v, err := bytesconv.ParseInt(line, 10, 64); err != nil {
 		// This is an extension to the standard RESP specs so we can support
 		// uint, uint64 and uintptr.
-		u, err := strconv.ParseUint(line, 10, 64)
+		u, err := bytesconv.ParseUint(line, 10, 64)
 		objconv.Assertf(err == nil, "RESP parser expected an integer but found '%#v'", line)
 		if hint != nil && reflect.TypeOf(hint).Kind() == reflect.Bool {
 			return v != 0
@@ -58,7 +58,7 @@ func (p *Parser) parseInt(r *objconv.Reader, hint interface{}) interface{} {
 }
 
 func (p *Parser) parseString(r *objconv.Reader, hint interface{}) interface{} {
-	s := string(p.readLine(r))
+	s := p.readLine(r)
 
 	if hint != nil {
 		switch hint.(type) {
@@ -66,26 +66,26 @@ func (p *Parser) parseString(r *objconv.Reader, hint interface{}) interface{} {
 			// fast path
 
 		case time.Time:
-			v, err := time.Parse(time.RFC3339Nano, s)
+			v, err := time.Parse(time.RFC3339Nano, string(s))
 			objconv.AssertErr(err)
 			return v
 
 		case time.Duration:
-			v, err := time.ParseDuration(s)
+			v, err := time.ParseDuration(string(s))
 			objconv.AssertErr(err)
 			return v
 
 		default:
 			switch reflect.TypeOf(hint).Kind() {
 			case reflect.Float32, reflect.Float64:
-				v, err := strconv.ParseFloat(s, 64)
+				v, err := bytesconv.ParseFloat(s, 64)
 				objconv.AssertErr(err)
 				return v
 			}
 		}
 	}
 
-	return s
+	return string(s)
 }
 
 func (p *Parser) parseBulk(r *objconv.Reader, hint interface{}) interface{} {
@@ -117,7 +117,7 @@ func (p *Parser) parseBulk(r *objconv.Reader, hint interface{}) interface{} {
 		default:
 			switch reflect.TypeOf(hint).Kind() {
 			case reflect.Float32, reflect.Float64:
-				v, err := strconv.ParseFloat(string(b), 64)
+				v, err := bytesconv.ParseFloat(b, 64)
 				objconv.AssertErr(err)
 				return v
 			}
@@ -150,8 +150,8 @@ func (p *Parser) parseArray(r *objconv.Reader, hint interface{}) interface{} {
 
 func (p *Parser) readInt(r *objconv.Reader) int64 {
 	line := p.readLine(r)
-	v, _ := strconv.ParseInt(string(line), 10, 64)
-	objconv.Assertf(err == nil, "RESP parser expected an integer but found '%c'", line[0])
+	v, err := bytesconv.ParseInt(line, 10, 64)
+	objconv.Assertf(err == nil, "RESP parser expected an integer")
 	return v
 }
 

@@ -14,11 +14,16 @@ import (
 // The format must be a string describing the content type of the data
 // (like json, resp, ...).
 func Decode(in io.Reader, format string, value interface{}) (err error) {
-	defer func() { err = convertPanicToError(recover()) }()
-	return NewDecoder(DecoderConfig{
-		Input:  in,
-		Parser: NewParser(format),
-	}).Decode(value)
+	var parser Parser
+
+	if parser, err = GetParser(format); err == nil {
+		err = NewDecoder(DecoderConfig{
+			Input:  in,
+			Parser: parser,
+		}).Decode(value)
+	}
+
+	return
 }
 
 // DecodeBytes decodes the content from the byte slice into the value.
@@ -95,9 +100,9 @@ type StreamDecoder interface {
 func NewDecoder(config DecoderConfig) Decoder {
 	config = setDecoderConfigDefaults(config)
 	return &decoder{
-		r: config.Input,
 		p: config.Parser,
 		t: config.Tag,
+		r: Reader{R: config.Input},
 	}
 }
 
@@ -106,9 +111,9 @@ func NewStreamDecoder(config DecoderConfig) StreamDecoder {
 	config = setDecoderConfigDefaults(config)
 	return &streamDecoder{
 		decoder: decoder{
-			r: config.Input,
 			p: config.Parser,
 			t: config.Tag,
+			r: Reader{R: config.Input},
 		},
 	}
 }
@@ -130,14 +135,14 @@ func setDecoderConfigDefaults(config DecoderConfig) DecoderConfig {
 }
 
 type decoder struct {
-	r io.Reader
 	p Parser
 	t string
+	r Reader
 }
 
 func (d *decoder) Decode(v interface{}) (err error) {
 	defer func() { err = convertPanicToError(recover()) }()
-	d.decode(NewReader(d.r), v)
+	d.decode(&d.r, v)
 	return
 }
 
@@ -196,7 +201,25 @@ func (d *decoder) decodeValue(r *Reader, v interface{}, to reflect.Value) {
 }
 
 func (d *decoder) decodeNil(to reflect.Value) {
-	to.Set(reflect.Zero(to.Type()))
+	switch to.Kind() {
+	case reflect.Bool:
+		to.SetBool(false)
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		to.SetInt(0)
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		to.SetUint(0)
+
+	case reflect.Float32, reflect.Float64:
+		to.SetFloat(0)
+
+	case reflect.String:
+		to.SetString("")
+
+	default:
+		to.Set(reflect.Zero(to.Type()))
+	}
 }
 
 func (d *decoder) decodeBool(v bool, to reflect.Value) {
@@ -439,7 +462,6 @@ func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t 
 
 type streamDecoder struct {
 	decoder
-	reader *Reader
 	parser ArrayParser
 	err    error
 	count  int
@@ -454,8 +476,7 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 	defer func() { err = d.convertPanicToError(recover()) }()
 
 	if d.parser == nil {
-		d.reader = NewReader(d.r)
-		from, _ := d.parse(d.reader, v)
+		from, _ := d.parse(&d.r, v)
 		switch a := from.(type) {
 		case ArrayParser:
 			d.parser = a
@@ -467,10 +488,10 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 		}
 	}
 
-	if x, ok := d.parser.Parse(d.reader, v); !ok {
+	if x, ok := d.parser.Parse(&d.r, v); !ok {
 		panic(io.EOF)
 	} else {
-		d.decodeValue(d.reader, x, reflect.ValueOf(v).Elem())
+		d.decodeValue(&d.r, x, reflect.ValueOf(v).Elem())
 	}
 
 	d.count++
@@ -484,7 +505,7 @@ func (d *streamDecoder) Len() (n int) {
 	if d.parser == nil {
 		// The length was requested but we have no idea what value the program
 		// will try to decode from the stream so calling d.parse will likely
-		// produce a value of an mismatching type.
+		// produce a value of a mismatching type.
 		// We need to be able to roll back to the stream after reading what the
 		// length was.
 		// To achieve this behavior in a seamless way we use an intermediary
@@ -494,9 +515,11 @@ func (d *streamDecoder) Len() (n int) {
 		var z interface{}
 
 		b := &bytes.Buffer{}
-		r := io.TeeReader(d.r, b)
+		r := d.r.R
 
-		v, _ := d.parse(NewReader(r), &z)
+		d.r.R = io.TeeReader(r, b)
+
+		v, _ := d.parse(&d.r, &z)
 		switch a := v.(type) {
 		case ArrayParser:
 			n = a.Len()
@@ -504,7 +527,7 @@ func (d *streamDecoder) Len() (n int) {
 			n = 1
 		}
 
-		d.r = io.MultiReader(b, d.r)
+		d.r.R = io.MultiReader(b, r)
 		return
 	}
 

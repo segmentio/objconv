@@ -23,7 +23,6 @@ const (
 // It's not safe to use the reader concurrently from multiple goroutines.
 type Reader struct {
 	R io.Reader
-	n int
 	a [4]byte           // EOL buffer
 	c [utf8.UTFMax]byte // ReadByte and ReadRune buffer
 	b [100]byte         // ReadLine buffer
@@ -48,11 +47,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 
 	if n > 0 {
 		err = nil
-		r.n += n
 	} else if err != nil {
-		if err == io.EOF && r.n != 0 {
-			err = io.ErrUnexpectedEOF
-		}
 		panic(err)
 	}
 
