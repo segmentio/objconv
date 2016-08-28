@@ -1,22 +1,22 @@
 package test
 
 import (
-	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/segmentio/objconv"
 )
 
 type BenchmarkReader struct {
-	*bytes.Reader
-	b []byte
+	*strings.Reader
+	s string
 }
 
-func NewBenchmarkReader(b []byte) *BenchmarkReader {
-	return &BenchmarkReader{bytes.NewReader(b), b}
+func NewBenchmarkReader(s string) *BenchmarkReader {
+	return &BenchmarkReader{strings.NewReader(s), s}
 }
 
-func (r *BenchmarkReader) Reset() { r.Reader.Reset(r.b) }
+func (r *BenchmarkReader) Reset() { r.Reader.Reset(r.s) }
 
 func BenchmarkDecode(b *testing.B, d objconv.Decoder, r *BenchmarkReader) {
 	for i := 0; i != b.N; i++ {
