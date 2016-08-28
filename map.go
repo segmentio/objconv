@@ -42,18 +42,40 @@ func (f MapFunc) Iter() MapIter { return f }
 // element.
 func (f MapFunc) Next() (MapItem, bool) { return f() }
 
-// MapMap is type alias for a reflect.Value of type map that implements the Map
+// SortedMap is type alias for a reflect.Value of type map that implements the Map
 // interface.
-type MapMap reflect.Value
+//
+// The iterator produces map keys sorted by keys.
+type SortedMap reflect.Value
 
 // Len returns the number of elemnts in the map.
-func (m MapMap) Len() int { return reflect.Value(m).Len() }
+func (m SortedMap) Len() int { return reflect.Value(m).Len() }
 
 // Iter returns an iterator pointing to the first element of the map.
-func (m MapMap) Iter() MapIter {
+func (m SortedMap) Iter() MapIter {
 	v := reflect.Value(m)
 	k := v.MapKeys()
 	sortValues(v.Type().Key(), k)
+	return &mapValueIter{
+		k: k,
+		m: v,
+		n: v.Len(),
+	}
+}
+
+// UnsortedMap is type alias for a reflect.Value of type map that implements the Map
+// interface.
+//
+// The iterator produces map entries in a random order.
+type UnsortedMap reflect.Value
+
+// Len returns the number of elemnts in the map.
+func (m UnsortedMap) Len() int { return reflect.Value(m).Len() }
+
+// Iter returns an iterator pointing to the first element of the map.
+func (m UnsortedMap) Iter() MapIter {
+	v := reflect.Value(m)
+	k := v.MapKeys()
 	return &mapValueIter{
 		k: k,
 		m: v,

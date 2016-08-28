@@ -80,6 +80,46 @@ func BenchmarkEncodeSliceStructLong(b *testing.B) {
 	test.BenchmarkEncodeSliceStructLong(b, benchmarkEncoder)
 }
 
+func BenchmarkEncodeMapStringStringEmpty(b *testing.B) {
+	test.BenchmarkEncodeMapStringStringEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapStringStringShort(b *testing.B) {
+	test.BenchmarkEncodeMapStringStringShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapStringStringLong(b *testing.B) {
+	test.BenchmarkEncodeMapStringStringLong(b, benchmarkEncoder)
+}
+
+func BenchmarkEncodeMapStringInterfaceEmpty(b *testing.B) {
+	test.BenchmarkEncodeMapStringInterfaceEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapStringInterfaceShort(b *testing.B) {
+	test.BenchmarkEncodeMapStringInterfaceShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapStringInterfaceLong(b *testing.B) {
+	test.BenchmarkEncodeMapStringInterfaceLong(b, benchmarkEncoder)
+}
+
+func BenchmarkEncodeMapStringStructEmpty(b *testing.B) {
+	test.BenchmarkEncodeMapStringStructEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapStringStructShort(b *testing.B) {
+	test.BenchmarkEncodeMapStringStructShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapStringStructLong(b *testing.B) {
+	test.BenchmarkEncodeMapStringStructLong(b, benchmarkEncoder)
+}
+
+func BenchmarkEncodeMapSliceEmpty(b *testing.B) {
+	test.BenchmarkEncodeMapSliceEmpty(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapSliceShort(b *testing.B) {
+	test.BenchmarkEncodeMapSliceShort(b, benchmarkEncoder)
+}
+func BenchmarkEncodeMapSliceLong(b *testing.B) {
+	test.BenchmarkEncodeMapSliceLong(b, benchmarkEncoder)
+}
+
 func BenchmarkEncodeStructEmpty(b *testing.B) { test.BenchmarkEncodeStructEmpty(b, benchmarkEncoder) }
 func BenchmarkEncodeStructShort(b *testing.B) { test.BenchmarkEncodeStructShort(b, benchmarkEncoder) }
 func BenchmarkEncodeStructLong(b *testing.B)  { test.BenchmarkEncodeStructLong(b, benchmarkEncoder) }

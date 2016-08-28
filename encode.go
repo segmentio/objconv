@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"io"
 	"reflect"
+	"sort"
+	"sync"
 	"time"
 )
 
@@ -16,8 +18,9 @@ func Encode(out io.Writer, format string, value interface{}) (err error) {
 
 	if emitter, err = GetEmitter(format); err == nil {
 		err = NewEncoder(EncoderConfig{
-			Output:  out,
-			Emitter: emitter,
+			Output:      out,
+			Emitter:     emitter,
+			SortMapKeys: true,
 		}).Encode(value)
 	}
 
@@ -78,6 +81,9 @@ type EncoderConfig struct {
 
 	// Tag sets the name of the tag used when encoding struct fields.
 	Tag string
+
+	// SortMapKeys controls whether the encoder will sort map keys or not.
+	SortMapKeys bool
 }
 
 // A StreamEncoder encodes and writes a stream of values to an output stream.
@@ -100,9 +106,10 @@ type StreamEncoder interface {
 func NewEncoder(config EncoderConfig) Encoder {
 	config = setEncoderConfigDefault(config)
 	return &encoder{
-		e: config.Emitter,
-		t: config.Tag,
-		w: Writer{W: config.Output},
+		sort: config.SortMapKeys,
+		e:    config.Emitter,
+		t:    config.Tag,
+		w:    Writer{W: config.Output},
 	}
 }
 
@@ -111,9 +118,10 @@ func NewStreamEncoder(config EncoderConfig) StreamEncoder {
 	config = setEncoderConfigDefault(config)
 	return &streamEncoder{
 		encoder: encoder{
-			e: config.Emitter,
-			t: config.Tag,
-			w: Writer{W: config.Output},
+			sort: config.SortMapKeys,
+			e:    config.Emitter,
+			t:    config.Tag,
+			w:    Writer{W: config.Output},
 		},
 	}
 }
@@ -135,15 +143,11 @@ func setEncoderConfigDefault(config EncoderConfig) EncoderConfig {
 }
 
 type encoder struct {
+	sort bool
+
 	e Emitter
 	t string
 	w Writer
-	f []structField // buffer for struct fields
-}
-
-type structField struct {
-	name  string
-	value interface{}
 }
 
 func (e *encoder) Encode(v interface{}) error {
@@ -223,6 +227,15 @@ func (e *encoder) encode(v interface{}) {
 	case [][]byte:
 		e.encodeSliceBytes(x)
 
+	case map[string]string:
+		e.encodeMapStringString(x)
+
+	case map[string]interface{}:
+		e.encodeMapStringInterface(x)
+
+	case MapSlice:
+		e.encodeMapSlice(x)
+
 	case Array:
 		e.encodeArray(x)
 
@@ -301,7 +314,11 @@ func (e *encoder) encodeValue(v reflect.Value) {
 		e.encodeSliceValue(v)
 
 	case reflect.Map:
-		e.encodeMap(MapMap(v))
+		if e.sort {
+			e.encodeMap(SortedMap(v))
+		} else {
+			e.encodeMap(UnsortedMap(v))
+		}
 
 	case reflect.Struct:
 		e.encodeStruct(v)
@@ -314,7 +331,7 @@ func (e *encoder) encodeValue(v reflect.Value) {
 		}
 
 	default:
-		panic(&UnsupportedTypeError{t})
+		e.w.e = &UnsupportedTypeError{t}
 	}
 }
 
@@ -436,6 +453,105 @@ func (e *encoder) encodeArrayEnd() { e.e.EmitArrayEnd(&e.w) }
 
 func (e *encoder) encodeArrayNext() { e.e.EmitArrayNext(&e.w) }
 
+func (e *encoder) encodeMapStringString(v map[string]string) {
+	n := len(v)
+	e.encodeMapBegin(n)
+
+	if n != 0 {
+		if e.sort {
+			keys := stringKeysPool.Get().([]string)
+
+			for x := range v {
+				keys = append(keys, x)
+			}
+
+			sort.Strings(keys)
+
+			for i, k := range keys {
+				if i != 0 {
+					e.encodeMapNext()
+				}
+				e.encodeString(k)
+				e.encodeMapValue()
+				e.encodeString(v[k])
+			}
+
+			stringKeysPool.Put(keys[:0])
+		} else {
+			i := 0
+			for k, v := range v {
+				if i != 0 {
+					e.encodeMapNext()
+				}
+				e.encodeString(k)
+				e.encodeMapValue()
+				e.encodeString(v)
+				i++
+			}
+		}
+	}
+
+	e.encodeMapEnd()
+}
+
+func (e *encoder) encodeMapStringInterface(v map[string]interface{}) {
+	n := len(v)
+	e.encodeMapBegin(n)
+
+	if n != 0 {
+		if e.sort {
+			keys := stringKeysPool.Get().([]string)
+
+			for x := range v {
+				keys = append(keys, x)
+			}
+
+			sort.Strings(keys)
+
+			for i, k := range keys {
+				if i != 0 {
+					e.encodeMapNext()
+				}
+				e.encodeString(k)
+				e.encodeMapValue()
+				e.encode(v[k])
+			}
+
+			stringKeysPool.Put(keys[:0])
+		} else {
+			i := 0
+			for k, v := range v {
+				if i != 0 {
+					e.encodeMapNext()
+				}
+				e.encodeString(k)
+				e.encodeMapValue()
+				e.encode(v)
+				i++
+			}
+		}
+	}
+
+	e.encodeMapEnd()
+}
+
+func (e *encoder) encodeMapSlice(v MapSlice) {
+	n := len(v)
+	e.encodeMapBegin(n)
+	if n != 0 {
+		e.encode(v[0].Key)
+		e.encodeMapValue()
+		e.encode(v[0].Value)
+		for i := 1; i != n; i++ {
+			e.encodeMapNext()
+			e.encode(v[i].Key)
+			e.encodeMapValue()
+			e.encode(v[i].Value)
+		}
+	}
+	e.encodeMapEnd()
+}
+
 func (e *encoder) encodeMap(v Map) {
 	e.encodeMapBegin(v.Len())
 	it := v.Iter()
@@ -465,17 +581,8 @@ func (e *encoder) encodeMapValue() { e.e.EmitMapValue(&e.w) }
 func (e *encoder) encodeMapNext() { e.e.EmitMapNext(&e.w) }
 
 func (e *encoder) encodeStruct(v reflect.Value) {
-	f := e.f[:0]
+	f := structFieldPool.Get().([]structField)
 	s := LookupStruct(v.Type())
-
-	if n := len(s.Fields); n > cap(e.f) {
-		const minFieldCapacity = 20
-		if n < minFieldCapacity {
-			n = minFieldCapacity
-		}
-		f = make([]structField, 0, n)
-		e.f = f
-	}
 
 	it := s.IterValue(e.t, v, FilterUnexported|FilterAnonymous|FilterSkipped|FilterOmitempty)
 
@@ -501,6 +608,7 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 		}
 	}
 	e.encodeMapEnd()
+	structFieldPool.Put(f[:0])
 }
 
 type streamEncoder struct {
@@ -619,3 +727,18 @@ func (e *nonstreamEncoder) close() (err error) {
 	}
 	return e.w.e
 }
+
+type structField struct {
+	name  string
+	value interface{}
+}
+
+var (
+	structFieldPool = sync.Pool{
+		New: func() interface{} { return make([]structField, 0, 20) },
+	}
+
+	stringKeysPool = sync.Pool{
+		New: func() interface{} { return make([]string, 0, 20) },
+	}
+)
