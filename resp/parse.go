@@ -15,7 +15,7 @@ type Parser struct{}
 
 // Parse returns the next value read from r.
 func (p *Parser) Parse(r *objconv.Reader, hint interface{}) interface{} {
-	switch b, _ := r.ReadByte(); b {
+	switch b := p.readByte(r); b {
 	case ':':
 		return p.parseInt(r, hint)
 
@@ -44,7 +44,7 @@ func (p *Parser) parseInt(r *objconv.Reader, hint interface{}) interface{} {
 		// This is an extension to the standard RESP specs so we can support
 		// uint, uint64 and uintptr.
 		u, err := bytesconv.ParseUint(line, 10, 64)
-		objconv.Assertf(err == nil, "RESP parser expected an integer but found '%#v'", line)
+		objconv.Check(err)
 		if hint != nil && reflect.TypeOf(hint).Kind() == reflect.Bool {
 			return v != 0
 		}
@@ -67,19 +67,19 @@ func (p *Parser) parseString(r *objconv.Reader, hint interface{}) interface{} {
 
 		case time.Time:
 			v, err := time.Parse(time.RFC3339Nano, string(s))
-			objconv.AssertErr(err)
+			objconv.Check(err)
 			return v
 
 		case time.Duration:
 			v, err := time.ParseDuration(string(s))
-			objconv.AssertErr(err)
+			objconv.Check(err)
 			return v
 
 		default:
 			switch reflect.TypeOf(hint).Kind() {
 			case reflect.Float32, reflect.Float64:
 				v, err := bytesconv.ParseFloat(s, 64)
-				objconv.AssertErr(err)
+				objconv.Check(err)
 				return v
 			}
 		}
@@ -96,7 +96,11 @@ func (p *Parser) parseBulk(r *objconv.Reader, hint interface{}) interface{} {
 
 	b := make([]byte, int(n)+2)
 	r.ReadFull(b)
-	assertHasCRLF(b)
+
+	if !bytes.HasSuffix(b, crlf[:]) {
+		panic("RESP parser expected a CRLF sequence at the end of a bulk string")
+	}
+
 	b = b[:len(b)-2]
 
 	if hint != nil {
@@ -106,19 +110,19 @@ func (p *Parser) parseBulk(r *objconv.Reader, hint interface{}) interface{} {
 
 		case time.Time:
 			v, err := time.Parse(time.RFC3339Nano, string(b))
-			objconv.AssertErr(err)
+			objconv.Check(err)
 			return v
 
 		case time.Duration:
 			v, err := time.ParseDuration(string(b))
-			objconv.AssertErr(err)
+			objconv.Check(err)
 			return v
 
 		default:
 			switch reflect.TypeOf(hint).Kind() {
 			case reflect.Float32, reflect.Float64:
 				v, err := bytesconv.ParseFloat(b, 64)
-				objconv.AssertErr(err)
+				objconv.Check(err)
 				return v
 			}
 		}
@@ -140,7 +144,9 @@ func (p *Parser) parseArray(r *objconv.Reader, hint interface{}) interface{} {
 	if hint != nil {
 		switch reflect.TypeOf(hint).Kind() {
 		case reflect.Map, reflect.Struct:
-			objconv.Assert((n&1) == 0, "RESP parser requires arrays to have an even number of elements to be decoded as maps or structs")
+			if (n & 1) != 0 {
+				panic("RESP parser requires arrays to have an even number of elements to be decoded as maps or structs")
+			}
 			return objconv.NewFixedMapParser(p, int(n)/2)
 		}
 	}
@@ -148,24 +154,27 @@ func (p *Parser) parseArray(r *objconv.Reader, hint interface{}) interface{} {
 	return objconv.ArrayParserLen(int(n), objconv.NewArrayParser(p))
 }
 
+func (p *Parser) readByte(r *objconv.Reader) byte {
+	b, err := r.ReadByte()
+	objconv.Check(err)
+	return b
+}
+
 func (p *Parser) readInt(r *objconv.Reader) int64 {
 	line := p.readLine(r)
 	v, err := bytesconv.ParseInt(line, 10, 64)
-	objconv.Assertf(err == nil, "RESP parser expected an integer")
+	objconv.Check(err)
 	return v
 }
 
-func (p *Parser) readLine(r *objconv.Reader) []byte { return r.ReadLine(objconv.CRLF) }
+func (p *Parser) readLine(r *objconv.Reader) []byte {
+	line, err := r.ReadLine(objconv.CRLF)
+	objconv.Check(err)
+	return line
+}
 
 func init() {
 	f := func() objconv.Parser { return &Parser{} }
 	objconv.RegisterParser("resp", f)
 	objconv.RegisterParser("application/resp", f)
-}
-
-func assertHasCRLF(b []byte) {
-	objconv.Assert(
-		bytes.HasSuffix(b, []byte(objconv.CRLF)),
-		"RESP parser expected a CRLF sequence at the end of a bulk string",
-	)
 }

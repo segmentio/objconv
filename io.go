@@ -17,8 +17,7 @@ const (
 	CRLF EOL = "\r\n"
 )
 
-// Reader implements the io.Reader interface but reports errors through panics
-// instead of returning them.
+// Reader implements the io.Reader interface.
 //
 // It's not safe to use the reader concurrently from multiple goroutines.
 type Reader struct {
@@ -38,38 +37,39 @@ func NewReader(r io.Reader) *Reader {
 	}
 }
 
-// Read reads bytes into b from r, panics if there was an error.
+// Read reads bytes into b from r.
 //
 // The method returns an error to satisfy the io.Read interface, it will always
 // be nil and can be ignored.
 func (r *Reader) Read(b []byte) (n int, err error) {
 	n, err = r.R.Read(b)
-
-	if n > 0 {
+	if n > 0 && err != nil {
 		err = nil
-	} else if err != nil {
-		panic(err)
 	}
-
 	return
 }
 
-// ReadByte reads a byte from r, panics if there was an error.
+// ReadByte reads a byte from r.
 //
 // The method returns an error to satisfy the io.ByteReader interface, it will
 // always be nil and can be ignored.
 func (r *Reader) ReadByte() (c byte, err error) {
-	r.Read(r.c[:1])
-	c = r.c[0]
+	if _, err = r.Read(r.c[:1]); err == nil {
+		c = r.c[0]
+	}
 	return
 }
 
-// ReadRune reads a rune from r, panics if there was an error.
+// ReadRune reads a rune from r.
 //
 // The method returns an error to satisfy the io.RuneReader interface, it will
 // always be nil and can be ignored.
 func (r *Reader) ReadRune() (c rune, n int, err error) {
-	b, _ := r.ReadByte()
+	var b byte
+
+	if b, err = r.ReadByte(); err != nil {
+		return
+	}
 
 	if (b & 0x80) == 0 {
 		c = rune(b)
@@ -87,28 +87,42 @@ func (r *Reader) ReadRune() (c rune, n int, err error) {
 	}
 
 	r.c[0] = b
-	r.ReadFull(r.c[1:n])
+
+	if _, err = r.ReadFull(r.c[1:n]); err != nil {
+		return
+	}
+
 	c, _ = utf8.DecodeRune(r.c[:n])
 	return
 }
 
-// ReadLine reads a line ending with eol from r, panics if there was an error.
-func (r *Reader) ReadLine(eol EOL) (line []byte) {
+// ReadLine reads a line ending with eol from r.
+func (r *Reader) ReadLine(eol EOL) (line []byte, err error) {
 	line = r.b[:0]
-	end := append(r.a[:0], eol...)
 
-	for !bytes.HasSuffix(line, end) {
-		b, _ := r.ReadByte()
+	suff := append(r.a[:0], eol...)
+	last := suff[len(suff)-1]
+
+	for {
+		var b byte
+
+		if b, err = r.ReadByte(); err != nil {
+			return
+		}
+
 		line = append(line, b)
+
+		if b == last && bytes.HasSuffix(line, suff) {
+			break
+		}
 	}
 
-	return line[:len(line)-len(eol)]
+	line = line[:len(line)-len(suff)]
+	return
 }
 
-// ReadFull fills up b with data read from r, panics if there was an error.
-func (r *Reader) ReadFull(b []byte) {
-	io.ReadFull(r, b)
-}
+// ReadFull fills up b with data read from r.
+func (r *Reader) ReadFull(b []byte) (n int, err error) { return io.ReadFull(r, b) }
 
 // Writer implements the io.Writer interface.
 //
