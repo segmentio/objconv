@@ -24,8 +24,9 @@ const (
 type Reader struct {
 	R io.Reader
 	n int
-	c [4]byte   // ReadByte and ReadRune buffer
-	b [100]byte // ReadLine buffer
+	a [4]byte           // EOL buffer
+	c [utf8.UTFMax]byte // ReadByte and ReadRune buffer
+	b [100]byte         // ReadLine buffer
 }
 
 // NewReader returns a Reader that reads from r.
@@ -99,7 +100,7 @@ func (r *Reader) ReadRune() (c rune, n int, err error) {
 // ReadLine reads a line ending with eol from r, panics if there was an error.
 func (r *Reader) ReadLine(eol EOL) (line []byte) {
 	line = r.b[:0]
-	end := []byte(eol)
+	end := append(r.a[:0], eol...)
 
 	for !bytes.HasSuffix(line, end) {
 		b, _ := r.ReadByte()

@@ -188,6 +188,8 @@ func BenchmarkEncodeStructLong(b *testing.B, e objconv.Encoder) {
 }
 
 func BenchmarkEncode(b *testing.B, e objconv.Encoder, v interface{}) {
+	b.ResetTimer()
+
 	for i := 0; i != b.N; i++ {
 		e.Encode(v)
 	}

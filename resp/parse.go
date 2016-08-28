@@ -149,9 +149,9 @@ func (p *Parser) parseArray(r *objconv.Reader, hint interface{}) interface{} {
 }
 
 func (p *Parser) readInt(r *objconv.Reader) int64 {
-	line := string(p.readLine(r))
-	v, err := strconv.ParseInt(line, 10, 64)
-	objconv.Assertf(err == nil, "RESP parser expected an integer but found '%#v'", line)
+	line := p.readLine(r)
+	v, _ := strconv.ParseInt(string(line), 10, 64)
+	objconv.Assertf(err == nil, "RESP parser expected an integer but found '%c'", line[0])
 	return v
 }
 
