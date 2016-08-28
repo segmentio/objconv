@@ -146,171 +146,171 @@ type structField struct {
 	value interface{}
 }
 
-func (e *encoder) Encode(v interface{}) (err error) {
-	e.encodeBegin(&e.w)
-	e.encode(&e.w, v)
-	e.encodeEnd(&e.w)
+func (e *encoder) Encode(v interface{}) error {
+	e.encodeBegin()
+	e.encode(v)
+	e.encodeEnd()
 	return e.w.e
 }
 
-func (e *encoder) encode(w *Writer, v interface{}) {
+func (e *encoder) encode(v interface{}) {
 	if v == nil {
-		e.encodeNil(w)
+		e.encodeNil()
 		return
 	}
 
 	switch x := v.(type) {
 	case string:
-		e.encodeString(w, x)
+		e.encodeString(x)
 
 	case []byte:
-		e.encodeBytes(w, x)
+		e.encodeBytes(x)
 
 	case bool:
-		e.encodeBool(w, x)
+		e.encodeBool(x)
 
 	case int:
-		e.encodeInt(w, x)
+		e.encodeInt(x)
 
 	case int8:
-		e.encodeInt8(w, x)
+		e.encodeInt8(x)
 
 	case int16:
-		e.encodeInt16(w, x)
+		e.encodeInt16(x)
 
 	case int32:
-		e.encodeInt32(w, x)
+		e.encodeInt32(x)
 
 	case int64:
-		e.encodeInt64(w, x)
+		e.encodeInt64(x)
 
 	case uint:
-		e.encodeUint(w, x)
+		e.encodeUint(x)
 
 	case uint8:
-		e.encodeUint8(w, x)
+		e.encodeUint8(x)
 
 	case uint16:
-		e.encodeUint16(w, x)
+		e.encodeUint16(x)
 
 	case uint32:
-		e.encodeUint32(w, x)
+		e.encodeUint32(x)
 
 	case uint64:
-		e.encodeUint64(w, x)
+		e.encodeUint64(x)
 
 	case uintptr:
-		e.encodeUintptr(w, x)
+		e.encodeUintptr(x)
 
 	case float32:
-		e.encodeFloat32(w, x)
+		e.encodeFloat32(x)
 
 	case float64:
-		e.encodeFloat64(w, x)
+		e.encodeFloat64(x)
 
 	case time.Time:
-		e.encodeTime(w, x)
+		e.encodeTime(x)
 
 	case time.Duration:
-		e.encodeDuration(w, x)
+		e.encodeDuration(x)
 
 	case []interface{}:
-		e.encodeSliceInterface(w, x)
+		e.encodeSliceInterface(x)
 
 	case []string:
-		e.encodeSliceString(w, x)
+		e.encodeSliceString(x)
 
 	case [][]byte:
-		e.encodeSliceBytes(w, x)
+		e.encodeSliceBytes(x)
 
 	case Array:
-		e.encodeArray(w, x)
+		e.encodeArray(x)
 
 	case Map:
-		e.encodeMap(w, x)
+		e.encodeMap(x)
 
 	case error:
-		e.encodeError(w, x)
+		e.encodeError(x)
 
 	case []rune:
-		e.encodeString(w, string(x))
+		e.encodeString(string(x))
 
 	default:
-		e.encodeValue(w, reflect.ValueOf(v))
+		e.encodeValue(reflect.ValueOf(v))
 	}
 }
 
-func (e *encoder) encodeValue(w *Writer, v reflect.Value) {
+func (e *encoder) encodeValue(v reflect.Value) {
 	t := v.Type()
 	k := t.Kind()
 
 	switch k {
 	case reflect.Bool:
-		e.encodeBool(w, v.Bool())
+		e.encodeBool(v.Bool())
 
 	case reflect.Int:
-		e.encodeInt(w, int(v.Int()))
+		e.encodeInt(int(v.Int()))
 
 	case reflect.Int8:
-		e.encodeInt8(w, int8(v.Int()))
+		e.encodeInt8(int8(v.Int()))
 
 	case reflect.Int16:
-		e.encodeInt16(w, int16(v.Int()))
+		e.encodeInt16(int16(v.Int()))
 
 	case reflect.Int32:
-		e.encodeInt32(w, int32(v.Int()))
+		e.encodeInt32(int32(v.Int()))
 
 	case reflect.Int64:
-		e.encodeInt64(w, v.Int())
+		e.encodeInt64(v.Int())
 
 	case reflect.Uint:
-		e.encodeUint(w, uint(v.Uint()))
+		e.encodeUint(uint(v.Uint()))
 
 	case reflect.Uint8:
-		e.encodeUint8(w, uint8(v.Uint()))
+		e.encodeUint8(uint8(v.Uint()))
 
 	case reflect.Uint16:
-		e.encodeUint16(w, uint16(v.Uint()))
+		e.encodeUint16(uint16(v.Uint()))
 
 	case reflect.Uint32:
-		e.encodeUint32(w, uint32(v.Uint()))
+		e.encodeUint32(uint32(v.Uint()))
 
 	case reflect.Uint64:
-		e.encodeUint64(w, v.Uint())
+		e.encodeUint64(v.Uint())
 
 	case reflect.Uintptr:
-		e.encodeUintptr(w, uintptr(v.Uint()))
+		e.encodeUintptr(uintptr(v.Uint()))
 
 	case reflect.Float32:
-		e.encodeFloat32(w, float32(v.Float()))
+		e.encodeFloat32(float32(v.Float()))
 
 	case reflect.Float64:
-		e.encodeFloat64(w, float64(v.Float()))
+		e.encodeFloat64(float64(v.Float()))
 
 	case reflect.String:
-		e.encodeString(w, v.String())
+		e.encodeString(v.String())
 
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
-			e.encodeBytes(w, v.Bytes())
+			e.encodeBytes(v.Bytes())
 		} else {
-			e.encodeSliceValue(w, v)
+			e.encodeSliceValue(v)
 		}
 
 	case reflect.Array:
-		e.encodeSliceValue(w, v)
+		e.encodeSliceValue(v)
 
 	case reflect.Map:
-		e.encodeMap(w, MapMap(v))
+		e.encodeMap(MapMap(v))
 
 	case reflect.Struct:
-		e.encodeStruct(w, v)
+		e.encodeStruct(v)
 
 	case reflect.Ptr, reflect.Interface:
 		if v.IsNil() {
-			e.encodeNil(w)
+			e.encodeNil()
 		} else {
-			e.encode(w, v.Elem().Interface())
+			e.encode(v.Elem().Interface())
 		}
 
 	default:
@@ -318,126 +318,126 @@ func (e *encoder) encodeValue(w *Writer, v reflect.Value) {
 	}
 }
 
-func (e *encoder) encodeBegin(w *Writer) { e.e.EmitBegin(w) }
+func (e *encoder) encodeBegin() { e.e.EmitBegin(&e.w) }
 
-func (e *encoder) encodeEnd(w *Writer) { e.e.EmitEnd(w) }
+func (e *encoder) encodeEnd() { e.e.EmitEnd(&e.w) }
 
-func (e *encoder) encodeNil(w *Writer) { e.e.EmitNil(w) }
+func (e *encoder) encodeNil() { e.e.EmitNil(&e.w) }
 
-func (e *encoder) encodeBool(w *Writer, v bool) { e.e.EmitBool(w, v) }
+func (e *encoder) encodeBool(v bool) { e.e.EmitBool(&e.w, v) }
 
-func (e *encoder) encodeInt(w *Writer, v int) { e.e.EmitInt(w, v) }
+func (e *encoder) encodeInt(v int) { e.e.EmitInt(&e.w, v) }
 
-func (e *encoder) encodeInt8(w *Writer, v int8) { e.e.EmitInt8(w, v) }
+func (e *encoder) encodeInt8(v int8) { e.e.EmitInt8(&e.w, v) }
 
-func (e *encoder) encodeInt16(w *Writer, v int16) { e.e.EmitInt16(w, v) }
+func (e *encoder) encodeInt16(v int16) { e.e.EmitInt16(&e.w, v) }
 
-func (e *encoder) encodeInt32(w *Writer, v int32) { e.e.EmitInt32(w, v) }
+func (e *encoder) encodeInt32(v int32) { e.e.EmitInt32(&e.w, v) }
 
-func (e *encoder) encodeInt64(w *Writer, v int64) { e.e.EmitInt64(w, v) }
+func (e *encoder) encodeInt64(v int64) { e.e.EmitInt64(&e.w, v) }
 
-func (e *encoder) encodeUint(w *Writer, v uint) { e.e.EmitUint(w, v) }
+func (e *encoder) encodeUint(v uint) { e.e.EmitUint(&e.w, v) }
 
-func (e *encoder) encodeUint8(w *Writer, v uint8) { e.e.EmitUint8(w, v) }
+func (e *encoder) encodeUint8(v uint8) { e.e.EmitUint8(&e.w, v) }
 
-func (e *encoder) encodeUint16(w *Writer, v uint16) { e.e.EmitUint16(w, v) }
+func (e *encoder) encodeUint16(v uint16) { e.e.EmitUint16(&e.w, v) }
 
-func (e *encoder) encodeUint32(w *Writer, v uint32) { e.e.EmitUint32(w, v) }
+func (e *encoder) encodeUint32(v uint32) { e.e.EmitUint32(&e.w, v) }
 
-func (e *encoder) encodeUint64(w *Writer, v uint64) { e.e.EmitUint64(w, v) }
+func (e *encoder) encodeUint64(v uint64) { e.e.EmitUint64(&e.w, v) }
 
-func (e *encoder) encodeUintptr(w *Writer, v uintptr) { e.e.EmitUintptr(w, v) }
+func (e *encoder) encodeUintptr(v uintptr) { e.e.EmitUintptr(&e.w, v) }
 
-func (e *encoder) encodeFloat32(w *Writer, v float32) { e.e.EmitFloat32(w, v) }
+func (e *encoder) encodeFloat32(v float32) { e.e.EmitFloat32(&e.w, v) }
 
-func (e *encoder) encodeFloat64(w *Writer, v float64) { e.e.EmitFloat64(w, v) }
+func (e *encoder) encodeFloat64(v float64) { e.e.EmitFloat64(&e.w, v) }
 
-func (e *encoder) encodeString(w *Writer, v string) { e.e.EmitString(w, v) }
+func (e *encoder) encodeString(v string) { e.e.EmitString(&e.w, v) }
 
-func (e *encoder) encodeBytes(w *Writer, v []byte) { e.e.EmitBytes(w, v) }
+func (e *encoder) encodeBytes(v []byte) { e.e.EmitBytes(&e.w, v) }
 
-func (e *encoder) encodeTime(w *Writer, v time.Time) { e.e.EmitTime(w, v) }
+func (e *encoder) encodeTime(v time.Time) { e.e.EmitTime(&e.w, v) }
 
-func (e *encoder) encodeDuration(w *Writer, v time.Duration) { e.e.EmitDuration(w, v) }
+func (e *encoder) encodeDuration(v time.Duration) { e.e.EmitDuration(&e.w, v) }
 
-func (e *encoder) encodeError(w *Writer, v error) { e.e.EmitError(w, v) }
+func (e *encoder) encodeError(v error) { e.e.EmitError(&e.w, v) }
 
-func (e *encoder) encodeSliceInterface(w *Writer, v []interface{}) {
+func (e *encoder) encodeSliceInterface(v []interface{}) {
 	n := len(v)
-	e.encodeArrayBegin(w, n)
+	e.encodeArrayBegin(n)
 	if n != 0 {
-		e.encode(w, v[0])
+		e.encode(v[0])
 		for i := 1; i != n; i++ {
-			e.encodeArrayNext(w)
-			e.encode(w, v[i])
+			e.encodeArrayNext()
+			e.encode(v[i])
 		}
 	}
-	e.encodeArrayEnd(w)
+	e.encodeArrayEnd()
 }
 
-func (e *encoder) encodeSliceString(w *Writer, v []string) {
+func (e *encoder) encodeSliceString(v []string) {
 	n := len(v)
-	e.encodeArrayBegin(w, n)
+	e.encodeArrayBegin(n)
 	if n != 0 {
-		e.encode(w, v[0])
+		e.encode(v[0])
 		for i := 1; i != n; i++ {
-			e.encodeArrayNext(w)
-			e.encodeString(w, v[i])
+			e.encodeArrayNext()
+			e.encodeString(v[i])
 		}
 	}
-	e.encodeArrayEnd(w)
+	e.encodeArrayEnd()
 }
 
-func (e *encoder) encodeSliceBytes(w *Writer, v [][]byte) {
+func (e *encoder) encodeSliceBytes(v [][]byte) {
 	n := len(v)
-	e.encodeArrayBegin(w, n)
+	e.encodeArrayBegin(n)
 	if n != 0 {
-		e.encode(w, v[0])
+		e.encode(v[0])
 		for i := 1; i != n; i++ {
-			e.encodeArrayNext(w)
-			e.encodeBytes(w, v[i])
+			e.encodeArrayNext()
+			e.encodeBytes(v[i])
 		}
 	}
-	e.encodeArrayEnd(w)
+	e.encodeArrayEnd()
 }
 
-func (e *encoder) encodeSliceValue(w *Writer, v reflect.Value) {
+func (e *encoder) encodeSliceValue(v reflect.Value) {
 	n := v.Len()
-	e.encodeArrayBegin(w, n)
+	e.encodeArrayBegin(n)
 	if n != 0 {
-		e.encode(w, v.Index(0).Interface())
+		e.encode(v.Index(0).Interface())
 		for i := 1; i != n; i++ {
-			e.encodeArrayNext(w)
-			e.encode(w, v.Index(i).Interface())
+			e.encodeArrayNext()
+			e.encode(v.Index(i).Interface())
 		}
 	}
-	e.encodeArrayEnd(w)
+	e.encodeArrayEnd()
 }
 
-func (e *encoder) encodeArray(w *Writer, v Array) {
-	e.encodeArrayBegin(w, v.Len())
+func (e *encoder) encodeArray(v Array) {
+	e.encodeArrayBegin(v.Len())
 	it := v.Iter()
 	for i := 0; true; i++ {
 		if v, ok := it.Next(); !ok {
 			break
 		} else {
 			if i != 0 {
-				e.encodeArrayNext(w)
+				e.encodeArrayNext()
 			}
-			e.encode(w, v)
+			e.encode(v)
 		}
 	}
-	e.encodeArrayEnd(w)
+	e.encodeArrayEnd()
 }
 
-func (e *encoder) encodeArrayBegin(w *Writer, n int) { e.e.EmitArrayBegin(w, n) }
+func (e *encoder) encodeArrayBegin(n int) { e.e.EmitArrayBegin(&e.w, n) }
 
-func (e *encoder) encodeArrayEnd(w *Writer) { e.e.EmitArrayEnd(w) }
+func (e *encoder) encodeArrayEnd() { e.e.EmitArrayEnd(&e.w) }
 
-func (e *encoder) encodeArrayNext(w *Writer) { e.e.EmitArrayNext(w) }
+func (e *encoder) encodeArrayNext() { e.e.EmitArrayNext(&e.w) }
 
-func (e *encoder) encodeMap(w *Writer, v Map) {
-	e.encodeMapBegin(w, v.Len())
+func (e *encoder) encodeMap(v Map) {
+	e.encodeMapBegin(v.Len())
 	it := v.Iter()
 
 	for i := 0; true; i++ {
@@ -445,26 +445,26 @@ func (e *encoder) encodeMap(w *Writer, v Map) {
 			break
 		} else {
 			if i != 0 {
-				e.encodeMapNext(w)
+				e.encodeMapNext()
 			}
-			e.encode(w, item.Key)
-			e.encodeMapValue(w)
-			e.encode(w, item.Value)
+			e.encode(item.Key)
+			e.encodeMapValue()
+			e.encode(item.Value)
 		}
 	}
 
-	e.encodeMapEnd(w)
+	e.encodeMapEnd()
 }
 
-func (e *encoder) encodeMapBegin(w *Writer, n int) { e.e.EmitMapBegin(w, n) }
+func (e *encoder) encodeMapBegin(n int) { e.e.EmitMapBegin(&e.w, n) }
 
-func (e *encoder) encodeMapEnd(w *Writer) { e.e.EmitMapEnd(w) }
+func (e *encoder) encodeMapEnd() { e.e.EmitMapEnd(&e.w) }
 
-func (e *encoder) encodeMapValue(w *Writer) { e.e.EmitMapValue(w) }
+func (e *encoder) encodeMapValue() { e.e.EmitMapValue(&e.w) }
 
-func (e *encoder) encodeMapNext(w *Writer) { e.e.EmitMapNext(w) }
+func (e *encoder) encodeMapNext() { e.e.EmitMapNext(&e.w) }
 
-func (e *encoder) encodeStruct(w *Writer, v reflect.Value) {
+func (e *encoder) encodeStruct(v reflect.Value) {
 	f := e.f[:0]
 	s := LookupStruct(v.Type())
 
@@ -488,24 +488,23 @@ func (e *encoder) encodeStruct(w *Writer, v reflect.Value) {
 	}
 
 	n := len(f)
-	e.encodeMapBegin(w, n)
+	e.encodeMapBegin(n)
 	if n != 0 {
-		e.encodeString(w, f[0].name)
-		e.encodeMapValue(w)
-		e.encode(w, f[0].value)
+		e.encodeString(f[0].name)
+		e.encodeMapValue()
+		e.encode(f[0].value)
 		for i := 1; i != n; i++ {
-			e.encodeMapNext(w)
-			e.encodeString(w, f[i].name)
-			e.encodeMapValue(w)
-			e.encode(w, f[i].value)
+			e.encodeMapNext()
+			e.encodeString(f[i].name)
+			e.encodeMapValue()
+			e.encode(f[i].value)
 		}
 	}
-	e.encodeMapEnd(w)
+	e.encodeMapEnd()
 }
 
 type streamEncoder struct {
 	encoder
-	err    error
 	len    int
 	off    int
 	opened bool
@@ -513,34 +512,26 @@ type streamEncoder struct {
 }
 
 func (e *streamEncoder) Open(n int) (err error) {
-	if err = e.check(); err != nil {
-		return
-	}
-	e.open(n)
-	return e.w.e
+	return e.open(n)
 }
 
 func (e *streamEncoder) Close() (err error) {
-	if err = e.check(); err != nil {
+	if err = e.open(-1); err != nil {
 		return
 	}
-	e.open(-1)
-	e.close()
-	return e.w.e
+	return e.close()
 }
 
 func (e *streamEncoder) Encode(v interface{}) (err error) {
-	if err = e.check(); err != nil {
+	if err = e.open(-1); err != nil {
 		return
 	}
 
-	e.open(-1)
-
 	if e.off != 0 {
-		e.encodeArrayNext(&e.w)
+		e.encodeArrayNext()
 	}
 
-	e.encode(&e.w, v)
+	e.encode(v)
 
 	if e.off++; e.len >= 0 && e.off >= e.len {
 		e.close()
@@ -549,92 +540,82 @@ func (e *streamEncoder) Encode(v interface{}) (err error) {
 	return e.w.e
 }
 
-func (e *streamEncoder) check() (err error) {
-	if err = e.err; err == nil {
-		if e.closed {
-			err = io.ErrClosedPipe
-		}
+func (e *streamEncoder) open(n int) (err error) {
+	if err = e.w.e; err != nil {
+		return
 	}
-	return
-}
 
-func (e *streamEncoder) open(n int) {
+	if e.closed {
+		err = io.ErrClosedPipe
+		return
+	}
+
 	if !e.opened {
 		e.len = n
 		e.opened = true
-		e.encodeBegin(&e.w)
-		e.encodeArrayBegin(&e.w, n)
+		e.encodeBegin()
+		e.encodeArrayBegin(n)
 	}
+
+	return e.w.e
 }
 
-func (e *streamEncoder) close() {
+func (e *streamEncoder) close() (err error) {
 	if !e.closed {
 		e.closed = true
-		e.encodeArrayEnd(&e.w)
-		e.encodeEnd(&e.w)
+		e.encodeArrayEnd()
+		e.encodeEnd()
 	}
-}
-
-func (e *streamEncoder) convertPanicToError(v interface{}) (err error) {
-	if err = convertPanicToError(v); err != nil {
-		e.err = err
-	}
-	return
+	return e.w.e
 }
 
 type nonstreamEncoder struct {
 	encoder
-	err    error
 	opened bool
 	closed bool
 }
 
 func (e *nonstreamEncoder) Open(n int) (err error) {
-	if err = e.check(); err != nil {
-		return
-	}
-	e.open()
-	return e.w.e
+	return e.open()
 }
 
 func (e *nonstreamEncoder) Close() (err error) {
-	if err = e.check(); err != nil {
+	if err = e.open(); err != nil {
 		return
 	}
-	e.open()
-	e.close()
-	return e.w.e
+	return e.close()
 }
 
 func (e *nonstreamEncoder) Encode(v interface{}) (err error) {
-	if err = e.check(); err != nil {
+	if err = e.open(); err != nil {
 		return
 	}
-	e.open()
-	e.encode(&e.w, v)
-	e.close()
+	e.encode(v)
+	return e.close()
+}
+
+func (e *nonstreamEncoder) open() (err error) {
+	if err = e.w.e; err != nil {
+		return
+	}
+
+	if e.closed {
+		err = io.ErrClosedPipe
+		return
+	}
+
+	if !e.opened {
+		e.opened = true
+		e.encodeBegin()
+	}
+
 	return e.w.e
 }
 
-func (e *nonstreamEncoder) check() (err error) {
-	if err = e.err; err == nil {
-		if e.closed {
-			err = io.ErrClosedPipe
-		}
-	}
-	return
-}
-
-func (e *nonstreamEncoder) open() {
-	if !e.opened {
-		e.opened = true
-		e.encodeBegin(&e.w)
-	}
-}
-
-func (e *nonstreamEncoder) close() {
+func (e *nonstreamEncoder) close() (err error) {
 	if !e.closed {
 		e.closed = true
-		e.encodeEnd(&e.w)
+		e.encodeEnd()
 	}
+	return e.w.e
 }
