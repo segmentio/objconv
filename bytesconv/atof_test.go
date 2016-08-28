@@ -353,7 +353,7 @@ func TestRoundTrip32(t *testing.T) {
 		if i&1 == 1 {
 			f = -f // negative
 		}
-		s := FormatFloat(float64(f), 'g', -1, 32)
+		s := strconv.FormatFloat(float64(f), 'g', -1, 32)
 
 		parsed, err := ParseFloat([]byte(s), 32)
 		parsed32 := float32(parsed)
