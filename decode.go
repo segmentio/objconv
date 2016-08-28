@@ -202,6 +202,16 @@ func (d *decoder) decodeValue(r *Reader, v interface{}, to reflect.Value) {
 
 func (d *decoder) decodeNil(to reflect.Value) {
 	switch to.Kind() {
+	case reflect.Interface, reflect.Ptr:
+		if !to.IsNil() {
+			to.Set(reflect.Zero(to.Type()))
+		}
+
+	case reflect.Slice:
+		if to.Len() != 0 {
+			to.Set(to.Slice(0, 0))
+		}
+
 	case reflect.Bool:
 		to.SetBool(false)
 
