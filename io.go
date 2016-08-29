@@ -172,17 +172,25 @@ func (r *Reader) ReadLine(eol EOL) (line []byte, err error) {
 func (r *Reader) ReadFull(b []byte) (n int, err error) { return io.ReadFull(r, b) }
 
 func (r *Reader) load() (n int, err error) {
-	if r.b == nil {
-		// Lazy allocation of the reader's internal buffer.
-		r.b = make([]byte, 1024)
-	} else if r.j >= (len(r.b) / 2) {
-		// Double the size of the reader's internal buffer and copy any bytes
-		// that may still be in the old buffer.
+	if r.i == r.j {
+		if r.b == nil {
+			// Lazy allocation of the reader's internal buffer.
+			r.b = make([]byte, 1024)
+		} else {
+			r.i = 0
+			r.j = 0
+		}
+	} else if r.i == 0 && r.j == len(r.b) {
+		// The buffer is full.
 		b := make([]byte, 2*len(r.b))
 		copy(b, r.b[r.i:r.j])
 		r.j -= r.i
 		r.i = 0
-		r.b = b
+	} else {
+		// Move data to the front of the buffer.
+		copy(r.b, r.b[r.i:r.j])
+		r.j -= r.i
+		r.i = 0
 	}
 
 	if n, err = r.r.Read(r.b[r.j:]); err != nil && n != 0 {
