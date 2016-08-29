@@ -22,28 +22,28 @@ func TestReadLine(t *testing.T) {
 			lines: []string{"Hello World!"},
 		},
 		{
-			data: longString + "\n" +
-				longString + "\n" +
-				longString + "\n" +
-				longString + "\n" +
-				longString + "\n" +
-				longString + "\n" +
-				longString + "\n" +
-				longString + "\n" +
-				longString + "\n" +
-				longString + "\n",
+			data: "0) " + longString +
+				"1) " + longString +
+				"2) " + longString +
+				"3) " + longString +
+				"4) " + longString +
+				"5) " + longString +
+				"6) " + longString +
+				"7) " + longString +
+				"8) " + longString +
+				"9) " + longString + "\n",
 			size: 4096,
 			lines: []string{
-				longString,
-				longString,
-				longString,
-				longString,
-				longString,
-				longString,
-				longString,
-				longString,
-				longString,
-				longString,
+				"0) " + longString +
+					"1) " + longString +
+					"2) " + longString +
+					"3) " + longString +
+					"4) " + longString +
+					"5) " + longString +
+					"6) " + longString +
+					"7) " + longString +
+					"8) " + longString +
+					"9) " + longString,
 			},
 		},
 	}
@@ -67,14 +67,11 @@ testLoop:
 		}
 
 		if !reflect.DeepEqual(lines, test.lines) {
-			t.Errorf("[%d] bad lines:", i)
-			for _, line := range lines {
-				t.Log(line)
-			}
+			t.Errorf("[%d] bad lines: %v", i, lines)
 		}
 
 		if len(r.b) != test.size {
-			t.Errorf("[%d] bad buffer size: %d != %d", test.size, len(r.b))
+			t.Errorf("[%d] bad buffer size: %d != %d", i, test.size, len(r.b))
 		}
 	}
 }
