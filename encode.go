@@ -105,7 +105,7 @@ func NewEncoder(config EncoderConfig) Encoder {
 	return &encoder{
 		sort: config.SortMapKeys,
 		e:    config.Emitter,
-		w:    Writer{W: config.Output},
+		w:    Writer{w: config.Output},
 	}
 }
 
@@ -116,7 +116,7 @@ func NewStreamEncoder(config EncoderConfig) StreamEncoder {
 		encoder: encoder{
 			sort: config.SortMapKeys,
 			e:    config.Emitter,
-			w:    Writer{W: config.Output},
+			w:    Writer{w: config.Output},
 		},
 	}
 }
@@ -137,7 +137,6 @@ type encoder struct {
 	sort bool
 
 	e Emitter
-	t string
 	w Writer
 }
 

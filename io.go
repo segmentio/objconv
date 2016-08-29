@@ -21,10 +21,11 @@ const (
 //
 // It's not safe to use the reader concurrently from multiple goroutines.
 type Reader struct {
-	R io.Reader
-	a [4]byte           // EOL buffer
-	c [utf8.UTFMax]byte // ReadByte and ReadRune buffer
-	b [100]byte         // ReadLine buffer
+	r io.Reader
+	c [utf8.UTFMax]byte // ReadRune and EOL buffer
+	b []byte            // general purpose buffer
+	i int               // start offset in b
+	j int               // end offset in b
 }
 
 // NewReader returns a Reader that reads from r.
@@ -33,37 +34,58 @@ func NewReader(r io.Reader) *Reader {
 	case *Reader:
 		return v
 	default:
-		return &Reader{R: r}
+		return &Reader{r: r}
 	}
 }
 
-// Read reads bytes into b from r.
+// Buffered returns the bytes that are currently buffered by the readered and
+// were not consumed yet.
 //
-// The method returns an error to satisfy the io.Read interface, it will always
-// be nil and can be ignored.
+// The returned by slice is valid until the next call to one of the read
+// methods of the reader.
+func (r *Reader) Buffered() []byte { return r.b[r.i : r.j-r.i] }
+
+// Read reads bytes into b from r.
 func (r *Reader) Read(b []byte) (n int, err error) {
-	n, err = r.R.Read(b)
-	if n > 0 && err != nil {
-		err = nil
+	if r.i == r.j {
+		// The reader has nothing buffered and the destination is greater than
+		// the reader's internal buffer, bypass buffering and load directly into
+		// b.
+		if r.b != nil && len(b) >= len(r.b) {
+			return r.r.Read(b)
+		}
+
+		// We need more data, buffering more!
+		if _, err = r.load(); err != nil {
+			return
+		}
 	}
+
+	n1 := r.j - r.i
+	n2 := len(b)
+
+	if n = n1; n > n2 {
+		n = n2
+	}
+
+	copy(b[:n], r.b[r.i:r.i+n])
+	r.i += n
 	return
 }
 
 // ReadByte reads a byte from r.
-//
-// The method returns an error to satisfy the io.ByteReader interface, it will
-// always be nil and can be ignored.
 func (r *Reader) ReadByte() (c byte, err error) {
-	if _, err = r.Read(r.c[:1]); err == nil {
-		c = r.c[0]
+	if r.i == r.j {
+		if _, err = r.load(); err != nil {
+			return
+		}
 	}
+	c = r.b[r.i]
+	r.i++
 	return
 }
 
 // ReadRune reads a rune from r.
-//
-// The method returns an error to satisfy the io.RuneReader interface, it will
-// always be nil and can be ignored.
 func (r *Reader) ReadRune() (c rune, n int, err error) {
 	var b byte
 
@@ -97,32 +119,52 @@ func (r *Reader) ReadRune() (c rune, n int, err error) {
 }
 
 // ReadLine reads a line ending with eol from r.
+//
+// The returned byte slice points to the reader's internal buffer and is valid
+// until the next call to one of the reader functions.
 func (r *Reader) ReadLine(eol EOL) (line []byte, err error) {
-	line = r.b[:0]
-
-	suff := append(r.a[:0], eol...)
-	last := suff[len(suff)-1]
+	suff := append(r.c[:0], eol...)
 
 	for {
-		var b byte
-
-		if b, err = r.ReadByte(); err != nil {
-			return
-		}
-
-		line = append(line, b)
-
-		if b == last && bytes.HasSuffix(line, suff) {
+		if off := bytes.Index(r.b[r.i:r.j], suff); off >= 0 {
+			line = r.b[r.i : r.i+off]
+			r.i += off + len(suff)
 			break
+		}
+		// There was no EOL in the current buffer, we need to load more data
+		// on the next iteration.
+		if _, err = r.load(); err != nil {
+			return
 		}
 	}
 
-	line = line[:len(line)-len(suff)]
 	return
 }
 
 // ReadFull fills up b with data read from r.
 func (r *Reader) ReadFull(b []byte) (n int, err error) { return io.ReadFull(r, b) }
+
+func (r *Reader) load() (n int, err error) {
+	if r.b == nil {
+		// Lazy allocation of the reader's internal buffer.
+		r.b = make([]byte, 1024)
+	} else if r.j >= (len(r.b) / 2) {
+		// Double the size of the reader's internal buffer and copy any bytes
+		// that may still be in the old buffer.
+		b := make([]byte, 2*len(r.b))
+		copy(b, r.b[r.i:r.j])
+		r.j -= r.i
+		r.i = 0
+		r.b = b
+	}
+
+	if n, err = r.r.Read(r.b[r.j:]); err != nil && n != 0 {
+		err = nil
+	}
+
+	r.j += n
+	return
+}
 
 // Writer implements the io.Writer interface.
 //
@@ -134,7 +176,7 @@ func (r *Reader) ReadFull(b []byte) (n int, err error) { return io.ReadFull(r, b
 //
 // It's not safe to use the writer concurrently from multiple goroutines.
 type Writer struct {
-	W io.Writer
+	w io.Writer
 	e error
 	b [64]byte // buffer
 }
@@ -145,14 +187,14 @@ func NewWriter(w io.Writer) *Writer {
 	case *Writer:
 		return x
 	default:
-		return &Writer{W: w}
+		return &Writer{w: w}
 	}
 }
 
 // Write writes b to w.
 func (w *Writer) Write(b []byte) (n int, err error) {
 	if err = w.e; err == nil {
-		n, err = w.W.Write(b)
+		n, err = w.w.Write(b)
 		w.e = err
 	}
 	return

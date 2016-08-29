@@ -3,14 +3,85 @@ package objconv
 import (
 	"bytes"
 	"io"
+	"reflect"
+	"strings"
 	"testing"
 )
 
-func TestWriteString(t *testing.T) {
-	const longString = `Package json implements encoding and decoding of JSON objects as defined in RFC 4627. The mapping between JSON objects and Go values is described in the documentation for the Marshal and Unmarshal functions.`
+const longString = `Package json implements encoding and decoding of JSON objects as defined in RFC 4627. The mapping between JSON objects and Go values is described in the documentation for the Marshal and Unmarshal functions.`
 
+func TestReadLine(t *testing.T) {
+	tests := []struct {
+		data  string
+		size  int // size of the buffer after reading lines
+		lines []string
+	}{
+		{
+			data:  "Hello World!\n",
+			size:  1024,
+			lines: []string{"Hello World!"},
+		},
+		{
+			data: longString + "\n" +
+				longString + "\n" +
+				longString + "\n" +
+				longString + "\n" +
+				longString + "\n" +
+				longString + "\n" +
+				longString + "\n" +
+				longString + "\n" +
+				longString + "\n" +
+				longString + "\n",
+			size: 4096,
+			lines: []string{
+				longString,
+				longString,
+				longString,
+				longString,
+				longString,
+				longString,
+				longString,
+				longString,
+				longString,
+				longString,
+			},
+		},
+	}
+
+testLoop:
+	for i, test := range tests {
+		var lines []string
+		var r = NewReader(strings.NewReader(test.data))
+
+	readLines:
+		for {
+			switch line, err := r.ReadLine(LF); err {
+			case nil:
+				lines = append(lines, string(line))
+			case io.EOF:
+				break readLines
+			default:
+				t.Errorf("[%d] %s", i, err)
+				continue testLoop
+			}
+		}
+
+		if !reflect.DeepEqual(lines, test.lines) {
+			t.Errorf("[%d] bad lines:", i)
+			for _, line := range lines {
+				t.Log(line)
+			}
+		}
+
+		if len(r.b) != test.size {
+			t.Errorf("[%d] bad buffer size: %d != %d", test.size, len(r.b))
+		}
+	}
+}
+
+func TestWriteString(t *testing.T) {
 	b := &bytes.Buffer{}
-	w := Writer{W: b}
+	w := Writer{w: b}
 
 	n, e := w.WriteString(longString)
 
@@ -28,7 +99,7 @@ func TestWriteString(t *testing.T) {
 }
 
 func TestWriterError(t *testing.T) {
-	w := Writer{W: errorWriter{io.ErrUnexpectedEOF}}
+	w := Writer{w: errorWriter{io.ErrUnexpectedEOF}}
 	_, err := w.WriteString("Hello World!")
 
 	if err != io.ErrUnexpectedEOF {

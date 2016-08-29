@@ -99,21 +99,14 @@ type StreamDecoder interface {
 // NewDecoder returns a new decoder configured with config.
 func NewDecoder(config DecoderConfig) Decoder {
 	config = setDecoderConfigDefaults(config)
-	return &decoder{
-		p: config.Parser,
-		r: Reader{R: config.Input},
-	}
+	d := makeDecoder(config.Parser, config.Input)
+	return &d
 }
 
 // NewStreamDecoder returns a new stream decoder configured with config.
 func NewStreamDecoder(config DecoderConfig) StreamDecoder {
 	config = setDecoderConfigDefaults(config)
-	return &streamDecoder{
-		decoder: decoder{
-			p: config.Parser,
-			r: Reader{R: config.Input},
-		},
-	}
+	return &streamDecoder{decoder: makeDecoder(config.Parser, config.Input)}
 }
 
 func setDecoderConfigDefaults(config DecoderConfig) DecoderConfig {
@@ -130,13 +123,28 @@ func setDecoderConfigDefaults(config DecoderConfig) DecoderConfig {
 
 type decoder struct {
 	p Parser
-	t string
-	r Reader
+	r *Reader
+	Reader
+}
+
+func makeDecoder(p Parser, r io.Reader) (d decoder) {
+	d.p = p
+	d.r = &d.Reader
+
+	// Use the reader directly if it's already an instance of Reader.
+	switch x := r.(type) {
+	case *Reader:
+		d.r = x
+	default:
+		d.r.r = r
+	}
+
+	return
 }
 
 func (d *decoder) Decode(v interface{}) (err error) {
-	//defer func() { err = convertPanicToError(recover()) }()
-	d.decode(&d.r, v)
+	defer func() { err = convertPanicToError(recover()) }()
+	d.decode(d.r, v)
 	return
 }
 
@@ -562,7 +570,7 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 	vi := ve.Interface()
 
 	if d.parser == nil {
-		from, _ := d.parse(&d.r, v)
+		from, _ := d.parse(d.r, v)
 		switch a := from.(type) {
 		case ArrayParser:
 			d.parser = a
@@ -574,10 +582,10 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 		}
 	}
 
-	if x, err := d.parser.Parse(&d.r, vi); err != nil {
+	if x, err := d.parser.Parse(d.r, vi); err != nil {
 		panic(err)
 	} else {
-		d.decodeValue(&d.r, x, ve)
+		d.decodeValue(d.r, x, ve)
 	}
 
 	d.count++
@@ -601,11 +609,11 @@ func (d *streamDecoder) Len() (n int) {
 		var z interface{}
 
 		b := &bytes.Buffer{}
-		r := d.r.R
+		r := d.r.r
 
-		d.r.R = io.TeeReader(r, b)
+		d.r.r = io.TeeReader(r, b)
 
-		v, _ := d.parse(&d.r, &z)
+		v, _ := d.parse(d.r, &z)
 		switch a := v.(type) {
 		case ArrayParser:
 			n = a.Len()
@@ -613,7 +621,7 @@ func (d *streamDecoder) Len() (n int) {
 			n = 1
 		}
 
-		d.r.R = io.MultiReader(b, r)
+		d.r.r = io.MultiReader(b, r)
 		return
 	}
 
@@ -642,7 +650,7 @@ func (d *streamDecoder) Encoder(config EncoderConfig) StreamEncoder {
 		encoder: encoder{
 			sort: config.SortMapKeys,
 			e:    config.Emitter,
-			w:    Writer{W: config.Output},
+			w:    Writer{w: config.Output},
 		},
 	}
 }
