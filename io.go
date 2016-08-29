@@ -1,6 +1,7 @@
 package objconv
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"unicode/utf8"
@@ -49,6 +50,16 @@ func (r *Reader) Buffered() []byte { return r.b[r.i : r.j-r.i] }
 // its backend reader on the next call to one of the read methods.
 func (r *Reader) Reset() { r.i, r.j = 0, 0 }
 
+// // UnreadByte unreads the last byte. Only the most recently read byte can be unread.
+func (r *Reader) UnreadByte() (err error) {
+	if r.i == 0 {
+		err = bufio.ErrInvalidUnreadByte
+		return
+	}
+	r.i--
+	return
+}
+
 // Read reads bytes into b from r.
 func (r *Reader) Read(b []byte) (n int, err error) {
 	if r.i == r.j {
@@ -56,7 +67,19 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 		// the reader's internal buffer, bypass buffering and load directly into
 		// b.
 		if r.b != nil && len(b) >= len(r.b) {
-			return r.r.Read(b)
+			if n, err = r.r.Read(b); n != 0 {
+				// Never report errors if some bytes could be read.
+				err = nil
+
+				// We still need to capture the last byte in case UnreadByte is
+				// called.
+				if r.b == nil {
+					r.b = make([]byte, 512)
+				}
+				r.b[0] = b[n-1]
+				r.i = 0
+				r.j = 1
+			}
 		}
 
 		// We need more data, buffering more!
