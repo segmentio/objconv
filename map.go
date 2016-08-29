@@ -135,22 +135,17 @@ func (it *mapSliceIter) Next() (item MapItem, ok bool) {
 type MapStruct MapSlice
 
 // NewMapStruct returns a new MapStruct value constructed from v which must be a
-// struct, using t as the tag name to apply struct field modifiers from the
-// struct field tags.
-func NewMapStruct(t string, v interface{}) MapStruct {
-	return newMapStruct(t, reflect.ValueOf(v))
-}
+// struct.
+func NewMapStruct(v interface{}) MapStruct { return newMapStruct(reflect.ValueOf(v)) }
 
-func newMapStruct(t string, v reflect.Value) MapStruct {
+func newMapStruct(v reflect.Value) MapStruct {
 	s := LookupStruct(v.Type())
-	m := make(MapStruct, 0, len(s.Fields))
-	it := s.IterValue(t, v, FilterUnexported|FilterAnonymous|FilterSkipped|FilterOmitempty)
+	m := make(MapStruct, len(s.Fields))
 
-	for {
-		if k, v, ok := it.Next(); !ok {
-			break
-		} else {
-			m = append(m, MapItem{Key: k, Value: v})
+	for i, f := range s.Fields {
+		m[i] = MapItem{
+			Key:   f.Name,
+			Value: v.FieldByIndex(f.Index),
 		}
 	}
 

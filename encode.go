@@ -79,9 +79,6 @@ type EncoderConfig struct {
 	// Emitter defines the format used by the encoder.
 	Emitter Emitter
 
-	// Tag sets the name of the tag used when encoding struct fields.
-	Tag string
-
 	// SortMapKeys controls whether the encoder will sort map keys or not.
 	SortMapKeys bool
 }
@@ -108,7 +105,6 @@ func NewEncoder(config EncoderConfig) Encoder {
 	return &encoder{
 		sort: config.SortMapKeys,
 		e:    config.Emitter,
-		t:    config.Tag,
 		w:    Writer{W: config.Output},
 	}
 }
@@ -120,7 +116,6 @@ func NewStreamEncoder(config EncoderConfig) StreamEncoder {
 		encoder: encoder{
 			sort: config.SortMapKeys,
 			e:    config.Emitter,
-			t:    config.Tag,
 			w:    Writer{W: config.Output},
 		},
 	}
@@ -133,10 +128,6 @@ func setEncoderConfigDefault(config EncoderConfig) EncoderConfig {
 
 	if config.Emitter == nil {
 		panic("objconv.NewEncoder: config.Emitter is nil")
-	}
-
-	if len(config.Tag) == 0 {
-		config.Tag = "objconv"
 	}
 
 	return config
@@ -581,34 +572,36 @@ func (e *encoder) encodeMapValue() { e.e.EmitMapValue(&e.w) }
 func (e *encoder) encodeMapNext() { e.e.EmitMapNext(&e.w) }
 
 func (e *encoder) encodeStruct(v reflect.Value) {
-	f := structFieldPool.Get().([]structField)
 	s := LookupStruct(v.Type())
+	n := 0
 
-	it := s.IterValue(e.t, v, FilterUnexported|FilterAnonymous|FilterSkipped|FilterOmitempty)
-
-	for {
-		if k, v, ok := it.NextValue(); !ok {
-			break
-		} else {
-			f = append(f, structField{name: k, value: v.Interface()})
+	for _, f := range s.Fields {
+		if !(f.Omitempty && isEmptyValue(v.FieldByIndex(f.Index))) {
+			n++
 		}
 	}
 
-	n := len(f)
 	e.encodeMapBegin(n)
-	if n != 0 {
-		e.encodeString(f[0].name)
-		e.encodeMapValue()
-		e.encode(f[0].value)
-		for i := 1; i != n; i++ {
-			e.encodeMapNext()
-			e.encodeString(f[i].name)
-			e.encodeMapValue()
-			e.encode(f[i].value)
+	n = 0
+
+	for _, f := range s.Fields {
+		fv := v.FieldByIndex(f.Index)
+
+		if f.Omitempty && isEmptyValue(fv) {
+			continue
 		}
+
+		if n != 0 {
+			e.encodeMapNext()
+		}
+
+		e.encodeString(f.Name)
+		e.encodeMapValue()
+		e.encode(fv.Interface())
+		n++
 	}
+
 	e.encodeMapEnd()
-	structFieldPool.Put(f[:0])
 }
 
 type streamEncoder struct {
@@ -728,16 +721,7 @@ func (e *nonstreamEncoder) close() (err error) {
 	return e.w.e
 }
 
-type structField struct {
-	name  string
-	value interface{}
-}
-
 var (
-	structFieldPool = sync.Pool{
-		New: func() interface{} { return make([]structField, 0, 20) },
-	}
-
 	stringKeysPool = sync.Pool{
 		New: func() interface{} { return make([]string, 0, 20) },
 	}

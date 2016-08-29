@@ -1,9 +1,6 @@
 package objconv
 
-import (
-	"reflect"
-	"testing"
-)
+import "testing"
 
 func TestParseTag(t *testing.T) {
 	tests := []struct {
@@ -24,7 +21,7 @@ func TestParseTag(t *testing.T) {
 		},
 		{
 			tag: "-",
-			res: Tag{Name: "-", Skip: true},
+			res: Tag{Name: "-"},
 		},
 		{
 			tag: "hello,omitempty",
@@ -32,55 +29,13 @@ func TestParseTag(t *testing.T) {
 		},
 		{
 			tag: "-,omitempty",
-			res: Tag{Name: "-", Omitempty: true, Skip: true},
+			res: Tag{Name: "-", Omitempty: true},
 		},
 	}
 
 	for _, test := range tests {
 		if res := ParseTag(test.tag); res != test.res {
 			t.Errorf("%s: %#v != %#v", test.tag, test.res, res)
-		}
-	}
-}
-
-func TestParseStructTag(t *testing.T) {
-	tests := []struct {
-		val interface{}
-		res StructTag
-	}{
-		{
-			val: struct{ F int }{},
-			res: StructTag{},
-		},
-		{
-			val: struct {
-				F int `json:"f"`
-			}{},
-			res: StructTag{"json": Tag{Name: "f"}},
-		},
-		{
-			val: struct {
-				F int `json:"-"`
-			}{},
-			res: StructTag{"json": Tag{Name: "-", Skip: true}},
-		},
-		{
-			val: struct {
-				F int `json:",omitempty` // missing closing "
-			}{},
-			res: StructTag{"json": Tag{Omitempty: true}},
-		},
-		{
-			val: struct {
-				F int `json:f` // missing opening "
-			}{},
-			res: StructTag{"json": Tag{}, "f": Tag{}},
-		},
-	}
-
-	for _, test := range tests {
-		if res := ParseStructTag(reflect.TypeOf(test.val).Field(0).Tag); !reflect.DeepEqual(res, test.res) {
-			t.Errorf("%s: %#v != %#v", test.val, test.res, res)
 		}
 	}
 }

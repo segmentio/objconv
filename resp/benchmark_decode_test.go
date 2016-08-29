@@ -15,7 +15,7 @@ var (
 	})
 )
 
-func BenchmarkDecodeNil(b *testing.B) { test.BenchmarkDecode(b, nilDecoder, nilReader) }
+func BenchmarkDecodeNil(b *testing.B) { test.BenchmarkDecode(b, nilDecoder, nilReader, nil) }
 
 var (
 	trueReader  = test.NewBenchmarkReader(":1\r\n")
@@ -31,8 +31,8 @@ var (
 	})
 )
 
-func BenchmarkDecodeBoolTrue(b *testing.B)  { test.BenchmarkDecode(b, trueDecoder, trueReader) }
-func BenchmarkDecodeBoolFalse(b *testing.B) { test.BenchmarkDecode(b, falseDecoder, falseReader) }
+func BenchmarkDecodeBoolTrue(b *testing.B)  { test.BenchmarkDecode(b, trueDecoder, trueReader, false) }
+func BenchmarkDecodeBoolFalse(b *testing.B) { test.BenchmarkDecode(b, falseDecoder, falseReader, false) }
 
 var (
 	intReader  = test.NewBenchmarkReader(":42\r\n")
@@ -42,7 +42,17 @@ var (
 	})
 )
 
-func BenchmarkDecodeInt(b *testing.B) { test.BenchmarkDecode(b, intDecoder, intReader) }
+func BenchmarkDecodeInt(b *testing.B) { test.BenchmarkDecode(b, intDecoder, intReader, 0) }
+
+var (
+	floatReader  = test.NewBenchmarkReader("$5\r\n1.234\r\n")
+	floatDecoder = objconv.NewDecoder(objconv.DecoderConfig{
+		Input:  floatReader,
+		Parser: &Parser{},
+	})
+)
+
+func BenchmarkDecodeFloat(b *testing.B) { test.BenchmarkDecode(b, floatDecoder, floatReader, 0.0) }
 
 var (
 	stringReader  = test.NewBenchmarkReader("+Hello World!\r\n")
@@ -52,7 +62,7 @@ var (
 	})
 )
 
-func BenchmarkDecodeString(b *testing.B) { test.BenchmarkDecode(b, stringDecoder, stringReader) }
+func BenchmarkDecodeString(b *testing.B) { test.BenchmarkDecode(b, stringDecoder, stringReader, "") }
 
 var (
 	arrayReader  = test.NewBenchmarkReader("*3\r\n:1\r\n:2\r\n:3\r\n")
@@ -62,7 +72,9 @@ var (
 	})
 )
 
-func BenchmarkDecodeArray(b *testing.B) { test.BenchmarkDecode(b, arrayDecoder, arrayReader) }
+func BenchmarkDecodeArray(b *testing.B) {
+	test.BenchmarkDecode(b, arrayDecoder, arrayReader, ([]interface{})(nil))
+}
 
 var (
 	mapReader  = test.NewBenchmarkReader("*6\r\n+A\r\n:1\r\n+B\r\n:2\r\n+C\r\n:3\r\n")
@@ -72,4 +84,22 @@ var (
 	})
 )
 
-func BenchmarkDecodeMap(b *testing.B) { test.BenchmarkDecode(b, mapDecoder, mapReader) }
+func BenchmarkDecodeMap(b *testing.B) {
+	test.BenchmarkDecode(b, mapDecoder, mapReader, (map[string]interface{})(nil))
+}
+
+var (
+	structReader  = test.NewBenchmarkReader("*6\r\n+A\r\n:1\r\n+B\r\n:2\r\n+C\r\n:3\r\n")
+	structDecoder = objconv.NewDecoder(objconv.DecoderConfig{
+		Input:  structReader,
+		Parser: &Parser{},
+	})
+)
+
+func BenchmarkDecodeStruct(b *testing.B) {
+	test.BenchmarkDecode(b, structDecoder, structReader, struct {
+		A int
+		B int
+		C int
+	}{})
+}

@@ -11,30 +11,22 @@ type StructField struct {
 	// The name of the field in the structure.
 	Name string
 
-	// The type of the field in the structure.
-	Type reflect.Type
-
-	// The offset of the field within the structure.
-	Offset uintptr
-
-	// The struct tags that were set on the field.
-	Tags StructTag
-
-	// Set to true when the field is anonymous, false otherwise.
-	Anonymous bool
-
-	// Set to true when the field is exported, false otherwise.
-	Exported bool
+	// Omitempty is set to true when the field should be omitted if it has an
+	// empty value.
+	Omitempty bool
 }
 
 func makeStructField(f reflect.StructField) StructField {
-	return StructField{
+	t := ParseTag(f.Tag.Get("objconv"))
+	s := StructField{
 		Index:     f.Index,
 		Name:      f.Name,
-		Offset:    f.Offset,
-		Type:      f.Type,
-		Anonymous: f.Anonymous,
-		Exported:  len(f.PkgPath) == 0,
-		Tags:      ParseStructTag(f.Tag),
+		Omitempty: t.Omitempty,
 	}
+
+	if len(t.Name) != 0 {
+		s.Name = t.Name
+	}
+
+	return s
 }

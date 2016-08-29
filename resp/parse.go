@@ -58,16 +58,19 @@ func (p *Parser) parseInt(r *objconv.Reader, hint interface{}) (v interface{}, e
 		if u, err = bytesconv.ParseUint(line, 10, 64); err != nil {
 			return
 		}
-		if hint != nil && reflect.TypeOf(hint).Kind() == reflect.Bool {
-			v = u != 0
-		} else {
-			v = u
-		}
+		v = u
 	} else {
-		if hint != nil && reflect.TypeOf(hint).Kind() == reflect.Bool {
-			v = i != 0
-		} else {
-			v = i
+		v = i
+	}
+
+	if hint != nil {
+		if reflect.TypeOf(hint).Kind() == reflect.Bool {
+			switch x := v.(type) {
+			case int64:
+				v = x != 0
+			case uint64:
+				v = x != 0
+			}
 		}
 	}
 

@@ -101,7 +101,6 @@ func NewDecoder(config DecoderConfig) Decoder {
 	config = setDecoderConfigDefaults(config)
 	return &decoder{
 		p: config.Parser,
-		t: config.Tag,
 		r: Reader{R: config.Input},
 	}
 }
@@ -112,7 +111,6 @@ func NewStreamDecoder(config DecoderConfig) StreamDecoder {
 	return &streamDecoder{
 		decoder: decoder{
 			p: config.Parser,
-			t: config.Tag,
 			r: Reader{R: config.Input},
 		},
 	}
@@ -127,10 +125,6 @@ func setDecoderConfigDefaults(config DecoderConfig) DecoderConfig {
 		panic("objconv.NewDecoder: config.Parser is nil")
 	}
 
-	if len(config.Tag) == 0 {
-		config.Tag = "objconv"
-	}
-
 	return config
 }
 
@@ -141,7 +135,7 @@ type decoder struct {
 }
 
 func (d *decoder) Decode(v interface{}) (err error) {
-	defer func() { err = convertPanicToError(recover()) }()
+	//defer func() { err = convertPanicToError(recover()) }()
 	d.decode(&d.r, v)
 	return
 }
@@ -232,7 +226,13 @@ func (d *decoder) decodeNil(to reflect.Value) {
 }
 
 func (d *decoder) decodeBool(v bool, to reflect.Value) {
-	to.SetBool(v)
+	switch to.Kind() {
+	case reflect.Bool:
+		to.SetBool(v)
+
+	default:
+		to.Set(reflect.ValueOf(v))
+	}
 }
 
 func (d *decoder) decodeInt(v int64, to reflect.Value) {
@@ -458,10 +458,18 @@ decodeLoop:
 }
 
 func (d *decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) {
-	if t := to.Type(); t.Kind() == reflect.Struct {
+	switch t := to.Type(); t.Kind() {
+	case reflect.Struct:
 		d.decodeMapToStruct(r, v, to, t)
-	} else {
+
+	case reflect.Map:
 		d.decodeMapToMap(r, v, to, t)
+
+	default:
+		var m map[interface{}]interface{}
+		var mv = reflect.ValueOf(&m).Elem()
+		d.decodeMapToMap(r, v, mv, reflect.TypeOf(m))
+		to.Set(mv)
 	}
 }
 
@@ -504,7 +512,7 @@ decodeLoop:
 }
 
 func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t reflect.Type) {
-	s := LookupStruct(t).SetterValue(d.t, to)
+	s := LookupStruct(t)
 	f := ""
 
 	fv := reflect.ValueOf(&f).Elem()
@@ -521,7 +529,8 @@ decodeLoop:
 			panic(err)
 		}
 
-		if fv, ok := s[f]; ok {
+		if sf := s.FieldByName[f]; sf != nil {
+			fv := to.FieldByIndex(sf.Index)
 			switch x, err := v.ParseValue(r, fv.Interface()); err {
 			case nil:
 				d.decodeValue(r, x, fv)
@@ -633,7 +642,6 @@ func (d *streamDecoder) Encoder(config EncoderConfig) StreamEncoder {
 		encoder: encoder{
 			sort: config.SortMapKeys,
 			e:    config.Emitter,
-			t:    config.Tag,
 			w:    Writer{W: config.Output},
 		},
 	}

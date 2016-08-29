@@ -18,52 +18,32 @@ func TestMakeStructField(t *testing.T) {
 		{
 			s: reflect.TypeOf(A{}).Field(0),
 			f: StructField{
-				Index:     []int{0},
-				Name:      "A",
-				Type:      reflect.TypeOf(0),
-				Offset:    0,
-				Tags:      StructTag{},
-				Anonymous: false,
-				Exported:  true,
+				Index: []int{0},
+				Name:  "A",
 			},
 		},
 
 		{
-			s: reflect.TypeOf(struct{ a int }{}).Field(0),
+			s: reflect.TypeOf(a{}).Field(0),
 			f: StructField{
-				Index:     []int{0},
-				Name:      "a",
-				Type:      reflect.TypeOf(0),
-				Offset:    0,
-				Tags:      StructTag{},
-				Anonymous: false,
-				Exported:  false,
+				Index: []int{0},
+				Name:  "a",
 			},
 		},
 
 		{
 			s: reflect.TypeOf(B{}).Field(0),
 			f: StructField{
-				Index:     []int{0},
-				Name:      "A",
-				Type:      reflect.TypeOf(A{}),
-				Offset:    0,
-				Tags:      StructTag{},
-				Anonymous: true,
-				Exported:  true,
+				Index: []int{0},
+				Name:  "A",
 			},
 		},
 
 		{
 			s: reflect.TypeOf(b{}).Field(0),
 			f: StructField{
-				Index:     []int{0},
-				Name:      "a",
-				Type:      reflect.TypeOf(a{}),
-				Offset:    0,
-				Tags:      StructTag{},
-				Anonymous: true,
-				Exported:  false,
+				Index: []int{0},
+				Name:  "a",
 			},
 		},
 	}
