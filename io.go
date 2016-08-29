@@ -47,10 +47,7 @@ func (r *Reader) Buffered() []byte { return r.b[r.i : r.j-r.i] }
 
 // Reset clears all buffered data in the reader, forcing it to load bytes from
 // its backend reader on the next call to one of the read methods.
-func (r *Reader) Reset() {
-	r.i = 0
-	r.j = 0
-}
+func (r *Reader) Reset() { r.i, r.j = 0, 0 }
 
 // Read reads bytes into b from r.
 func (r *Reader) Read(b []byte) (n int, err error) {
