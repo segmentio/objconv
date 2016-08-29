@@ -147,7 +147,7 @@ func Codec(t *testing.T, e objconv.Emitter, p objconv.Parser) {
 
 		// []interface{}
 		[]interface{}{},
-		[]interface{}{nil, int64(42), "Hello World!", []byte("Hello World!"), []interface{}{"A", "B", "C"}},
+		[]interface{}{nil, int64(42), "Hello World!", []interface{}{"A", "B", "C"}},
 
 		// map[int]int
 		map[int]int{},

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/test"
 )
 
 func TestEmit(t *testing.T) {
@@ -91,7 +92,6 @@ func TestEmit(t *testing.T) {
 	}
 }
 
-/*
 func TestCodec(t *testing.T) {
 	test.Codec(t, &Emitter{}, &Parser{})
 }
@@ -99,4 +99,3 @@ func TestCodec(t *testing.T) {
 func TestStreamCodec(t *testing.T) {
 	test.Codec(t, &Emitter{}, &Parser{})
 }
-*/
