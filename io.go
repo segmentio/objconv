@@ -186,6 +186,7 @@ func (r *Reader) load() (n int, err error) {
 		copy(b, r.b[r.i:r.j])
 		r.j -= r.i
 		r.i = 0
+		r.b = b
 	} else {
 		// Move data to the front of the buffer.
 		copy(r.b, r.b[r.i:r.j])
