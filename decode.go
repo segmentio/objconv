@@ -2,6 +2,7 @@ package objconv
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -347,14 +348,14 @@ func (d *decoder) decodeFloat(v float64, to reflect.Value) {
 
 func (d *decoder) decodeString(v string, to reflect.Value) {
 	switch to.Kind() {
-	case reflect.Slice:
-		d.decodeStringToSlice(v, to)
-
 	case reflect.String:
 		to.SetString(v)
 
+	case reflect.Slice:
+		d.decodeStringToSlice(v, to)
+
 	default:
-		to.Set(reflect.ValueOf(v))
+		d.decodeStringToOther(v, to)
 	}
 }
 
@@ -368,6 +369,30 @@ func (d *decoder) decodeStringToSlice(v string, to reflect.Value) {
 
 	default:
 		to.SetString(v)
+	}
+}
+
+func (d *decoder) decodeStringToOther(v string, to reflect.Value) {
+	switch to.Interface().(type) {
+	case time.Time:
+		if t, err := time.Parse(time.RFC3339Nano, v); err != nil {
+			panic(err)
+		} else {
+			to.Set(reflect.ValueOf(t))
+		}
+
+	case time.Duration:
+		if d, err := time.ParseDuration(v); err != nil {
+			panic(err)
+		} else {
+			to.Set(reflect.ValueOf(d))
+		}
+
+	case error:
+		to.Set(reflect.ValueOf(errors.New(v)))
+
+	default:
+		to.Set(reflect.ValueOf(v))
 	}
 }
 
