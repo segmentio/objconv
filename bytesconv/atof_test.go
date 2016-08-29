@@ -367,7 +367,6 @@ func TestRoundTrip32(t *testing.T) {
 		}
 		count++
 	}
-	t.Logf("tested %d float32's", count)
 }
 
 func BenchmarkAtof64Decimal(b *testing.B) {
