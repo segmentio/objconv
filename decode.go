@@ -622,6 +622,7 @@ func (d *streamDecoder) Len() (n int) {
 		}
 
 		d.r.r = io.MultiReader(b, r)
+		d.r.Reset()
 		return
 	}
 
