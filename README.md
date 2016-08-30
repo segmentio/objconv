@@ -43,8 +43,8 @@ func main() {
 ```
 
 To support multiple serialization formats the program has to import each
-subpackage it's interested in then it's simply a matter of changing the name of
-the encoder.
+subpackage it's interested in, then it can select a different encoder name to
+change the output.
 
 Decoder
 -------
