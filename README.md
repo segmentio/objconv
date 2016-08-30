@@ -94,7 +94,7 @@ import (
     "log"
 
     "github.com/segmentio/objconv"
-    _ "github.com/segmentio/objconv/json" // load the JSON codec
+    "github.com/segmentio/objconv/json"
 )
 
 func main() {
