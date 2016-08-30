@@ -36,7 +36,9 @@ import (
 func main() {
     objconv.Encode(os.Stdout, "json", struct{
         Hello `objconv:"hello"`
-    }{"world"}) // prints {"hello":"world"}
+    }{"world"})
+
+    // {"hello":"world"}
 }
 ```
 
