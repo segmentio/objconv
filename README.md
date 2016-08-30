@@ -44,7 +44,7 @@ func main() {
 
 To support multiple serialization formats the program has to import each
 subpackage it's interested in, then it can select a different encoder name to
-change the output.
+change format of the output.
 
 Decoder
 -------
