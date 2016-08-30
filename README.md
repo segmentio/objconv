@@ -57,8 +57,6 @@ Here's an example of how to use a decoder:
 package main
 
 import (
-    "strings"
-
     "github.com/segmentio/objconv"
     _ "github.com/segmentio/objconv/json" // load the JSON codec
 )
@@ -69,7 +67,7 @@ func main() {
        Hello `objconv:"hello"`
     }{}
 
-    objconv.Decode(strings.NewReader(s), "json", &v)
+    objconv.DecodeString(s, "json", &v)
 
     // v.Hello == "world"
     // ...
