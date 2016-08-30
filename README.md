@@ -57,7 +57,7 @@ Mime Types
 
 The codecs registers themselves under multiple names, including the standard
 mime-types associated with the serialization format they implement.  
-For example the objconv/json` package registers its encoder and decoder under
+For example the `objconv/json` package registers its encoder and decoder under
 `text/json` and `application/json` on top of the simpler `json` name.  
 This makes it easy to load encoders and decoders from an HTTP request's
 Content-Type header for example.
