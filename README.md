@@ -19,8 +19,8 @@ go get github.com/segmentio/objconv
 Encoder
 -------
 
-The package exposes a generic `Encoder` interface that let's the program
-serialize native values into various formats.
+The package exposes a generic encoder API that let's the program serialize
+native values into various formats.
 
 Here's an example of how to serialize a structure to JSON:
 ```go
