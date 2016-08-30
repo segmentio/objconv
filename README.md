@@ -91,7 +91,6 @@ package main
 
 import (
     "io"
-    "log"
 
     "github.com/segmentio/objconv"
     "github.com/segmentio/objconv/json"
