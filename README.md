@@ -49,6 +49,33 @@ change format of the output.
 Decoder
 -------
 
+Like the encoders, decoders can be identified by name and generate native Go
+values from their serialized representation in different formats.
+
+Here's an example of how to use a decoder:
+```go
+package main
+
+import (
+    "strings"
+
+    "github.com/segmentio/objconv"
+    _ "github.com/segmentio/objconv/json" // load the JSON codec
+)
+
+func main() {
+    s := `{"hello":"world"}`
+    v := struct{
+       Hello `objconv:"hello"`
+    }{}
+
+    objconv.Decode(strings.NewReader(s), "json", &v)
+
+    // v.Hello == "world"
+    // ...
+}
+```
+
 Streaming
 ---------
 
