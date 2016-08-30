@@ -77,6 +77,61 @@ func main() {
 Streaming
 ---------
 
+One of the interesting features of the `objconv` package is the ability to read
+and write streams of data. This has several advantages in terms of memory usage
+and latency when passing data from service to service.  
+The package exposes the `StreamEncoder` and `StreamDecoder` interfaces for this
+purpose.
+
+For example the JSON stream encoder an decoder can produce a JSON array as a
+stream where data are produced and consumed on the fly as they become available,
+here's an example:
+```go
+package main
+
+import (
+    "io"
+    "log"
+
+    "github.com/segmentio/objconv"
+    _ "github.com/segmentio/objconv/json" // load the JSON codec
+)
+
+func main() {
+     r, w := io.Pipe()
+
+    go func() {
+        defer w.Close()
+
+        enc := objconv.NewStreamEncoder(objconv.EncoderConfig{
+            Ouptut:  w,
+            Emitter: &json.Emitter{},
+        })
+
+        // Produce values to the JSON stream.
+        for i := 0; i != 1000; i++ {
+            enc.Encode(i)
+        }
+
+        enc.Close()
+    }()
+
+    dec := objconv.NewStreamDecoder(objconv.DecoderConfig{
+        Input:  r,
+        Parser: &json.Parser{},
+    })
+
+    // Consume values from the JSON stream.
+    var v interface{}
+
+    for dec.Decode(&v) == nil {
+        // v => {0..999}
+        // ...
+        v = nil
+    }
+}
+```
+
 Mime Types
 ----------
 
