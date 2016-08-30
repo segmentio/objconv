@@ -83,7 +83,7 @@ and latency when passing data from service to service.
 The package exposes the `StreamEncoder` and `StreamDecoder` interfaces for this
 purpose.
 
-For example the JSON stream encoder an decoder can produce a JSON array as a
+For example the JSON stream encoder and decoder can produce a JSON array as a
 stream where data are produced and consumed on the fly as they become available,
 here's an example:
 ```go
@@ -130,6 +130,11 @@ func main() {
     }
 }
 ```
+
+Stream decoders are capable of reading values from either arrays or single
+values, this is very convenient when an program cannot predict the structure of
+the stream. If the actual data representation is not an array the stream decoder
+will simply behave like a normal decoder and produce a single value.
 
 Mime Types
 ----------
