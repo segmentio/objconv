@@ -34,11 +34,11 @@ import (
 )
 
 func main() {
+    // prints {"hello":"world"}
+    //
     objconv.Encode(os.Stdout, "json", struct{
         Hello `objconv:"hello"`
     }{"world"})
-
-    // {"hello":"world"}
 }
 ```
 
