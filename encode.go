@@ -596,7 +596,7 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 	n := 0
 
 	for _, f := range s.Fields {
-		if omit(f, v.FieldByIndex(f.Index)) {
+		if !omit(f, v.FieldByIndex(f.Index)) {
 			n++
 		}
 	}
@@ -605,20 +605,16 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 	n = 0
 
 	for _, f := range s.Fields {
-		fv := v.FieldByIndex(f.Index)
+		if fv := v.FieldByIndex(f.Index); !omit(f, fv) {
+			if n != 0 {
+				e.encodeMapNext()
+			}
 
-		if omit(f, fv) {
-			continue
+			e.encodeString(f.Name)
+			e.encodeMapValue()
+			e.encode(fv.Interface())
+			n++
 		}
-
-		if n != 0 {
-			e.encodeMapNext()
-		}
-
-		e.encodeString(f.Name)
-		e.encodeMapValue()
-		e.encode(fv.Interface())
-		n++
 	}
 
 	e.encodeMapEnd()
