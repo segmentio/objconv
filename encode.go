@@ -609,7 +609,6 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 			if n != 0 {
 				e.encodeMapNext()
 			}
-
 			e.encodeString(f.Name)
 			e.encodeMapValue()
 			e.encode(fv.Interface())
