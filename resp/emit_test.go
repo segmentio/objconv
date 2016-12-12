@@ -84,11 +84,13 @@ func TestEmit(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if s, err := objconv.EncodeString("resp", test.v); err != nil {
-			t.Errorf("%#v: %s", test.v, err)
-		} else if s != test.s {
-			t.Errorf("%#v:\n- %#v\n- %#v", test.v, test.s, s)
-		}
+		t.Run("", func(t *testing.T) {
+			if s, err := objconv.EncodeString("resp", test.v); err != nil {
+				t.Errorf("%#v: %s", test.v, err)
+			} else if s != test.s {
+				t.Errorf("%#v:\n- %#v\n- %#v", test.v, test.s, s)
+			}
+		})
 	}
 }
 

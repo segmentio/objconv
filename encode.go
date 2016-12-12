@@ -245,9 +245,8 @@ func (e *encoder) encode(v interface{}) {
 
 func (e *encoder) encodeValue(v reflect.Value) {
 	t := v.Type()
-	k := t.Kind()
 
-	switch k {
+	switch t.Kind() {
 	case reflect.Bool:
 		e.encodeBool(v.Bool())
 
@@ -304,7 +303,10 @@ func (e *encoder) encodeValue(v reflect.Value) {
 		e.encodeSliceValue(v)
 
 	case reflect.Map:
-		if e.sort {
+		if v.Len() == 0 {
+			e.encodeMapBegin(0)
+			e.encodeMapEnd()
+		} else if e.sort {
 			e.encodeMap(SortedMap(v))
 		} else {
 			e.encodeMap(UnsortedMap(v))
@@ -372,6 +374,7 @@ func (e *encoder) encodeError(v error) { e.e.EmitError(&e.w, v) }
 func (e *encoder) encodeSliceInterface(v []interface{}) {
 	n := len(v)
 	e.encodeArrayBegin(n)
+
 	if n != 0 {
 		e.encode(v[0])
 		for i := 1; i != n; i++ {
@@ -379,38 +382,44 @@ func (e *encoder) encodeSliceInterface(v []interface{}) {
 			e.encode(v[i])
 		}
 	}
+
 	e.encodeArrayEnd()
 }
 
 func (e *encoder) encodeSliceString(v []string) {
 	n := len(v)
 	e.encodeArrayBegin(n)
+
 	if n != 0 {
-		e.encode(v[0])
+		e.encodeString(v[0])
 		for i := 1; i != n; i++ {
 			e.encodeArrayNext()
 			e.encodeString(v[i])
 		}
 	}
+
 	e.encodeArrayEnd()
 }
 
 func (e *encoder) encodeSliceBytes(v [][]byte) {
 	n := len(v)
 	e.encodeArrayBegin(n)
+
 	if n != 0 {
-		e.encode(v[0])
+		e.encodeBytes(v[0])
 		for i := 1; i != n; i++ {
 			e.encodeArrayNext()
 			e.encodeBytes(v[i])
 		}
 	}
+
 	e.encodeArrayEnd()
 }
 
 func (e *encoder) encodeSliceValue(v reflect.Value) {
 	n := v.Len()
 	e.encodeArrayBegin(n)
+
 	if n != 0 {
 		e.encode(v.Index(0).Interface())
 		for i := 1; i != n; i++ {
@@ -418,22 +427,28 @@ func (e *encoder) encodeSliceValue(v reflect.Value) {
 			e.encode(v.Index(i).Interface())
 		}
 	}
+
 	e.encodeArrayEnd()
 }
 
 func (e *encoder) encodeArray(v Array) {
-	e.encodeArrayBegin(v.Len())
-	it := v.Iter()
-	for i := 0; true; i++ {
-		if v, ok := it.Next(); !ok {
-			break
-		} else {
-			if i != 0 {
-				e.encodeArrayNext()
+	n := v.Len()
+	e.encodeArrayBegin(n)
+
+	if n != 0 {
+		it := v.Iter()
+		for i := 0; true; i++ {
+			if v, ok := it.Next(); !ok {
+				break
+			} else {
+				if i != 0 {
+					e.encodeArrayNext()
+				}
+				e.encode(v)
 			}
-			e.encode(v)
 		}
 	}
+
 	e.encodeArrayEnd()
 }
 
@@ -528,6 +543,7 @@ func (e *encoder) encodeMapStringInterface(v map[string]interface{}) {
 func (e *encoder) encodeMapSlice(v MapSlice) {
 	n := len(v)
 	e.encodeMapBegin(n)
+
 	if n != 0 {
 		e.encode(v[0].Key)
 		e.encodeMapValue()
@@ -539,23 +555,28 @@ func (e *encoder) encodeMapSlice(v MapSlice) {
 			e.encode(v[i].Value)
 		}
 	}
+
 	e.encodeMapEnd()
 }
 
 func (e *encoder) encodeMap(v Map) {
-	e.encodeMapBegin(v.Len())
-	it := v.Iter()
+	n := v.Len()
+	e.encodeMapBegin(n)
 
-	for i := 0; true; i++ {
-		if item, ok := it.Next(); !ok {
-			break
-		} else {
-			if i != 0 {
-				e.encodeMapNext()
+	if n != 0 {
+		it := v.Iter()
+
+		for i := 0; true; i++ {
+			if item, ok := it.Next(); !ok {
+				break
+			} else {
+				if i != 0 {
+					e.encodeMapNext()
+				}
+				e.encode(item.Key)
+				e.encodeMapValue()
+				e.encode(item.Value)
 			}
-			e.encode(item.Key)
-			e.encodeMapValue()
-			e.encode(item.Value)
 		}
 	}
 

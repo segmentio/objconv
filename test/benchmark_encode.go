@@ -176,15 +176,15 @@ func BenchmarkEncodeMapSliceLong(b *testing.B, e objconv.Encoder) {
 }
 
 func BenchmarkEncodeStructEmpty(b *testing.B, e objconv.Encoder) {
-	BenchmarkEncode(b, e, &structEmpty)
+	BenchmarkEncode(b, e, structEmpty)
 }
 
 func BenchmarkEncodeStructShort(b *testing.B, e objconv.Encoder) {
-	BenchmarkEncode(b, e, &structShort)
+	BenchmarkEncode(b, e, structShort)
 }
 
 func BenchmarkEncodeStructLong(b *testing.B, e objconv.Encoder) {
-	BenchmarkEncode(b, e, &structLong)
+	BenchmarkEncode(b, e, structLong)
 }
 
 func BenchmarkEncode(b *testing.B, e objconv.Encoder, v interface{}) {
@@ -264,37 +264,37 @@ var (
 
 	structEmpty = struct{}{}
 	structShort = struct {
-		A interface{}
-		B interface{}
-		C interface{}
+		A int
+		B int
+		C int
 	}{}
 	structLong = struct {
-		A interface{}
-		B interface{}
-		C interface{}
-		D interface{}
-		E interface{}
-		F interface{}
-		G interface{}
-		H interface{}
-		I interface{}
-		J interface{}
-		K interface{}
-		L interface{}
-		M interface{}
-		N interface{}
-		O interface{}
-		P interface{}
-		Q interface{}
-		R interface{}
-		S interface{}
-		T interface{}
-		U interface{}
-		V interface{}
-		W interface{}
-		X interface{}
-		Y interface{}
-		Z interface{}
+		A int
+		B int
+		C int
+		D int
+		E int
+		F int
+		G int
+		H int
+		I int
+		J int
+		K int
+		L int
+		M int
+		N int
+		O int
+		P int
+		Q int
+		R int
+		S int
+		T int
+		U int
+		V int
+		W int
+		X int
+		Y int
+		Z int
 	}{}
 
 	mapStringStringEmpty = map[string]string{}

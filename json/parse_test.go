@@ -107,14 +107,16 @@ func TestParser(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		z := zero(test.v)
-		v := z.Interface()
+		t.Run("", func(t *testing.T) {
+			z := zero(test.v)
+			v := z.Interface()
 
-		if err := objconv.DecodeString(test.s, "json", v); err != nil {
-			t.Errorf("%#v: %s", test.s, err)
-		} else if v = z.Elem().Interface(); !reflect.DeepEqual(v, test.v) {
-			t.Errorf("%#v:\n- %#v\n- %#v", test.s, test.v, v)
-		}
+			if err := objconv.DecodeString(test.s, "json", v); err != nil {
+				t.Errorf("%#v: %s", test.s, err)
+			} else if v = z.Elem().Interface(); !reflect.DeepEqual(v, test.v) {
+				t.Errorf("%#v:\n- %#v\n- %#v", test.s, test.v, v)
+			}
+		})
 	}
 }
 

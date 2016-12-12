@@ -34,8 +34,10 @@ func TestParseTag(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if res := ParseTag(test.tag); res != test.res {
-			t.Errorf("%s: %#v != %#v", test.tag, test.res, res)
-		}
+		t.Run(test.tag, func(t *testing.T) {
+			if res := ParseTag(test.tag); res != test.res {
+				t.Errorf("%s: %#v != %#v", test.tag, test.res, res)
+			}
+		})
 	}
 }

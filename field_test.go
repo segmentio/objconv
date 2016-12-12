@@ -49,8 +49,10 @@ func TestMakeStructField(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if f := makeStructField(test.s); !reflect.DeepEqual(test.f, f) {
-			t.Errorf("%#v != %#v", test.f, f)
-		}
+		t.Run("", func(t *testing.T) {
+			if f := makeStructField(test.s); !reflect.DeepEqual(test.f, f) {
+				t.Errorf("%#v != %#v", test.f, f)
+			}
+		})
 	}
 }

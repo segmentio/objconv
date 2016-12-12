@@ -1,6 +1,9 @@
 package objconv
 
-import "reflect"
+import (
+	"reflect"
+	"unsafe"
+)
 
 // IsEmptyValue returns true if the value given as argument would be considered
 // empty by the standard library packages, and therefore not serialized if
@@ -9,8 +12,11 @@ func IsEmptyValue(v interface{}) bool {
 	return isEmptyValue(reflect.ValueOf(v))
 }
 
-// Copied from https://golang.org/src/encoding/json/encode.go?h=isEmpty#L282
+// Based on https://golang.org/src/encoding/json/encode.go?h=isEmpty
 func isEmptyValue(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true // nil empty interface
+	}
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
@@ -24,6 +30,8 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
+	case reflect.UnsafePointer:
+		return unsafe.Pointer(v.Pointer()) == nil
 	}
 	return false
 }

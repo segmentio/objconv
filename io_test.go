@@ -66,13 +66,15 @@ testLoop:
 			}
 		}
 
-		if !reflect.DeepEqual(lines, test.lines) {
-			t.Errorf("[%d] bad lines: %v", i, lines)
-		}
+		t.Run("", func(t *testing.T) {
+			if !reflect.DeepEqual(lines, test.lines) {
+				t.Errorf("[%d] bad lines: %v", i, lines)
+			}
 
-		if len(r.b) != test.size {
-			t.Errorf("[%d] bad buffer size: %d != %d", i, test.size, len(r.b))
-		}
+			if len(r.b) != test.size {
+				t.Errorf("[%d] bad buffer size: %d != %d", i, test.size, len(r.b))
+			}
+		})
 	}
 }
 
