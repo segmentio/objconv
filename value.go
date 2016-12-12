@@ -15,7 +15,7 @@ func IsEmptyValue(v interface{}) bool {
 // Based on https://golang.org/src/encoding/json/encode.go?h=isEmpty
 func isEmptyValue(v reflect.Value) bool {
 	if !v.IsValid() {
-		return true // nil empty interface
+		return true // nil interface{}
 	}
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
@@ -28,10 +28,64 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Ptr, reflect.Chan, reflect.Func:
 		return v.IsNil()
 	case reflect.UnsafePointer:
 		return unsafe.Pointer(v.Pointer()) == nil
 	}
 	return false
+}
+
+// IsZeroValue returns true if the value given as argument is the zero-value of
+// the type of v.
+func IsZeroValue(v interface{}) bool {
+	return isZeroValue(reflect.ValueOf(v))
+}
+
+func isZeroValue(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true // nil interface{}
+	}
+	switch v.Kind() {
+	case reflect.Map, reflect.Slice, reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
+		return v.IsNil()
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.String:
+		return v.Len() == 0
+	case reflect.UnsafePointer:
+		return unsafe.Pointer(v.Pointer()) == nil
+	case reflect.Array:
+		return isZeroArray(v)
+	case reflect.Struct:
+		return isZeroStruct(v)
+	}
+	return false
+}
+
+func isZeroArray(v reflect.Value) bool {
+	for i, n := 0, v.Len(); i != n; i++ {
+		if !isZeroValue(v.Index(i)) {
+			return false
+		}
+	}
+	return true
+}
+
+func isZeroStruct(v reflect.Value) bool {
+	s := LookupStruct(v.Type())
+
+	for _, f := range s.Fields {
+		if !isZeroValue(v.FieldByIndex(f.Index)) {
+			return false
+		}
+	}
+
+	return true
 }
