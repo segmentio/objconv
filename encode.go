@@ -596,7 +596,7 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 	n := 0
 
 	for _, f := range s.Fields {
-		if !(f.Omitempty && isEmptyValue(v.FieldByIndex(f.Index))) {
+		if omit(f, v.FieldByIndex(f.Index)) {
 			n++
 		}
 	}
@@ -607,7 +607,7 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 	for _, f := range s.Fields {
 		fv := v.FieldByIndex(f.Index)
 
-		if f.Omitempty && isEmptyValue(fv) {
+		if omit(f, fv) {
 			continue
 		}
 
@@ -622,6 +622,10 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 	}
 
 	e.encodeMapEnd()
+}
+
+func omit(f StructField, v reflect.Value) bool {
+	return (f.Omitempty && isEmptyValue(v)) || (f.Omitzero && isZeroValue(v))
 }
 
 type streamEncoder struct {

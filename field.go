@@ -14,6 +14,10 @@ type StructField struct {
 	// Omitempty is set to true when the field should be omitted if it has an
 	// empty value.
 	Omitempty bool
+
+	// Omitzero is set to true when the field should be omitted if it has a zero
+	// value.
+	Omitzero bool
 }
 
 func makeStructField(f reflect.StructField) StructField {
@@ -22,6 +26,7 @@ func makeStructField(f reflect.StructField) StructField {
 		Index:     f.Index,
 		Name:      f.Name,
 		Omitempty: t.Omitempty,
+		Omitzero:  t.Omitzero,
 	}
 
 	if len(t.Name) != 0 {
