@@ -89,3 +89,24 @@ func isZeroStruct(v reflect.Value) bool {
 
 	return true
 }
+
+func setValue(v1 reflect.Value, v2 reflect.Value) (err error) {
+	t1 := v1.Type()
+	t2 := v2.Type()
+
+	switch {
+	case t2.AssignableTo(t1):
+		v1.Set(v2)
+
+	case t2.ConvertibleTo(t1):
+		v1.Set(v2.Convert(t1))
+
+	default:
+		err = &TypeConversionError{
+			From: t2,
+			To:   t1,
+		}
+	}
+
+	return
+}

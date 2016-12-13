@@ -44,3 +44,18 @@ type UnsupportedTypeError struct {
 func (e *UnsupportedTypeError) Error() string {
 	return "objconv: unsupported type: " + e.Type.String()
 }
+
+// TypeConversionError is returned by decoding functions when a a type mismatch
+// occurs between the decoded value and its destination.
+type TypeConversionError struct {
+	// From is the type of the value being decoded.
+	From reflect.Type
+
+	// To is the destination type where the value is decoded.
+	To reflect.Type
+}
+
+// Error satsifies the error interface.
+func (e *TypeConversionError) Error() string {
+	return "objconv: type mismatch between " + e.From.String() + " and " + e.To.String()
+}

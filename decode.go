@@ -80,7 +80,7 @@ type StreamDecoder interface {
 	Len() int
 
 	// Error returns the last error encountered by the decoder.
-	Error() error
+	Err() error
 
 	// Enoder returns a stream encoder that can be used to re-encode the values
 	// read from the decoder.
@@ -144,76 +144,69 @@ func makeDecoder(p Parser, r io.Reader) (d decoder) {
 }
 
 func (d *decoder) Decode(v interface{}) (err error) {
-	defer func() { err = convertPanicToError(recover()) }()
-	d.decode(d.r, v)
-	return
+	return d.decode(d.r, v)
 }
 
-func (d *decoder) parse(r *Reader, v interface{}) (interface{}, reflect.Value) {
+func (d *decoder) parse(r *Reader, v interface{}) (interface{}, reflect.Value, error) {
 	to := reflect.ValueOf(v).Elem()
 	v, err := d.p.Parse(r, to.Interface())
-	if err != nil {
-		panic(err)
+	return v, to, err
+}
+
+func (d *decoder) decode(r *Reader, v interface{}) error {
+	from, to, err := d.parse(r, v)
+	if err == nil {
+		err = d.decodeValue(r, from, to)
 	}
-	return v, to
+	return err
 }
 
-func (d *decoder) decode(r *Reader, v interface{}) {
-	from, to := d.parse(r, v)
-	d.decodeValue(r, from, to)
-}
-
-func (d *decoder) decodeValue(r *Reader, v interface{}, to reflect.Value) {
+func (d *decoder) decodeValue(r *Reader, v interface{}, to reflect.Value) error {
 	switch x := v.(type) {
 	case bool:
-		d.decodeBool(x, to)
+		return d.decodeBool(x, to)
 
 	case int64:
-		d.decodeInt(x, to)
+		return d.decodeInt(x, to)
 
 	case uint64:
-		d.decodeUint(x, to)
+		return d.decodeUint(x, to)
 
 	case float64:
-		d.decodeFloat(x, to)
+		return d.decodeFloat(x, to)
 
 	case string:
-		d.decodeString(x, to)
+		return d.decodeString(x, to)
 
 	case []byte:
-		d.decodeBytes(x, to)
+		return d.decodeBytes(x, to)
 
 	case time.Time:
-		d.decodeTime(x, to)
+		return d.decodeTime(x, to)
 
 	case time.Duration:
-		d.decodeDuration(x, to)
+		return d.decodeDuration(x, to)
 
 	case error:
-		d.decodeError(x, to)
+		return d.decodeError(x, to)
 
 	case ArrayParser:
-		d.decodeArray(r, x, to)
+		return d.decodeArray(r, x, to)
 
 	case MapParser:
-		d.decodeMap(r, x, to)
+		return d.decodeMap(r, x, to)
 
 	default:
 		if x == nil {
-			d.decodeNil(to)
+			return d.decodeNil(to)
 		} else {
-			panic(fmt.Sprintf("the parser produced an unsupported value of type %T, this is a bug", x))
+			return fmt.Errorf("the parser produced an unsupported value of type %T, this is a bug", x)
 		}
 	}
 }
 
-func (d *decoder) decodeNil(to reflect.Value) {
+func (d *decoder) decodeNil(to reflect.Value) (err error) {
 	switch to.Kind() {
-	case reflect.Interface, reflect.Ptr, reflect.Slice, reflect.Map:
-		if !to.IsNil() {
-			to.Set(reflect.Zero(to.Type()))
-		}
-
 	case reflect.Bool:
 		to.SetBool(false)
 
@@ -229,162 +222,221 @@ func (d *decoder) decodeNil(to reflect.Value) {
 	case reflect.String:
 		to.SetString("")
 
+	case reflect.Interface, reflect.Ptr, reflect.Slice, reflect.Map:
+		if !to.IsNil() {
+			to.Set(reflect.Zero(to.Type()))
+		}
+
 	default:
 		to.Set(reflect.Zero(to.Type()))
 	}
+
+	return
 }
 
-func (d *decoder) decodeBool(v bool, to reflect.Value) {
+func (d *decoder) decodeBool(v bool, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Bool:
 		to.SetBool(v)
-
 	default:
-		to.Set(reflect.ValueOf(v))
+		err = setValue(to, reflect.ValueOf(v))
 	}
+	return
 }
 
-func (d *decoder) decodeInt(v int64, to reflect.Value) {
+func (d *decoder) decodeInt(v int64, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Int:
-		to.SetInt(int64(convertInt64ToInt(v)))
+		if _, err = convertInt64ToInt(v); err == nil {
+			to.SetInt(v)
+		}
 
 	case reflect.Int8:
-		to.SetInt(int64(convertInt64ToInt8(v)))
+		if _, err = convertInt64ToInt(v); err == nil {
+			to.SetInt(v)
+		}
 
 	case reflect.Int16:
-		to.SetInt(int64(convertInt64ToInt16(v)))
+		if _, err = convertInt64ToInt16(v); err == nil {
+			to.SetInt(v)
+		}
 
 	case reflect.Int32:
-		to.SetInt(int64(convertInt64ToInt32(v)))
+		if _, err = convertInt64ToInt32(v); err == nil {
+			to.SetInt(v)
+		}
 
 	case reflect.Int64:
 		to.SetInt(v)
 
 	case reflect.Uint:
-		to.SetUint(uint64(convertInt64ToUint(v)))
+		if _, err = convertInt64ToUint(v); err == nil {
+			to.SetUint(uint64(v))
+		}
 
 	case reflect.Uint8:
-		to.SetUint(uint64(convertInt64ToUint8(v)))
+		if _, err = convertInt64ToUint8(v); err == nil {
+			to.SetUint(uint64(v))
+		}
 
 	case reflect.Uint16:
-		to.SetUint(uint64(convertInt64ToUint16(v)))
+		if _, err = convertInt64ToUint16(v); err == nil {
+			to.SetUint(uint64(v))
+		}
 
 	case reflect.Uint32:
-		to.SetUint(uint64(convertInt64ToUint32(v)))
+		if _, err = convertInt64ToUint32(v); err == nil {
+			to.SetUint(uint64(v))
+		}
 
 	case reflect.Uint64:
-		to.SetUint(convertInt64ToUint64(v))
+		if _, err = convertInt64ToUint64(v); err == nil {
+			to.SetUint(uint64(v))
+		}
 
 	case reflect.Uintptr:
-		to.SetUint(uint64(convertInt64ToUintptr(v)))
+		if _, err = convertInt64ToUintptr(v); err == nil {
+			to.SetUint(uint64(v))
+		}
 
 	case reflect.Float32:
-		to.SetFloat(float64(convertInt64ToFloat32(v)))
+		if _, err = convertInt64ToFloat32(v); err == nil {
+			to.SetFloat(float64(v))
+		}
 
 	case reflect.Float64:
-		to.SetFloat(convertInt64ToFloat64(v))
+		if _, err = convertInt64ToFloat64(v); err == nil {
+			to.SetFloat(float64(v))
+		}
 
 	default:
-		to.Set(reflect.ValueOf(v))
+		err = setValue(to, reflect.ValueOf(v))
 	}
+
+	return
 }
 
-func (d *decoder) decodeUint(v uint64, to reflect.Value) {
+func (d *decoder) decodeUint(v uint64, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Int:
-		to.SetInt(int64(convertUint64ToInt(v)))
+		if _, err = convertUint64ToInt(v); err == nil {
+			to.SetInt(int64(v))
+		}
 
 	case reflect.Int8:
-		to.SetInt(int64(convertUint64ToInt8(v)))
+		if _, err = convertUint64ToInt(v); err == nil {
+			to.SetInt(int64(v))
+		}
 
 	case reflect.Int16:
-		to.SetInt(int64(convertUint64ToInt16(v)))
+		if _, err = convertUint64ToInt16(v); err == nil {
+			to.SetInt(int64(v))
+		}
 
 	case reflect.Int32:
-		to.SetInt(int64(convertUint64ToInt32(v)))
+		if _, err = convertUint64ToInt32(v); err == nil {
+			to.SetInt(int64(v))
+		}
 
 	case reflect.Int64:
-		to.SetInt(convertUint64ToInt64(v))
+		if _, err = convertUint64ToInt64(v); err == nil {
+			to.SetInt(int64(v))
+		}
 
 	case reflect.Uint:
-		to.SetUint(uint64(convertUint64ToUint(v)))
+		if _, err = convertUint64ToUint(v); err == nil {
+			to.SetUint(v)
+		}
 
 	case reflect.Uint8:
-		to.SetUint(uint64(convertUint64ToUint8(v)))
+		if _, err = convertUint64ToUint8(v); err == nil {
+			to.SetUint(v)
+		}
 
 	case reflect.Uint16:
-		to.SetUint(uint64(convertUint64ToUint16(v)))
+		if _, err = convertUint64ToUint16(v); err == nil {
+			to.SetUint(v)
+		}
 
 	case reflect.Uint32:
-		to.SetUint(uint64(convertUint64ToUint32(v)))
+		if _, err = convertUint64ToUint32(v); err == nil {
+			to.SetUint(v)
+		}
 
 	case reflect.Uint64:
 		to.SetUint(v)
 
 	case reflect.Uintptr:
-		to.SetUint(uint64(convertUint64ToUintptr(v)))
+		if _, err = convertUint64ToUintptr(v); err == nil {
+			to.SetUint(v)
+		}
 
 	case reflect.Float32:
-		to.SetFloat(float64(convertUint64ToFloat32(v)))
+		if _, err = convertUint64ToFloat32(v); err == nil {
+			to.SetUint(v)
+		}
 
 	case reflect.Float64:
-		to.SetFloat(convertUint64ToFloat64(v))
+		if _, err = convertUint64ToFloat64(v); err == nil {
+			to.SetUint(v)
+		}
 
 	default:
-		to.Set(reflect.ValueOf(v))
+		err = setValue(to, reflect.ValueOf(v))
 	}
+
+	return
 }
 
-func (d *decoder) decodeFloat(v float64, to reflect.Value) {
+func (d *decoder) decodeFloat(v float64, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Float32, reflect.Float64:
 		to.SetFloat(v)
-
 	default:
-		to.Set(reflect.ValueOf(v))
+		err = setValue(to, reflect.ValueOf(v))
 	}
+	return
 }
 
-func (d *decoder) decodeString(v string, to reflect.Value) {
+func (d *decoder) decodeString(v string, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.String:
 		to.SetString(v)
 
 	case reflect.Slice:
-		d.decodeStringToSlice(v, to)
+		err = d.decodeStringToSlice(v, to)
 
 	default:
-		d.decodeStringToOther(v, to)
+		err = d.decodeStringToOther(v, to)
 	}
+	return
 }
 
-func (d *decoder) decodeStringToSlice(v string, to reflect.Value) {
+func (d *decoder) decodeStringToSlice(v string, to reflect.Value) (err error) {
 	switch to.Type().Elem().Kind() {
 	case reflect.Uint8: // []byte
 		to.SetBytes([]byte(v))
 
 	case reflect.Int32: // []rune
-		to.Set(reflect.ValueOf([]rune(string(v))))
+		to.Set(reflect.ValueOf([]rune(v)))
 
 	default:
-		to.SetString(v)
+		err = setValue(to, reflect.ValueOf(v))
 	}
+	return
 }
 
-func (d *decoder) decodeStringToOther(v string, to reflect.Value) {
+func (d *decoder) decodeStringToOther(v string, to reflect.Value) (err error) {
 	switch to.Interface().(type) {
 	case time.Time:
-		if t, err := time.Parse(time.RFC3339Nano, v); err != nil {
-			panic(err)
-		} else {
+		var t time.Time
+		if t, err = time.Parse(time.RFC3339Nano, v); err == nil {
 			to.Set(reflect.ValueOf(t))
 		}
 
 	case time.Duration:
-		if d, err := time.ParseDuration(v); err != nil {
-			panic(err)
-		} else {
+		var d time.Duration
+		if d, err = time.ParseDuration(v); err == nil {
 			to.Set(reflect.ValueOf(d))
 		}
 
@@ -392,49 +444,62 @@ func (d *decoder) decodeStringToOther(v string, to reflect.Value) {
 		to.Set(reflect.ValueOf(errors.New(v)))
 
 	default:
-		to.Set(reflect.ValueOf(v))
+		err = setValue(to, reflect.ValueOf(v))
 	}
+	return
 }
 
-func (d *decoder) decodeBytes(v []byte, to reflect.Value) {
+func (d *decoder) decodeBytes(v []byte, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Slice:
-		d.decodeBytesToSlice(v, to)
+		err = d.decodeBytesToSlice(v, to)
 
 	case reflect.String:
 		to.SetString(string(v))
 
 	default:
-		to.Set(reflect.ValueOf(v))
+		err = setValue(to, reflect.ValueOf(v))
 	}
+	return
 }
 
-func (d *decoder) decodeBytesToSlice(v []byte, to reflect.Value) {
+func (d *decoder) decodeBytesToSlice(v []byte, to reflect.Value) (err error) {
 	switch to.Type().Elem().Kind() {
+	case reflect.Uint8: // []byte
+		to.SetBytes(v)
+
 	case reflect.Int32: // []rune
 		to.Set(reflect.ValueOf([]rune(string(v))))
 
 	default:
-		to.SetBytes(v)
+		err = setValue(to, reflect.ValueOf(v))
 	}
+	return
 }
 
-func (d *decoder) decodeDuration(v time.Duration, to reflect.Value) { to.Set(reflect.ValueOf(v)) }
+func (d *decoder) decodeDuration(v time.Duration, to reflect.Value) error {
+	return setValue(to, reflect.ValueOf(v))
+}
 
-func (d *decoder) decodeTime(v time.Time, to reflect.Value) { to.Set(reflect.ValueOf(v)) }
+func (d *decoder) decodeTime(v time.Time, to reflect.Value) error {
+	return setValue(to, reflect.ValueOf(v))
+}
 
-func (d *decoder) decodeError(v error, to reflect.Value) { to.Set(reflect.ValueOf(v)) }
+func (d *decoder) decodeError(v error, to reflect.Value) error {
+	return setValue(to, reflect.ValueOf(v))
+}
 
-func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) {
+func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) (err error) {
 	switch t := to.Type(); t.Kind() {
 	case reflect.Slice:
-		d.decodeArrayToSlice(r, v, to, t)
+		err = d.decodeArrayToSlice(r, v, to, t)
 	default:
-		d.decodeArrayToInterface(r, v, to)
+		err = d.decodeArrayToInterface(r, v, to)
 	}
+	return
 }
 
-func (d *decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value, t reflect.Type) {
+func (d *decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value, t reflect.Type) (err error) {
 	n := v.Len()
 
 	if n < 0 {
@@ -445,23 +510,30 @@ func (d *decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value,
 	z := reflect.Zero(t.Elem())
 	h := z.Interface()
 
-decodeLoop:
 	for i := 0; true; i++ {
-		switch x, err := v.Parse(r, h); err {
-		case nil:
-			s = reflect.Append(s, z)
-			d.decodeValue(r, x, s.Index(i))
-		case io.EOF:
-			break decodeLoop
-		default:
-			panic(err)
+		x, e := v.Parse(r, h)
+
+		if e == io.EOF {
+			break
+		}
+
+		if e != nil {
+			err = e
+			return
+		}
+
+		s = reflect.Append(s, z)
+
+		if err = d.decodeValue(r, x, s.Index(i)); err != nil {
+			return
 		}
 	}
 
 	to.Set(s)
+	return
 }
 
-func (d *decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Value) {
+func (d *decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Value) (err error) {
 	n := v.Len()
 
 	if n < 0 {
@@ -470,43 +542,53 @@ func (d *decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Va
 
 	s := make([]interface{}, 0, n)
 
-decodeLoop:
 	for i := 0; true; i++ {
-		switch x, err := v.Parse(r, nil); err {
-		case nil:
-			switch s = append(s, nil); x.(type) {
-			case ArrayParser, MapParser:
-				d.decodeValue(r, x, reflect.ValueOf(&s[i]).Elem())
-			default:
-				s[i] = x
-			}
-		case io.EOF:
-			break decodeLoop
+		x, e := v.Parse(r, nil)
+
+		if e == io.EOF {
+			break
+		}
+
+		if e != nil {
+			err = e
+			return
+		}
+
+		switch s = append(s, nil); x.(type) {
+		case ArrayParser, MapParser:
+			err = d.decodeValue(r, x, reflect.ValueOf(&s[i]).Elem())
 		default:
-			panic(err)
+			s[i] = x
+		}
+
+		if err != nil {
+			return
 		}
 	}
 
 	to.Set(reflect.ValueOf(s))
+	return
 }
 
-func (d *decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) {
+func (d *decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) (err error) {
 	switch t := to.Type(); t.Kind() {
 	case reflect.Struct:
-		d.decodeMapToStruct(r, v, to, t)
+		err = d.decodeMapToStruct(r, v, to, t)
 
 	case reflect.Map:
-		d.decodeMapToMap(r, v, to, t)
+		err = d.decodeMapToMap(r, v, to, t)
 
 	default:
 		var m map[interface{}]interface{}
 		var mv = reflect.ValueOf(&m).Elem()
-		d.decodeMapToMap(r, v, mv, reflect.TypeOf(m))
-		to.Set(mv)
+		if err = d.decodeMapToMap(r, v, mv, reflect.TypeOf(m)); err != nil {
+			err = setValue(to, mv)
+		}
 	}
+	return
 }
 
-func (d *decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t reflect.Type) {
+func (d *decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t reflect.Type) (err error) {
 	m := reflect.MakeMap(t)
 
 	kt := t.Key()
@@ -518,62 +600,74 @@ func (d *decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t ref
 	ki := ke.Interface()
 	vi := ve.Interface()
 
-decodeLoop:
 	for {
-		switch x, err := v.ParseKey(r, ki); err {
-		case nil:
-			d.decodeValue(r, x, ke)
-		case io.EOF:
-			break decodeLoop
-		default:
-			panic(err)
+		x, e := v.ParseKey(r, ki)
+		if e == io.EOF {
+			break
+		}
+		if e != nil {
+			err = e
+			return
+		}
+		if err = d.decodeValue(r, x, ke); err != nil {
+			return
 		}
 
-		switch x, err := v.ParseValue(r, vi); err {
-		case nil:
-			d.decodeValue(r, x, ve)
-		case io.EOF:
-			panic(io.ErrUnexpectedEOF)
-		default:
-			panic(err)
+		x, e = v.ParseValue(r, vi)
+		if e == io.EOF {
+			break
+		}
+		if e != nil {
+			err = e
+			return
+		}
+		if err = d.decodeValue(r, x, ve); err != nil {
+			return
 		}
 
 		m.SetMapIndex(ke, ve)
 	}
 
 	to.Set(m)
+	return
 }
 
-func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t reflect.Type) {
+func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t reflect.Type) (err error) {
 	s := LookupStruct(t)
 	f := ""
 
 	fv := reflect.ValueOf(&f).Elem()
 	fi := fv.Interface()
 
-decodeLoop:
 	for {
-		switch x, err := v.ParseKey(r, fi); err {
-		case nil:
-			d.decodeValue(r, x, fv)
-		case io.EOF:
-			break decodeLoop
-		default:
-			panic(err)
+		x, e := v.ParseKey(r, fi)
+		if e == io.EOF {
+			break
+		}
+		if e != nil {
+			err = e
+			return
+		}
+		if err = d.decodeValue(r, x, fv); err != nil {
+			return
 		}
 
 		if sf := s.FieldByName[f]; sf != nil {
 			fv := to.FieldByIndex(sf.Index)
-			switch x, err := v.ParseValue(r, fv.Interface()); err {
-			case nil:
-				d.decodeValue(r, x, fv)
-			default:
-				panic(err)
+			x, e := v.ParseValue(r, fv.Interface())
+			if e != nil {
+				err = e
+				return
+			}
+			if err = d.decodeValue(r, x, fv); err != nil {
+				return
 			}
 		}
 
 		f = ""
 	}
+
+	return
 }
 
 type streamDecoder struct {
@@ -589,13 +683,15 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 		return
 	}
 
-	defer func() { err = d.convertPanicToError(recover()) }()
-
 	ve := reflect.ValueOf(v).Elem()
 	vi := ve.Interface()
 
 	if d.parser == nil {
-		from, _ := d.parse(d.r, v)
+		from, _, e := d.parse(d.r, v)
+		if e != nil {
+			d.err, err = e, e
+			return
+		}
 		switch a := from.(type) {
 		case ArrayParser:
 			d.parser = a
@@ -607,10 +703,16 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 		}
 	}
 
-	if x, err := d.parser.Parse(d.r, vi); err != nil {
-		panic(err)
-	} else {
-		d.decodeValue(d.r, x, ve)
+	var x interface{}
+
+	if x, err = d.parser.Parse(d.r, vi); err != nil {
+		d.err = err
+		return
+	}
+
+	if err = d.decodeValue(d.r, x, ve); err != nil {
+		d.err = err
+		return
 	}
 
 	d.count++
@@ -618,7 +720,6 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 }
 
 func (d *streamDecoder) Len() (n int) {
-	defer func() { d.convertPanicToError(recover()) }()
 	n = -1
 
 	if d.parser == nil {
@@ -638,7 +739,11 @@ func (d *streamDecoder) Len() (n int) {
 
 		d.r.r = io.TeeReader(r, b)
 
-		v, _ := d.parse(d.r, &z)
+		v, _, e := d.parse(d.r, &z)
+		if e != nil {
+			d.err = e
+			return
+		}
 		switch a := v.(type) {
 		case ArrayParser:
 			n = a.Len()
@@ -658,7 +763,7 @@ func (d *streamDecoder) Len() (n int) {
 	return
 }
 
-func (d *streamDecoder) Error() error {
+func (d *streamDecoder) Err() error {
 	return d.err
 }
 
@@ -679,11 +784,4 @@ func (d *streamDecoder) Encoder(config EncoderConfig) StreamEncoder {
 			w:    Writer{w: config.Output},
 		},
 	}
-}
-
-func (d *streamDecoder) convertPanicToError(v interface{}) (err error) {
-	if err = convertPanicToError(v); err != nil {
-		d.err = err
-	}
-	return
 }

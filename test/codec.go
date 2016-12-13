@@ -249,7 +249,7 @@ func StreamCodec(t *testing.T, e objconv.Emitter, p objconv.Parser) {
 		}
 	}
 
-	if err := dec.Error(); err != io.EOF {
+	if err := dec.Err(); err != io.EOF {
 		t.Error("decoder should have EOF set after consuming all the stream")
 	}
 
