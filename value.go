@@ -5,6 +5,124 @@ import (
 	"unsafe"
 )
 
+// Type is an enumeration that define the type of a Value.
+type Type int
+
+const (
+	NilType Type = iota
+	BoolType
+	IntType
+	UintType
+	FloatType
+	StringType
+	BytesType
+	TimeType
+	DurationType
+	ArrayType
+	MapType
+)
+
+func (t Type) String() string {
+	switch t {
+	case NilType:
+		return "nil"
+	case BoolType:
+		return "bool"
+	case IntType:
+		return "int"
+	case UintType:
+		return "uint"
+	case FloatType:
+		return "float"
+	case StringType:
+		return "string"
+	case BytesType:
+		return "bytes"
+	case TimeType:
+		return "time"
+	case DurationType:
+		return "duration"
+	case ArrayType:
+		return "array"
+	case MapType:
+		return "map"
+	default:
+		return "<type>"
+	}
+}
+
+/*
+type Value struct {
+	t Type
+	x bool
+	i int64
+	n uint64
+	f float64
+	s string
+	b []byte
+	a Array
+	m Map
+}
+
+func (v *Value) Type() Type {
+	return v.t
+}
+
+func (v *Value) SetBool(x bool) {
+	v.t = BoolType
+	v.x = x
+}
+
+func (v *Value) SetInt(i int64) {
+	v.t = IntType
+	v.i = i
+}
+
+func (v *Value) SetUint(u uint64) {
+	v.t = UintType
+	v.u = u
+}
+
+func (v *Value) SetFloat(f float64) {
+	v.t = FloatType
+	v.f = f
+}
+
+func (v *Value) SetString(s string) {
+	v.t = StringType
+	v.s = s
+}
+
+func (v *Value) SetBytes(b []byte) {
+	v.t = BytesType
+	v.b = b
+}
+
+func (v *Value) SetTime(t time.Time) {
+
+}
+
+func (v *Value) SetDuration(d time.Duration) {
+
+}
+
+func (v *Value) SetArray(a Array) {
+	v.t = ArrayType
+	v.a = a
+}
+
+func (v *Value) SetMap(m Map) {
+	v.t = MapType
+	v.m = m
+}
+
+func (v *Value) check(t Type) {
+	if v.t != t {
+		panic("objconv: type mismatch while reading value: " + t.String() + " != " + v.t.String())
+	}
+}
+*/
+
 // IsEmptyValue returns true if the value given as argument would be considered
 // empty by the standard library packages, and therefore not serialized if
 // `omitempty` is set on a struct field with this value.

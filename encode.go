@@ -1,81 +1,15 @@
 package objconv
 
 import (
-	"bytes"
 	"io"
 	"reflect"
-	"sort"
 	"sync"
 	"time"
 )
 
-// Encode encodes the value to the output in the specified format.
-//
-// The format must be a string describing the content type of the data
-// (like json, resp, ...).
-func Encode(out io.Writer, format string, value interface{}) (err error) {
-	var emitter Emitter
-
-	if emitter, err = GetEmitter(format); err == nil {
-		err = NewEncoder(EncoderConfig{
-			Output:      out,
-			Emitter:     emitter,
-			SortMapKeys: true,
-		}).Encode(value)
-	}
-
-	return
-}
-
-// EncodeBytes returns a byte slice containing a representation of the value in
-// the specified format.
-//
-// The format must be a string describing the content type of the data
-// (like json, resp, ...).
-func EncodeBytes(format string, value interface{}) ([]byte, error) {
-	buf := &bytes.Buffer{}
-	err := Encode(buf, format, value)
-	return buf.Bytes(), err
-}
-
-// EncodeString returns a byte slice containing a representation of the value in
-// the specified format.
-//
-// The format must be a string describing the content type of the data
-// (like json, resp, ...).
-func EncodeString(format string, value interface{}) (string, error) {
-	b, err := EncodeBytes(format, value)
-	return string(b), err
-}
-
-// EncodeLength returns the length of the encoded value in format.
-//
-// The format must be a string describing the content type of the data
-// (like json, resp, ...).
-func EncodeLength(format string, value interface{}) (n int, err error) {
-	c := &counter{}
-	err = Encode(c, format, value)
-	n = c.n
-	return
-}
-
-// An Encoder encodes and writes values to an output streams in.
-type Encoder interface {
-	// Encode writes v to its output.
-	Encode(v interface{}) error
-}
-
-// EncoderFunc is an adapater to allow use of ordinary functions as encoders.
-type EncoderFunc func(interface{}) error
-
-// Encode calls f(v).
-func (f EncoderFunc) Encode(v interface{}) error { return f(v) }
-
-// EncoderConfig carries the configuration for creating an encoder.
+// EncoderConfig carries the different configuration options that can be set
+// when instantiating an instance of Encoder.
 type EncoderConfig struct {
-	// Output is the data stream where the encoder write.
-	Output io.Writer
-
 	// Emitter defines the format used by the encoder.
 	Emitter Emitter
 
@@ -83,515 +17,374 @@ type EncoderConfig struct {
 	SortMapKeys bool
 }
 
-// A StreamEncoder encodes and writes a stream of values to an output stream.
-type StreamEncoder interface {
-	Encoder
-
-	// Open explicitly tells the encoder to start the stream, setting the number
-	// of values to n.
-	//
-	// Depending on the actual format that the stream is encoding to, n may or
-	// may not have to be accurate, some formats also support passing a negative
-	// value to indicate that the number of elements is unknown.
-	Open(n int) error
-
-	// Close terminates the stream encoder.
-	Close() error
-}
-
-// NewEncoder returns a new encoder configured with config.
-func NewEncoder(config EncoderConfig) Encoder {
-	config = setEncoderConfigDefault(config)
-	return &encoder{
-		sort: config.SortMapKeys,
-		e:    config.Emitter,
-		w:    Writer{w: config.Output},
-	}
-}
-
-// NewStreamEncoder returns a new stream encoder configured with config.
-func NewStreamEncoder(config EncoderConfig) StreamEncoder {
-	config = setEncoderConfigDefault(config)
-	return &streamEncoder{
-		encoder: encoder{
-			sort: config.SortMapKeys,
-			e:    config.Emitter,
-			w:    Writer{w: config.Output},
-		},
-	}
-}
-
-func setEncoderConfigDefault(config EncoderConfig) EncoderConfig {
-	if config.Output == nil {
-		panic("objconv.NewEncoder: config.Output is nil")
-	}
-
-	if config.Emitter == nil {
-		panic("objconv.NewEncoder: config.Emitter is nil")
-	}
-
-	return config
-}
-
-type encoder struct {
+// An Encoder implements the high-level encoding algorithm that inspect encoded
+// values and drive the use of an Emitter to create a serialized representation
+// of the data.
+//
+// Instances of Encoder are not safe for use by multiple goroutines.
+type Encoder struct {
+	e    Emitter
 	sort bool
-
-	e Emitter
-	w Writer
+	key  bool
 }
 
-func (e *encoder) Encode(v interface{}) error {
-	e.encodeBegin()
-	e.encode(v)
-	e.encodeEnd()
-	return e.w.e
+// NewEncoder returns a new encoder that outputs values to emitter.
+//
+// Encoders created by this function use the default encoder configuration,
+// which is equivalent to using a zero-value EncoderConfig with only the Emitter
+// field set.
+//
+// The function panics if emitter is nil.
+func NewEncoder(emitter Emitter) *Encoder {
+	return NewEncoderWith(EncoderConfig{
+		Emitter: emitter,
+	})
 }
 
-func (e *encoder) encode(v interface{}) {
+// NewEncoderWith returns a new encoder configured with config.
+//
+// The function panics if config.Emitter is nil.
+func NewEncoderWith(config EncoderConfig) *Encoder {
+	if config.Emitter == nil {
+		panic("objconv.NewEncoder: the emitter is nil")
+	}
+	return &Encoder{
+		e:    config.Emitter,
+		sort: config.SortMapKeys,
+	}
+}
+
+// Encode encodes the generic value v.
+func (e *Encoder) Encode(v interface{}) error {
+	if err := e.encodeMapValueMaybe(); err != nil {
+		return err
+	}
+
 	if v == nil {
-		e.encodeNil()
-		return
+		return e.encodeNil()
 	}
 
 	switch x := v.(type) {
 	case string:
-		e.encodeString(x)
+		return e.encodeString(x)
 
 	case []byte:
-		e.encodeBytes(x)
+		return e.encodeBytes(x)
 
 	case bool:
-		e.encodeBool(x)
+		return e.encodeBool(x)
 
 	case int:
-		e.encodeInt(x)
+		return e.encodeInt(x)
 
 	case int8:
-		e.encodeInt8(x)
+		return e.encodeInt8(x)
 
 	case int16:
-		e.encodeInt16(x)
+		return e.encodeInt16(x)
 
 	case int32:
-		e.encodeInt32(x)
+		return e.encodeInt32(x)
 
 	case int64:
-		e.encodeInt64(x)
+		return e.encodeInt64(x)
 
 	case uint:
-		e.encodeUint(x)
+		return e.encodeUint(x)
 
 	case uint8:
-		e.encodeUint8(x)
+		return e.encodeUint8(x)
 
 	case uint16:
-		e.encodeUint16(x)
+		return e.encodeUint16(x)
 
 	case uint32:
-		e.encodeUint32(x)
+		return e.encodeUint32(x)
 
 	case uint64:
-		e.encodeUint64(x)
+		return e.encodeUint64(x)
 
 	case uintptr:
-		e.encodeUintptr(x)
+		return e.encodeUintptr(x)
 
 	case float32:
-		e.encodeFloat32(x)
+		return e.encodeFloat32(x)
 
 	case float64:
-		e.encodeFloat64(x)
+		return e.encodeFloat64(x)
 
 	case time.Time:
-		e.encodeTime(x)
+		return e.encodeTime(x)
 
 	case time.Duration:
-		e.encodeDuration(x)
-
-	case []interface{}:
-		e.encodeSliceInterface(x)
-
-	case []string:
-		e.encodeSliceString(x)
-
-	case [][]byte:
-		e.encodeSliceBytes(x)
-
-	case map[string]string:
-		e.encodeMapStringString(x)
-
-	case map[string]interface{}:
-		e.encodeMapStringInterface(x)
-
-	case MapSlice:
-		e.encodeMapSlice(x)
-
-	case Array:
-		e.encodeArray(x)
-
-	case Map:
-		e.encodeMap(x)
+		return e.encodeDuration(x)
 
 	case error:
-		e.encodeError(x)
-
-	case []rune:
-		e.encodeString(string(x))
+		return e.encodeError(x)
 
 	default:
-		e.encodeValue(reflect.ValueOf(v))
+		return e.encodeValue(reflect.ValueOf(v))
 	}
 }
 
-func (e *encoder) encodeValue(v reflect.Value) {
+var (
+	timeType     = reflect.TypeOf(time.Time{})
+	durationType = reflect.TypeOf(time.Duration(0))
+)
+
+func (e *Encoder) encodeValue(v reflect.Value) error {
 	t := v.Type()
 
-	switch t.Kind() {
+	switch k := t.Kind(); k {
 	case reflect.Bool:
-		e.encodeBool(v.Bool())
+		return e.encodeBool(v.Bool())
 
 	case reflect.Int:
-		e.encodeInt(int(v.Int()))
+		return e.encodeInt(int(v.Int()))
 
 	case reflect.Int8:
-		e.encodeInt8(int8(v.Int()))
+		return e.encodeInt8(int8(v.Int()))
 
 	case reflect.Int16:
-		e.encodeInt16(int16(v.Int()))
+		return e.encodeInt16(int16(v.Int()))
 
 	case reflect.Int32:
-		e.encodeInt32(int32(v.Int()))
+		return e.encodeInt32(int32(v.Int()))
 
 	case reflect.Int64:
-		e.encodeInt64(v.Int())
+		return e.encodeInt64(v.Int())
 
 	case reflect.Uint:
-		e.encodeUint(uint(v.Uint()))
+		return e.encodeUint(uint(v.Uint()))
 
 	case reflect.Uint8:
-		e.encodeUint8(uint8(v.Uint()))
+		return e.encodeUint8(uint8(v.Uint()))
 
 	case reflect.Uint16:
-		e.encodeUint16(uint16(v.Uint()))
+		return e.encodeUint16(uint16(v.Uint()))
 
 	case reflect.Uint32:
-		e.encodeUint32(uint32(v.Uint()))
+		return e.encodeUint32(uint32(v.Uint()))
 
 	case reflect.Uint64:
-		e.encodeUint64(v.Uint())
+		return e.encodeUint64(v.Uint())
 
 	case reflect.Uintptr:
-		e.encodeUintptr(uintptr(v.Uint()))
+		return e.encodeUintptr(uintptr(v.Uint()))
 
 	case reflect.Float32:
-		e.encodeFloat32(float32(v.Float()))
+		return e.encodeFloat32(float32(v.Float()))
 
 	case reflect.Float64:
-		e.encodeFloat64(float64(v.Float()))
+		return e.encodeFloat64(float64(v.Float()))
 
 	case reflect.String:
-		e.encodeString(v.String())
+		return e.encodeString(v.String())
 
-	case reflect.Slice:
+	case reflect.Slice, reflect.Array:
 		if t.Elem().Kind() == reflect.Uint8 {
-			e.encodeBytes(v.Bytes())
-		} else {
-			e.encodeSliceValue(v)
+			if k == reflect.Array {
+				v = v.Slice(0, v.Len())
+			}
+			return e.encodeBytes(v.Bytes())
 		}
-
-	case reflect.Array:
-		e.encodeSliceValue(v)
+		return e.encodeValueArray(v)
 
 	case reflect.Map:
-		if v.Len() == 0 {
-			e.encodeMapBegin(0)
-			e.encodeMapEnd()
-		} else if e.sort {
-			e.encodeMap(SortedMap(v))
-		} else {
-			e.encodeMap(UnsortedMap(v))
+		switch {
+		case v.Len() == 0:
+			return e.EncodeMap(0, nil)
+		case e.sort:
+			return e.encodeSortedValueMap(v)
+		default:
+			return e.encodeUnsortedValueMap(v)
 		}
 
 	case reflect.Struct:
-		e.encodeStruct(v)
+		return e.encodeValueStruct(v)
 
 	case reflect.Ptr, reflect.Interface:
 		if v.IsNil() {
-			e.encodeNil()
-		} else {
-			e.encode(v.Elem().Interface())
+			return e.encodeNil()
 		}
+		return e.Encode(v.Elem().Interface())
 
 	default:
-		e.w.e = &UnsupportedTypeError{t}
+		return &UnsupportedTypeError{t}
 	}
 }
 
-func (e *encoder) encodeBegin() { e.e.EmitBegin(&e.w) }
+func (e *Encoder) encodeNil() error { return e.e.EmitNil() }
 
-func (e *encoder) encodeEnd() { e.e.EmitEnd(&e.w) }
+func (e *Encoder) encodeBool(v bool) error { return e.e.EmitBool(v) }
 
-func (e *encoder) encodeNil() { e.e.EmitNil(&e.w) }
+func (e *Encoder) encodeInt(v int) error { return e.e.EmitInt(v) }
 
-func (e *encoder) encodeBool(v bool) { e.e.EmitBool(&e.w, v) }
+func (e *Encoder) encodeInt8(v int8) error { return e.e.EmitInt8(v) }
 
-func (e *encoder) encodeInt(v int) { e.e.EmitInt(&e.w, v) }
+func (e *Encoder) encodeInt16(v int16) error { return e.e.EmitInt16(v) }
 
-func (e *encoder) encodeInt8(v int8) { e.e.EmitInt8(&e.w, v) }
+func (e *Encoder) encodeInt32(v int32) error { return e.e.EmitInt32(v) }
 
-func (e *encoder) encodeInt16(v int16) { e.e.EmitInt16(&e.w, v) }
+func (e *Encoder) encodeInt64(v int64) error { return e.e.EmitInt64(v) }
 
-func (e *encoder) encodeInt32(v int32) { e.e.EmitInt32(&e.w, v) }
+func (e *Encoder) encodeUint(v uint) error { return e.e.EmitUint(v) }
 
-func (e *encoder) encodeInt64(v int64) { e.e.EmitInt64(&e.w, v) }
+func (e *Encoder) encodeUint8(v uint8) error { return e.e.EmitUint8(v) }
 
-func (e *encoder) encodeUint(v uint) { e.e.EmitUint(&e.w, v) }
+func (e *Encoder) encodeUint16(v uint16) error { return e.e.EmitUint16(v) }
 
-func (e *encoder) encodeUint8(v uint8) { e.e.EmitUint8(&e.w, v) }
+func (e *Encoder) encodeUint32(v uint32) error { return e.e.EmitUint32(v) }
 
-func (e *encoder) encodeUint16(v uint16) { e.e.EmitUint16(&e.w, v) }
+func (e *Encoder) encodeUint64(v uint64) error { return e.e.EmitUint64(v) }
 
-func (e *encoder) encodeUint32(v uint32) { e.e.EmitUint32(&e.w, v) }
+func (e *Encoder) encodeUintptr(v uintptr) error { return e.e.EmitUintptr(v) }
 
-func (e *encoder) encodeUint64(v uint64) { e.e.EmitUint64(&e.w, v) }
+func (e *Encoder) encodeFloat32(v float32) error { return e.e.EmitFloat32(v) }
 
-func (e *encoder) encodeUintptr(v uintptr) { e.e.EmitUintptr(&e.w, v) }
+func (e *Encoder) encodeFloat64(v float64) error { return e.e.EmitFloat64(v) }
 
-func (e *encoder) encodeFloat32(v float32) { e.e.EmitFloat32(&e.w, v) }
+func (e *Encoder) encodeString(v string) error { return e.e.EmitString(v) }
 
-func (e *encoder) encodeFloat64(v float64) { e.e.EmitFloat64(&e.w, v) }
+func (e *Encoder) encodeBytes(v []byte) error { return e.e.EmitBytes(v) }
 
-func (e *encoder) encodeString(v string) { e.e.EmitString(&e.w, v) }
+func (e *Encoder) encodeTime(v time.Time) error { return e.e.EmitTime(v) }
 
-func (e *encoder) encodeBytes(v []byte) { e.e.EmitBytes(&e.w, v) }
+func (e *Encoder) encodeDuration(v time.Duration) error { return e.e.EmitDuration(v) }
 
-func (e *encoder) encodeTime(v time.Time) { e.e.EmitTime(&e.w, v) }
+func (e *Encoder) encodeError(v error) error { return e.e.EmitError(v) }
 
-func (e *encoder) encodeDuration(v time.Duration) { e.e.EmitDuration(&e.w, v) }
-
-func (e *encoder) encodeError(v error) { e.e.EmitError(&e.w, v) }
-
-func (e *encoder) encodeSliceInterface(v []interface{}) {
-	n := len(v)
-	e.encodeArrayBegin(n)
-
-	if n != 0 {
-		e.encode(v[0])
-		for i := 1; i != n; i++ {
-			e.encodeArrayNext()
-			e.encode(v[i])
-		}
-	}
-
-	e.encodeArrayEnd()
+func (e *Encoder) encodeValueArray(v reflect.Value) error {
+	i := 0
+	return e.EncodeArray(v.Len(), func(e *Encoder) (err error) {
+		err = e.Encode(v.Index(i).Interface())
+		i++
+		return
+	})
 }
 
-func (e *encoder) encodeSliceString(v []string) {
-	n := len(v)
-	e.encodeArrayBegin(n)
-
-	if n != 0 {
-		e.encodeString(v[0])
-		for i := 1; i != n; i++ {
-			e.encodeArrayNext()
-			e.encodeString(v[i])
-		}
+// EncodeArray provides the implementation of the array encoding algorithm,
+// where n is the number of elements in the array, and f a function called to
+// encode each element.
+//
+// The n argument can be set to a negative value to indicate that the program
+// doesn't know how many elements it will output to the array. Be mindful that
+// not all emitters support encoding arrays of unknown lengths.
+//
+// The f function is called to encode each element of the array.
+func (e *Encoder) EncodeArray(n int, f func(*Encoder) error) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
 	}
 
-	e.encodeArrayEnd()
-}
-
-func (e *encoder) encodeSliceBytes(v [][]byte) {
-	n := len(v)
-	e.encodeArrayBegin(n)
-
-	if n != 0 {
-		e.encodeBytes(v[0])
-		for i := 1; i != n; i++ {
-			e.encodeArrayNext()
-			e.encodeBytes(v[i])
-		}
+	if err = e.encodeArrayBegin(n); err != nil {
+		return
 	}
 
-	e.encodeArrayEnd()
-}
-
-func (e *encoder) encodeSliceValue(v reflect.Value) {
-	n := v.Len()
-	e.encodeArrayBegin(n)
-
-	if n != 0 {
-		e.encode(v.Index(0).Interface())
-		for i := 1; i != n; i++ {
-			e.encodeArrayNext()
-			e.encode(v.Index(i).Interface())
-		}
-	}
-
-	e.encodeArrayEnd()
-}
-
-func (e *encoder) encodeArray(v Array) {
-	n := v.Len()
-	e.encodeArrayBegin(n)
-
-	if n != 0 {
-		it := v.Iter()
-		for i := 0; true; i++ {
-			if v, ok := it.Next(); !ok {
-				break
-			} else {
-				if i != 0 {
-					e.encodeArrayNext()
-				}
-				e.encode(v)
+encodeArray:
+	for i := 0; n < 0 || i < n; i++ {
+		if i != 0 {
+			if e.encodeArrayNext(); err != nil {
+				return
 			}
 		}
-	}
-
-	e.encodeArrayEnd()
-}
-
-func (e *encoder) encodeArrayBegin(n int) { e.e.EmitArrayBegin(&e.w, n) }
-
-func (e *encoder) encodeArrayEnd() { e.e.EmitArrayEnd(&e.w) }
-
-func (e *encoder) encodeArrayNext() { e.e.EmitArrayNext(&e.w) }
-
-func (e *encoder) encodeMapStringString(v map[string]string) {
-	n := len(v)
-	e.encodeMapBegin(n)
-
-	if n != 0 {
-		if e.sort {
-			keys := stringKeysPool.Get().([]string)
-
-			for x := range v {
-				keys = append(keys, x)
-			}
-
-			sort.Strings(keys)
-
-			for i, k := range keys {
-				if i != 0 {
-					e.encodeMapNext()
-				}
-				e.encodeString(k)
-				e.encodeMapValue()
-				e.encodeString(v[k])
-			}
-
-			stringKeysPool.Put(keys[:0])
-		} else {
-			i := 0
-			for k, v := range v {
-				if i != 0 {
-					e.encodeMapNext()
-				}
-				e.encodeString(k)
-				e.encodeMapValue()
-				e.encodeString(v)
-				i++
-			}
+		switch err = f(e); err {
+		case nil:
+		case End:
+			break encodeArray
+		default:
+			return
 		}
 	}
 
-	e.encodeMapEnd()
+	return e.encodeArrayEnd()
 }
 
-func (e *encoder) encodeMapStringInterface(v map[string]interface{}) {
-	n := len(v)
-	e.encodeMapBegin(n)
+func (e *Encoder) encodeArrayBegin(n int) error { return e.e.EmitArrayBegin(n) }
 
-	if n != 0 {
-		if e.sort {
-			keys := stringKeysPool.Get().([]string)
+func (e *Encoder) encodeArrayEnd() error { return e.e.EmitArrayEnd() }
 
-			for x := range v {
-				keys = append(keys, x)
+func (e *Encoder) encodeArrayNext() error { return e.e.EmitArrayNext() }
+
+func (e *Encoder) encodeSortedValueMap(v reflect.Value) error {
+	t := v.Type().Key()
+	k := v.MapKeys()
+	sortValues(t, k)
+	return e.encodeValueMap(v, k)
+}
+
+func (e *Encoder) encodeUnsortedValueMap(v reflect.Value) error {
+	return e.encodeValueMap(v, v.MapKeys())
+}
+
+func (e *Encoder) encodeValueMap(v reflect.Value, keys []reflect.Value) error {
+	i := 0
+	return e.EncodeMap(v.Len(), func(e *Encoder) error {
+		k := keys[i]
+		i++
+		if err := e.Encode(k.Interface()); err != nil {
+			return err
+		}
+		return e.Encode(v.MapIndex(k).Interface())
+	})
+}
+
+// EncodeMap provides the implementation of the map encoding algorithm, where n
+// is the number of elements in the map, and f a function called to encode each
+// element.
+//
+// The n argument can be set to a negative value to indicate that the program
+// doesn't know how many elements it will output to the map. Be mindful that not
+// all emitters support encoding maps of unknown length.
+//
+// The f function is called to encode each element of the map, it is expected to
+// encode two values, the first one being the key, follow by the associated value.
+func (e *Encoder) EncodeMap(n int, f func(*Encoder) error) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+
+	if err = e.encodeMapBegin(n); err != nil {
+		return
+	}
+
+encodeMap:
+	for i := 0; n < 0 || i < n; i++ {
+		if i != 0 {
+			if err = e.encodeMapNext(); err != nil {
+				return
 			}
-
-			sort.Strings(keys)
-
-			for i, k := range keys {
-				if i != 0 {
-					e.encodeMapNext()
-				}
-				e.encodeString(k)
-				e.encodeMapValue()
-				e.encode(v[k])
-			}
-
-			stringKeysPool.Put(keys[:0])
-		} else {
-			i := 0
-			for k, v := range v {
-				if i != 0 {
-					e.encodeMapNext()
-				}
-				e.encodeString(k)
-				e.encodeMapValue()
-				e.encode(v)
-				i++
-			}
+		}
+		e.key = true
+		switch err = f(e); err {
+		case nil:
+		case End:
+			break encodeMap
+		default:
+			return
 		}
 	}
 
-	e.encodeMapEnd()
+	return e.encodeMapEnd()
 }
 
-func (e *encoder) encodeMapSlice(v MapSlice) {
-	n := len(v)
-	e.encodeMapBegin(n)
+func (e *Encoder) encodeMapBegin(n int) error { return e.e.EmitMapBegin(n) }
 
-	if n != 0 {
-		e.encode(v[0].Key)
-		e.encodeMapValue()
-		e.encode(v[0].Value)
-		for i := 1; i != n; i++ {
-			e.encodeMapNext()
-			e.encode(v[i].Key)
-			e.encodeMapValue()
-			e.encode(v[i].Value)
-		}
+func (e *Encoder) encodeMapEnd() error { return e.e.EmitMapEnd() }
+
+func (e *Encoder) encodeMapValue() error { return e.e.EmitMapValue() }
+
+func (e *Encoder) encodeMapNext() error { return e.e.EmitMapNext() }
+
+func (e *Encoder) encodeMapValueMaybe() (err error) {
+	if e.key {
+		e.key = false
+		err = e.encodeMapValue()
 	}
-
-	e.encodeMapEnd()
+	return
 }
 
-func (e *encoder) encodeMap(v Map) {
-	n := v.Len()
-	e.encodeMapBegin(n)
-
-	if n != 0 {
-		it := v.Iter()
-
-		for i := 0; true; i++ {
-			if item, ok := it.Next(); !ok {
-				break
-			} else {
-				if i != 0 {
-					e.encodeMapNext()
-				}
-				e.encode(item.Key)
-				e.encodeMapValue()
-				e.encode(item.Value)
-			}
-		}
-	}
-
-	e.encodeMapEnd()
-}
-
-func (e *encoder) encodeMapBegin(n int) { e.e.EmitMapBegin(&e.w, n) }
-
-func (e *encoder) encodeMapEnd() { e.e.EmitMapEnd(&e.w) }
-
-func (e *encoder) encodeMapValue() { e.e.EmitMapValue(&e.w) }
-
-func (e *encoder) encodeMapNext() { e.e.EmitMapNext(&e.w) }
-
-func (e *encoder) encodeStruct(v reflect.Value) {
+func (e *Encoder) encodeValueStruct(v reflect.Value) (err error) {
 	s := LookupStruct(v.Type())
 	n := 0
 
@@ -601,144 +394,131 @@ func (e *encoder) encodeStruct(v reflect.Value) {
 		}
 	}
 
-	e.encodeMapBegin(n)
+	if err = e.encodeMapBegin(n); err != nil {
+		return
+	}
 	n = 0
 
 	for _, f := range s.Fields {
 		if fv := v.FieldByIndex(f.Index); !omit(f, fv) {
 			if n != 0 {
-				e.encodeMapNext()
+				if err = e.encodeMapNext(); err != nil {
+					return
+				}
 			}
-			e.encodeString(f.Name)
-			e.encodeMapValue()
-			e.encode(fv.Interface())
+			if err = e.encodeString(f.Name); err != nil {
+				return
+			}
+			if err = e.encodeMapValue(); err != nil {
+				return
+			}
+			if err = e.Encode(fv.Interface()); err != nil {
+				return
+			}
 			n++
 		}
 	}
 
-	e.encodeMapEnd()
+	return e.encodeMapEnd()
 }
 
-func omit(f StructField, v reflect.Value) bool {
-	return (f.Omitempty && isEmptyValue(v)) || (f.Omitzero && isZeroValue(v))
-}
-
-type streamEncoder struct {
-	encoder
+// A StreamEncoder encodes and writes a stream of values to an output stream.
+//
+// Instances of StreamEncoder are not safe for use by multiple goroutines.
+type StreamEncoder struct {
+	enc    Encoder
+	err    error
 	len    int
 	off    int
 	opened bool
 	closed bool
 }
 
-func (e *streamEncoder) Open(n int) (err error) {
-	return e.open(n)
+// NewStreamEncoder returns a new stream encoder that outputs to emitter.
+func NewStreamEncoder(emitter Emitter) *StreamEncoder {
+	return NewStreamEncoderWith(EncoderConfig{
+		Emitter: emitter,
+	})
 }
 
-func (e *streamEncoder) Close() (err error) {
-	if err = e.open(-1); err != nil {
-		return
+// NewStreamEncoder returns a new stream encoder configured with config.
+func NewStreamEncoderWith(config EncoderConfig) *StreamEncoder {
+	if config.Emitter == nil {
+		panic("objconv.NewStreamEncoder: the emitter is nil")
 	}
-	return e.close()
+	return &StreamEncoder{
+		enc: Encoder{
+			e:    config.Emitter,
+			sort: config.SortMapKeys,
+		},
+	}
 }
 
-func (e *streamEncoder) Encode(v interface{}) (err error) {
-	if err = e.open(-1); err != nil {
-		return
-	}
-
-	if e.off != 0 {
-		e.encodeArrayNext()
-	}
-
-	e.encode(v)
-
-	if e.off++; e.len >= 0 && e.off >= e.len {
-		e.close()
-	}
-
-	return e.w.e
-}
-
-func (e *streamEncoder) open(n int) (err error) {
-	if err = e.w.e; err != nil {
-		return
+// Open explicitly tells the encoder to start the stream, setting the number
+// of values to n.
+//
+// Depending on the actual format that the stream is encoding to, n may or
+// may not have to be accurate, some formats also support passing a negative
+// value to indicate that the number of elements is unknown.
+func (e *StreamEncoder) Open(n int) error {
+	if err := e.err; err != nil {
+		return err
 	}
 
 	if e.closed {
-		err = io.ErrClosedPipe
-		return
+		return io.ErrClosedPipe
 	}
 
 	if !e.opened {
 		e.len = n
 		e.opened = true
-		e.encodeBegin()
-		e.encodeArrayBegin(n)
+		e.err = e.enc.encodeArrayBegin(n)
 	}
 
-	return e.w.e
+	return e.err
 }
 
-func (e *streamEncoder) close() (err error) {
+// Close terminates the stream encoder.
+func (e *StreamEncoder) Close() error {
+	if err := e.Open(-1); err != nil {
+		return err
+	}
 	if !e.closed {
 		e.closed = true
-		e.encodeArrayEnd()
-		e.encodeEnd()
+		e.err = e.enc.encodeArrayEnd()
 	}
-	return e.w.e
+	return e.err
 }
 
-type nonstreamEncoder struct {
-	encoder
-	opened bool
-	closed bool
-}
-
-func (e *nonstreamEncoder) Open(n int) (err error) {
-	return e.open()
-}
-
-func (e *nonstreamEncoder) Close() (err error) {
-	if err = e.open(); err != nil {
-		return
-	}
-	return e.close()
-}
-
-func (e *nonstreamEncoder) Encode(v interface{}) (err error) {
-	if err = e.open(); err != nil {
-		return
-	}
-	e.encode(v)
-	return e.close()
-}
-
-func (e *nonstreamEncoder) open() (err error) {
-	if err = e.w.e; err != nil {
-		return
+// Encode writes v to the stream, encoding it based on the emitter configured
+// on e.
+func (e *StreamEncoder) Encode(v interface{}) error {
+	if err := e.Open(-1); err != nil {
+		return err
 	}
 
-	if e.closed {
-		err = io.ErrClosedPipe
-		return
+	if e.off != 0 {
+		e.err = e.enc.encodeArrayNext()
 	}
 
-	if !e.opened {
-		e.opened = true
-		e.encodeBegin()
+	if e.err == nil {
+		e.err = e.enc.Encode(v)
+
+		if e.off++; e.len >= 0 && e.off >= e.len {
+			e.Close()
+		}
 	}
 
-	return e.w.e
+	return e.err
 }
 
-func (e *nonstreamEncoder) close() (err error) {
-	if !e.closed {
-		e.closed = true
-		e.encodeEnd()
-	}
-	return e.w.e
+type ValueEncoder interface {
+	EncodeValue(*Encoder) error
 }
+
+type ValueEncoderFunc func(*Encoder) error
+
+func (f ValueEncoderFunc) EncodeValue(e *Encoder) error { return f(e) }
 
 var (
 	stringKeysPool = sync.Pool{

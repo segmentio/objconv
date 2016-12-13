@@ -1,6 +1,7 @@
 package objconv
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -59,3 +60,9 @@ type TypeConversionError struct {
 func (e *TypeConversionError) Error() string {
 	return "objconv: type mismatch between " + e.From.String() + " and " + e.To.String()
 }
+
+var (
+	// End is expected to be returned to indicate that a function has completed
+	// its owrk, this is usually employed in generic algorithms.
+	End = errors.New("end")
+)

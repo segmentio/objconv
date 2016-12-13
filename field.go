@@ -35,3 +35,7 @@ func makeStructField(f reflect.StructField) StructField {
 
 	return s
 }
+
+func omit(f StructField, v reflect.Value) bool {
+	return (f.Omitempty && isEmptyValue(v)) || (f.Omitzero && isZeroValue(v))
+}

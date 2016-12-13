@@ -1,61 +1,6 @@
 package objconv
 
-import (
-	"bytes"
-	"errors"
-	"fmt"
-	"io"
-	"reflect"
-	"strings"
-	"time"
-)
-
-// Decode decodes the content from the reader into the value.
-//
-// The format must be a string describing the content type of the data
-// (like json, resp, ...).
-func Decode(in io.Reader, format string, value interface{}) (err error) {
-	var parser Parser
-
-	if parser, err = GetParser(format); err == nil {
-		err = NewDecoder(DecoderConfig{
-			Input:  in,
-			Parser: parser,
-		}).Decode(value)
-	}
-
-	return
-}
-
-// DecodeBytes decodes the content from the byte slice into the value.
-//
-// The format must be a string describing the content type of the data
-// (like json, resp, ...).
-func DecodeBytes(in []byte, format string, value interface{}) (err error) {
-	return Decode(bytes.NewReader(in), format, value)
-}
-
-// DecodeString decodes the content from the string into the value.
-//
-// The format must be a string describing the content type of the data
-// (like json, resp, ...).
-func DecodeString(in string, format string, value interface{}) (err error) {
-	return Decode(strings.NewReader(in), format, value)
-}
-
-// A Decoder reads and decodes values from an input stream.
-type Decoder interface {
-	// Decode reads the next value from the its input and stores it in the value
-	// pointed to by v.
-	Decode(v interface{}) error
-}
-
-// DecoderFunc is an adapter to allow use of ordinary functions as decoders.
-type DecoderFunc func(interface{}) error
-
-// Decode calls f(v).
-func (f DecoderFunc) Decode(v interface{}) error { return f(v) }
-
+/*
 // DecoderConfig carries the configuration for creating an encoder.
 type DecoderConfig struct {
 	// Input is the data stream that the decoder reads from.
@@ -63,74 +8,29 @@ type DecoderConfig struct {
 
 	// Parser defines the format used by the decoder.
 	Parser Parser
-
-	// Tag sets the name of the tag used when decoding struct fields.
-	Tag string
 }
 
-// A StreamDecoder reads and decodes a stream of values from an input stream.
-type StreamDecoder interface {
-	Decoder
-
-	// Len returns the expected number of elements returned from the stream.
-	//
-	// Depending on the actual format that the stream is decoding this value
-	// may or may not be accurate, some formats may also return a negative
-	// value to indicate that the number of elements is unknown.
-	Len() int
-
-	// Error returns the last error encountered by the decoder.
-	Err() error
-
-	// Enoder returns a stream encoder that can be used to re-encode the values
-	// read from the decoder.
-	//
-	// This is useful because the stream decoder abstracts the underlying types
-	// of the data it reads, the application cannot tell whether it's reading
-	// from a sequence or a single value.
-	// If it needs to re-encode the values with the same type that they had
-	// before decoding the application needs to use an encoder returned by this
-	// method.
-	//
-	// Note: the encoder returned by this method will be nil until the first
-	// value was decoded from the stream.
-	Encoder(EncoderConfig) StreamEncoder
+type Decoder struct {
+	p  Parser
+	r  *Reader
+	r2 Reader
 }
 
 // NewDecoder returns a new decoder configured with config.
-func NewDecoder(config DecoderConfig) Decoder {
-	config = setDecoderConfigDefaults(config)
+func NewDecoder(config DecoderConfig) *Decoder {
+	if config.Input == nil {
+		panic("objconv.NewDecoder: the input is nil")
+	}
+	if config.Parser == nil {
+		panic("objconv.NewDecoder: the parser is nil")
+	}
 	d := makeDecoder(config.Parser, config.Input)
 	return &d
 }
 
-// NewStreamDecoder returns a new stream decoder configured with config.
-func NewStreamDecoder(config DecoderConfig) StreamDecoder {
-	config = setDecoderConfigDefaults(config)
-	return &streamDecoder{decoder: makeDecoder(config.Parser, config.Input)}
-}
-
-func setDecoderConfigDefaults(config DecoderConfig) DecoderConfig {
-	if config.Input == nil {
-		panic("objconv.NewDecoder: config.Input is nil")
-	}
-
-	if config.Parser == nil {
-		panic("objconv.NewDecoder: config.Parser is nil")
-	}
-
-	return config
-}
-
-type decoder struct {
-	p Parser
-	r *Reader
-	Reader
-}
-
-func makeDecoder(p Parser, r io.Reader) (d decoder) {
+func makeDecoder(p Parser, r io.Reader) (d Decoder) {
 	d.p = p
-	d.r = &d.Reader
+	d.r = &d.r2
 
 	// Use the reader directly if it's already an instance of Reader.
 	switch x := r.(type) {
@@ -143,17 +43,22 @@ func makeDecoder(p Parser, r io.Reader) (d decoder) {
 	return
 }
 
-func (d *decoder) Decode(v interface{}) (err error) {
+func (d *Decoder) Decode(v interface{}) (err error) {
+	return
+}
+*/
+
+/*
 	return d.decode(d.r, v)
 }
 
-func (d *decoder) parse(r *Reader, v interface{}) (interface{}, reflect.Value, error) {
+func (d *Decoder) parse(r *Reader, v interface{}) (interface{}, reflect.Value, error) {
 	to := reflect.ValueOf(v).Elem()
 	v, err := d.p.Parse(r, to.Interface())
 	return v, to, err
 }
 
-func (d *decoder) decode(r *Reader, v interface{}) error {
+func (d *Decoder) decode(r *Reader, v interface{}) error {
 	from, to, err := d.parse(r, v)
 	if err == nil {
 		err = d.decodeValue(r, from, to)
@@ -161,7 +66,7 @@ func (d *decoder) decode(r *Reader, v interface{}) error {
 	return err
 }
 
-func (d *decoder) decodeValue(r *Reader, v interface{}, to reflect.Value) error {
+func (d *Decoder) decodeValue(r *Reader, v interface{}, to reflect.Value) error {
 	switch x := v.(type) {
 	case bool:
 		return d.decodeBool(x, to)
@@ -205,7 +110,7 @@ func (d *decoder) decodeValue(r *Reader, v interface{}, to reflect.Value) error 
 	}
 }
 
-func (d *decoder) decodeNil(to reflect.Value) (err error) {
+func (d *Decoder) decodeNil(to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Bool:
 		to.SetBool(false)
@@ -234,7 +139,7 @@ func (d *decoder) decodeNil(to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeBool(v bool, to reflect.Value) (err error) {
+func (d *Decoder) decodeBool(v bool, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Bool:
 		to.SetBool(v)
@@ -244,7 +149,7 @@ func (d *decoder) decodeBool(v bool, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeInt(v int64, to reflect.Value) (err error) {
+func (d *Decoder) decodeInt(v int64, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Int:
 		if _, err = convertInt64ToInt(v); err == nil {
@@ -316,7 +221,7 @@ func (d *decoder) decodeInt(v int64, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeUint(v uint64, to reflect.Value) (err error) {
+func (d *Decoder) decodeUint(v uint64, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Int:
 		if _, err = convertUint64ToInt(v); err == nil {
@@ -388,7 +293,7 @@ func (d *decoder) decodeUint(v uint64, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeFloat(v float64, to reflect.Value) (err error) {
+func (d *Decoder) decodeFloat(v float64, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Float32, reflect.Float64:
 		to.SetFloat(v)
@@ -398,7 +303,7 @@ func (d *decoder) decodeFloat(v float64, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeString(v string, to reflect.Value) (err error) {
+func (d *Decoder) decodeString(v string, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.String:
 		to.SetString(v)
@@ -412,7 +317,7 @@ func (d *decoder) decodeString(v string, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeStringToSlice(v string, to reflect.Value) (err error) {
+func (d *Decoder) decodeStringToSlice(v string, to reflect.Value) (err error) {
 	switch to.Type().Elem().Kind() {
 	case reflect.Uint8: // []byte
 		to.SetBytes([]byte(v))
@@ -426,7 +331,7 @@ func (d *decoder) decodeStringToSlice(v string, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeStringToOther(v string, to reflect.Value) (err error) {
+func (d *Decoder) decodeStringToOther(v string, to reflect.Value) (err error) {
 	switch to.Interface().(type) {
 	case time.Time:
 		var t time.Time
@@ -449,7 +354,7 @@ func (d *decoder) decodeStringToOther(v string, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeBytes(v []byte, to reflect.Value) (err error) {
+func (d *Decoder) decodeBytes(v []byte, to reflect.Value) (err error) {
 	switch to.Kind() {
 	case reflect.Slice:
 		err = d.decodeBytesToSlice(v, to)
@@ -463,7 +368,7 @@ func (d *decoder) decodeBytes(v []byte, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeBytesToSlice(v []byte, to reflect.Value) (err error) {
+func (d *Decoder) decodeBytesToSlice(v []byte, to reflect.Value) (err error) {
 	switch to.Type().Elem().Kind() {
 	case reflect.Uint8: // []byte
 		to.SetBytes(v)
@@ -477,19 +382,19 @@ func (d *decoder) decodeBytesToSlice(v []byte, to reflect.Value) (err error) {
 	return
 }
 
-func (d *decoder) decodeDuration(v time.Duration, to reflect.Value) error {
+func (d *Decoder) decodeDuration(v time.Duration, to reflect.Value) error {
 	return setValue(to, reflect.ValueOf(v))
 }
 
-func (d *decoder) decodeTime(v time.Time, to reflect.Value) error {
+func (d *Decoder) decodeTime(v time.Time, to reflect.Value) error {
 	return setValue(to, reflect.ValueOf(v))
 }
 
-func (d *decoder) decodeError(v error, to reflect.Value) error {
+func (d *Decoder) decodeError(v error, to reflect.Value) error {
 	return setValue(to, reflect.ValueOf(v))
 }
 
-func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) (err error) {
+func (d *Decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) (err error) {
 	switch t := to.Type(); t.Kind() {
 	case reflect.Slice:
 		err = d.decodeArrayToSlice(r, v, to, t)
@@ -499,7 +404,7 @@ func (d *decoder) decodeArray(r *Reader, v ArrayParser, to reflect.Value) (err e
 	return
 }
 
-func (d *decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value, t reflect.Type) (err error) {
+func (d *Decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value, t reflect.Type) (err error) {
 	n := v.Len()
 
 	if n < 0 {
@@ -533,7 +438,7 @@ func (d *decoder) decodeArrayToSlice(r *Reader, v ArrayParser, to reflect.Value,
 	return
 }
 
-func (d *decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Value) (err error) {
+func (d *Decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Value) (err error) {
 	n := v.Len()
 
 	if n < 0 {
@@ -570,7 +475,7 @@ func (d *decoder) decodeArrayToInterface(r *Reader, v ArrayParser, to reflect.Va
 	return
 }
 
-func (d *decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) (err error) {
+func (d *Decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) (err error) {
 	switch t := to.Type(); t.Kind() {
 	case reflect.Struct:
 		err = d.decodeMapToStruct(r, v, to, t)
@@ -588,7 +493,7 @@ func (d *decoder) decodeMap(r *Reader, v MapParser, to reflect.Value) (err error
 	return
 }
 
-func (d *decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t reflect.Type) (err error) {
+func (d *Decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t reflect.Type) (err error) {
 	m := reflect.MakeMap(t)
 
 	kt := t.Key()
@@ -632,7 +537,7 @@ func (d *decoder) decodeMapToMap(r *Reader, v MapParser, to reflect.Value, t ref
 	return
 }
 
-func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t reflect.Type) (err error) {
+func (d *Decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t reflect.Type) (err error) {
 	s := LookupStruct(t)
 	f := ""
 
@@ -669,16 +574,33 @@ func (d *decoder) decodeMapToStruct(r *Reader, v MapParser, to reflect.Value, t 
 
 	return
 }
+*/
 
-type streamDecoder struct {
-	decoder
+/*
+type StreamDecoder struct {
+	dec    Decoder
 	parser ArrayParser
 	err    error
 	count  int
 	array  bool
 }
 
-func (d *streamDecoder) Decode(v interface{}) (err error) {
+// NewStreamDecoder returns a new stream decoder configured with config.
+func NewStreamDecoder(config DecoderConfig) StreamDecoder {
+	if config.Input == nil {
+		panic("objconv.NewStreamDecoder: the input is nil")
+	}
+	if config.Parse == nil {
+		panic("objconv.NewStreamDecoder: the parser is nil")
+	}
+	return &StreamDecoder{
+		dec: Decoder{
+			r: Reader{r: config.Input},
+		},
+	}
+}
+
+func (d *StreamDecoder) Decode(v interface{}) (err error) {
 	if err = d.err; err != nil {
 		return
 	}
@@ -719,7 +641,12 @@ func (d *streamDecoder) Decode(v interface{}) (err error) {
 	return
 }
 
-func (d *streamDecoder) Len() (n int) {
+// Len returns the expected number of elements returned from the stream.
+//
+// Depending on the actual format that the stream is decoding this value
+// may or may not be accurate, some formats may also return a negative
+// value to indicate that the number of elements is unknown.
+func (d *StreamDecoder) Len() (n int) {
 	n = -1
 
 	if d.parser == nil {
@@ -763,11 +690,24 @@ func (d *streamDecoder) Len() (n int) {
 	return
 }
 
-func (d *streamDecoder) Err() error {
+// Error returns the last error encountered by the decoder.
+func (d *StreamDecoder) Err() error {
 	return d.err
 }
 
-func (d *streamDecoder) Encoder(config EncoderConfig) StreamEncoder {
+// Enoder returns a stream encoder that can be used to re-encode the values
+// read from the decoder.
+//
+// This is useful because the stream decoder abstracts the underlying types
+// of the data it reads, the application cannot tell whether it's reading
+// from a sequence or a single value.
+// If it needs to re-encode the values with the same type that they had
+// before decoding the application needs to use an encoder returned by this
+// method.
+//
+// Note: the encoder returned by this method will be nil until the first
+// value was decoded from the stream.
+func (d *StreamDecoder) Encoder(config EncoderConfig) *StreamEncoder {
 	if d.parser == nil {
 		return nil
 	}
@@ -785,3 +725,4 @@ func (d *streamDecoder) Encoder(config EncoderConfig) StreamEncoder {
 		},
 	}
 }
+*/

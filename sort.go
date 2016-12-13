@@ -1,6 +1,7 @@
 package objconv
 
 import (
+	"bytes"
 	"reflect"
 	"sort"
 )
@@ -29,6 +30,14 @@ func (s sortStringValues) Len() int               { return len(s) }
 func (s sortStringValues) Swap(i int, j int)      { s[i], s[j] = s[j], s[i] }
 func (s sortStringValues) Less(i int, j int) bool { return s[i].String() < s[j].String() }
 
+type sortBytesValues []reflect.Value
+
+func (s sortBytesValues) Len() int          { return len(s) }
+func (s sortBytesValues) Swap(i int, j int) { s[i], s[j] = s[j], s[i] }
+func (s sortBytesValues) Less(i int, j int) bool {
+	return bytes.Compare(s[i].Bytes(), s[j].Bytes()) < 0
+}
+
 func sortValues(typ reflect.Type, v []reflect.Value) {
 	switch typ.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -43,9 +52,13 @@ func sortValues(typ reflect.Type, v []reflect.Value) {
 	case reflect.String:
 		sort.Sort(sortStringValues(v))
 
-	default:
-		// For all other types we give up on trying to sort the values,
-		// anyway it's likely not gonna be a serializable type, or something
-		// that doesn't make sense.
+	case reflect.Slice:
+		if typ.Elem().Kind() == reflect.Uint8 {
+			sort.Sort(sortBytesValues(v))
+		}
 	}
+
+	// For all other types we give up on trying to sort the values,
+	// anyway it's likely not gonna be a serializable type, or something
+	// that doesn't make sense.
 }
