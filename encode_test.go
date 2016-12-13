@@ -44,35 +44,35 @@ func TestEncoder(t *testing.T) {
 		{TBool(false), false},
 
 		// int
-		{int(1), int(1)},
-		{int8(1), int8(1)},
-		{int16(1), int16(1)},
-		{int32(1), int32(1)},
+		{int(1), int64(1)},
+		{int8(1), int64(1)},
+		{int16(1), int64(1)},
+		{int32(1), int64(1)},
 		{int64(1), int64(1)},
-		{TInt(1), int(1)},
-		{TInt8(1), int8(1)},
-		{TInt16(1), int16(1)},
-		{TInt32(1), int32(1)},
+		{TInt(1), int64(1)},
+		{TInt8(1), int64(1)},
+		{TInt16(1), int64(1)},
+		{TInt32(1), int64(1)},
 		{TInt64(1), int64(1)},
 
 		// uint
-		{uint(1), uint(1)},
-		{uint8(1), uint8(1)},
-		{uint16(1), uint16(1)},
-		{uint32(1), uint32(1)},
+		{uint(1), uint64(1)},
+		{uint8(1), uint64(1)},
+		{uint16(1), uint64(1)},
+		{uint32(1), uint64(1)},
 		{uint64(1), uint64(1)},
-		{uintptr(1), uintptr(1)},
-		{TUint(1), uint(1)},
-		{TUint8(1), uint8(1)},
-		{TUint16(1), uint16(1)},
-		{TUint32(1), uint32(1)},
+		{uintptr(1), uint64(1)},
+		{TUint(1), uint64(1)},
+		{TUint8(1), uint64(1)},
+		{TUint16(1), uint64(1)},
+		{TUint32(1), uint64(1)},
 		{TUint64(1), uint64(1)},
-		{TUintptr(1), uintptr(1)},
+		{TUintptr(1), uint64(1)},
 
 		// float
-		{float32(1), float32(1)},
+		{float32(1), float64(1)},
 		{float64(1), float64(1)},
-		{TFloat32(1), float32(1)},
+		{TFloat32(1), float64(1)},
 		{TFloat64(1), float64(1)},
 
 		// string
@@ -93,16 +93,19 @@ func TestEncoder(t *testing.T) {
 		{err, err},
 
 		// array
-		{[...]int{1, 2, 3}, []interface{}{1, 2, 3}},
-		{[]int{1, 2, 3}, []interface{}{1, 2, 3}},
+		{[...]int{1, 2, 3}, []interface{}{int64(1), int64(2), int64(3)}},
+		{[]int{1, 2, 3}, []interface{}{int64(1), int64(2), int64(3)}},
 		{[]int{}, []interface{}{}},
 
 		// map
-		{map[int]int{1: 21, 2: 42}, map[interface{}]interface{}{1: 21, 2: 42}},
+		{map[int]int{1: 21, 2: 42}, map[interface{}]interface{}{
+			int64(1): int64(21),
+			int64(2): int64(42),
+		}},
 
 		// struct
 		{struct{}{}, map[interface{}]interface{}{}},
-		{struct{ A int }{42}, map[interface{}]interface{}{"A": 42}},
+		{struct{ A int }{42}, map[interface{}]interface{}{"A": int64(42)}},
 
 		// struct tags
 		{
@@ -138,8 +141,8 @@ func TestEncoder(t *testing.T) {
 			out: map[interface{}]interface{}{
 				"answer": map[interface{}]interface{}{
 					"M": map[interface{}]interface{}{
-						1: []interface{}{1, 2, 3},
-						2: []interface{}{},
+						int64(1): []interface{}{int64(1), int64(2), int64(3)},
+						int64(2): []interface{}{},
 					},
 				},
 			},

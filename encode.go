@@ -75,43 +75,43 @@ func (e *Encoder) Encode(v interface{}) error {
 		return e.encodeBool(x)
 
 	case int:
-		return e.encodeInt(x)
+		return e.encodeInt(int64(x))
 
 	case int8:
-		return e.encodeInt8(x)
+		return e.encodeInt(int64(x))
 
 	case int16:
-		return e.encodeInt16(x)
+		return e.encodeInt(int64(x))
 
 	case int32:
-		return e.encodeInt32(x)
+		return e.encodeInt(int64(x))
 
 	case int64:
-		return e.encodeInt64(x)
+		return e.encodeInt(x)
 
 	case uint:
-		return e.encodeUint(x)
+		return e.encodeUint(uint64(x))
 
 	case uint8:
-		return e.encodeUint8(x)
+		return e.encodeUint(uint64(x))
 
 	case uint16:
-		return e.encodeUint16(x)
+		return e.encodeUint(uint64(x))
 
 	case uint32:
-		return e.encodeUint32(x)
+		return e.encodeUint(uint64(x))
 
 	case uint64:
-		return e.encodeUint64(x)
+		return e.encodeUint(uint64(x))
 
 	case uintptr:
-		return e.encodeUintptr(x)
+		return e.encodeUint(uint64(x))
 
 	case float32:
-		return e.encodeFloat32(x)
+		return e.encodeFloat(float64(x))
 
 	case float64:
-		return e.encodeFloat64(x)
+		return e.encodeFloat(x)
 
 	case time.Time:
 		return e.encodeTime(x)
@@ -139,44 +139,14 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 	case reflect.Bool:
 		return e.encodeBool(v.Bool())
 
-	case reflect.Int:
-		return e.encodeInt(int(v.Int()))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return e.encodeInt(v.Int())
 
-	case reflect.Int8:
-		return e.encodeInt8(int8(v.Int()))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return e.encodeUint(v.Uint())
 
-	case reflect.Int16:
-		return e.encodeInt16(int16(v.Int()))
-
-	case reflect.Int32:
-		return e.encodeInt32(int32(v.Int()))
-
-	case reflect.Int64:
-		return e.encodeInt64(v.Int())
-
-	case reflect.Uint:
-		return e.encodeUint(uint(v.Uint()))
-
-	case reflect.Uint8:
-		return e.encodeUint8(uint8(v.Uint()))
-
-	case reflect.Uint16:
-		return e.encodeUint16(uint16(v.Uint()))
-
-	case reflect.Uint32:
-		return e.encodeUint32(uint32(v.Uint()))
-
-	case reflect.Uint64:
-		return e.encodeUint64(v.Uint())
-
-	case reflect.Uintptr:
-		return e.encodeUintptr(uintptr(v.Uint()))
-
-	case reflect.Float32:
-		return e.encodeFloat32(float32(v.Float()))
-
-	case reflect.Float64:
-		return e.encodeFloat64(float64(v.Float()))
+	case reflect.Float32, reflect.Float64:
+		return e.encodeFloat(v.Float())
 
 	case reflect.String:
 		return e.encodeString(v.String())
@@ -218,31 +188,11 @@ func (e *Encoder) encodeNil() error { return e.e.EmitNil() }
 
 func (e *Encoder) encodeBool(v bool) error { return e.e.EmitBool(v) }
 
-func (e *Encoder) encodeInt(v int) error { return e.e.EmitInt(v) }
+func (e *Encoder) encodeInt(v int64) error { return e.e.EmitInt(v) }
 
-func (e *Encoder) encodeInt8(v int8) error { return e.e.EmitInt8(v) }
+func (e *Encoder) encodeUint(v uint64) error { return e.e.EmitUint(v) }
 
-func (e *Encoder) encodeInt16(v int16) error { return e.e.EmitInt16(v) }
-
-func (e *Encoder) encodeInt32(v int32) error { return e.e.EmitInt32(v) }
-
-func (e *Encoder) encodeInt64(v int64) error { return e.e.EmitInt64(v) }
-
-func (e *Encoder) encodeUint(v uint) error { return e.e.EmitUint(v) }
-
-func (e *Encoder) encodeUint8(v uint8) error { return e.e.EmitUint8(v) }
-
-func (e *Encoder) encodeUint16(v uint16) error { return e.e.EmitUint16(v) }
-
-func (e *Encoder) encodeUint32(v uint32) error { return e.e.EmitUint32(v) }
-
-func (e *Encoder) encodeUint64(v uint64) error { return e.e.EmitUint64(v) }
-
-func (e *Encoder) encodeUintptr(v uintptr) error { return e.e.EmitUintptr(v) }
-
-func (e *Encoder) encodeFloat32(v float32) error { return e.e.EmitFloat32(v) }
-
-func (e *Encoder) encodeFloat64(v float64) error { return e.e.EmitFloat64(v) }
+func (e *Encoder) encodeFloat(v float64) error { return e.e.EmitFloat(v) }
 
 func (e *Encoder) encodeString(v string) error { return e.e.EmitString(v) }
 

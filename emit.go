@@ -8,47 +8,17 @@ type Emitter interface {
 	// EmitNil writes a nil value to the writer.
 	EmitNil() error
 
-	// EmitBool writes a bool value to the writer.
+	// EmitBool writes a boolean value to the writer.
 	EmitBool(bool) error
 
-	// EmitInt writes a int value to the writer.
-	EmitInt(int) error
+	// EmitInt writes an integer value to the writer.
+	EmitInt(int64) error
 
-	// EmitInt8 writes a int8 value to the writer.
-	EmitInt8(int8) error
+	// EmitUint writes an unsigned integer value to the writer.
+	EmitUint(uint64) error
 
-	// EmitInt16 writes a int16 value to the writer.
-	EmitInt16(int16) error
-
-	// EmitInt32 writes a int32 value to the writer.
-	EmitInt32(int32) error
-
-	// EmitInt64 writes a int64 value to the writer.
-	EmitInt64(int64) error
-
-	// EmitUint writes a uint value to the writer.
-	EmitUint(uint) error
-
-	// EmitUint8 writes a uint8 value to the writer.
-	EmitUint8(uint8) error
-
-	// EmitUint16 writes a uint16 value to the writer.
-	EmitUint16(uint16) error
-
-	// EmitUint32 writes a uint32 value to the writer.
-	EmitUint32(uint32) error
-
-	// EmitUint64 writes a uint64 value to the writer.
-	EmitUint64(uint64) error
-
-	// EmitUintptr writes a uintptr value to the writer.
-	EmitUintptr(uintptr) error
-
-	// EmitFloat32 writes a float32 value to the writer.
-	EmitFloat32(float32) error
-
-	// EmitFloat64 writes a float64 value to the writer.
-	EmitFloat64(float64) error
+	// EmitFloat writes a floating point value to the writer.
+	EmitFloat(float64) error
 
 	// EmitString writes a string value to the writer.
 	EmitString(string) error
@@ -106,31 +76,11 @@ func (e *ValueEmitter) EmitNil() error { return e.push(nil) }
 
 func (e *ValueEmitter) EmitBool(v bool) error { return e.push(v) }
 
-func (e *ValueEmitter) EmitInt(v int) error { return e.push(v) }
+func (e *ValueEmitter) EmitInt(v int64) error { return e.push(v) }
 
-func (e *ValueEmitter) EmitInt8(v int8) error { return e.push(v) }
+func (e *ValueEmitter) EmitUint(v uint64) error { return e.push(v) }
 
-func (e *ValueEmitter) EmitInt16(v int16) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitInt32(v int32) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitInt64(v int64) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitUint(v uint) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitUint8(v uint8) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitUint16(v uint16) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitUint32(v uint32) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitUint64(v uint64) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitUintptr(v uintptr) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitFloat32(v float32) error { return e.push(v) }
-
-func (e *ValueEmitter) EmitFloat64(v float64) error { return e.push(v) }
+func (e *ValueEmitter) EmitFloat(v float64) error { return e.push(v) }
 
 func (e *ValueEmitter) EmitString(v string) error { return e.push(v) }
 
@@ -205,31 +155,11 @@ func (e DiscardEmitter) EmitNil() error { return nil }
 
 func (e DiscardEmitter) EmitBool(v bool) error { return nil }
 
-func (e DiscardEmitter) EmitInt(v int) error { return nil }
+func (e DiscardEmitter) EmitInt(v int64) error { return nil }
 
-func (e DiscardEmitter) EmitInt8(v int8) error { return nil }
+func (e DiscardEmitter) EmitUint(v uint64) error { return nil }
 
-func (e DiscardEmitter) EmitInt16(v int16) error { return nil }
-
-func (e DiscardEmitter) EmitInt32(v int32) error { return nil }
-
-func (e DiscardEmitter) EmitInt64(v int64) error { return nil }
-
-func (e DiscardEmitter) EmitUint(v uint) error { return nil }
-
-func (e DiscardEmitter) EmitUint8(v uint8) error { return nil }
-
-func (e DiscardEmitter) EmitUint16(v uint16) error { return nil }
-
-func (e DiscardEmitter) EmitUint32(v uint32) error { return nil }
-
-func (e DiscardEmitter) EmitUint64(v uint64) error { return nil }
-
-func (e DiscardEmitter) EmitUintptr(v uintptr) error { return nil }
-
-func (e DiscardEmitter) EmitFloat32(v float32) error { return nil }
-
-func (e DiscardEmitter) EmitFloat64(v float64) error { return nil }
+func (e DiscardEmitter) EmitFloat(v float64) error { return nil }
 
 func (e DiscardEmitter) EmitString(v string) error { return nil }
 
