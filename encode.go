@@ -512,12 +512,20 @@ func (e *StreamEncoder) Encode(v interface{}) error {
 	return e.err
 }
 
+// ValueEncoder is the interface that can be implemented by types that wish to
+// provide their own encoding algorithms.
+//
+// The EncodeValue method is called when the value is found by an encoding
+// algorithm.
 type ValueEncoder interface {
 	EncodeValue(*Encoder) error
 }
 
+// ValueEncoderFunc allows the use of regular functions or methods as value
+// encoders.
 type ValueEncoderFunc func(*Encoder) error
 
+// EncodeValue calls f(e).
 func (f ValueEncoderFunc) EncodeValue(e *Encoder) error { return f(e) }
 
 var (
