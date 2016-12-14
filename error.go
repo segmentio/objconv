@@ -6,6 +6,21 @@ import (
 	"reflect"
 )
 
+// ArrayLengthError is returned when decoding into an array produced an invalid
+// number of elements.
+type ArrayLengthError struct {
+	// Type of the array.
+	Type reflect.Type
+
+	// Length that didn't match the number of elements in the array.
+	Length int
+}
+
+// Error satisfies the error interface.
+func (e *ArrayLengthError) Error() string {
+	return fmt.Sprintf("objconv: length = %d: array length mismatch with %s", e.Length, e.Type)
+}
+
 // OutOfBoundsError is returned when decoding numeric values that do not fit
 // into their destination type, for example decoding the value 1000 into a int8
 // would return this error.
@@ -50,15 +65,15 @@ func (e *UnsupportedTypeError) Error() string {
 // occurs between the decoded value and its destination.
 type TypeConversionError struct {
 	// From is the type of the value being decoded.
-	From reflect.Type
+	From Type
 
 	// To is the destination type where the value is decoded.
-	To reflect.Type
+	To Type
 }
 
 // Error satsifies the error interface.
 func (e *TypeConversionError) Error() string {
-	return "objconv: type mismatch between " + e.From.String() + " and " + e.To.String()
+	return "objconv: cannot convert " + e.From.String() + " to " + e.To.String()
 }
 
 var (

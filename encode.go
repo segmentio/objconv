@@ -119,6 +119,9 @@ func (e *Encoder) Encode(v interface{}) error {
 	case time.Duration:
 		return e.encodeDuration(x)
 
+	case ValueEncoder:
+		return x.EncodeValue(e)
+
 	case error:
 		return e.encodeError(x)
 
@@ -126,11 +129,6 @@ func (e *Encoder) Encode(v interface{}) error {
 		return e.encodeValue(reflect.ValueOf(v))
 	}
 }
-
-var (
-	timeType     = reflect.TypeOf(time.Time{})
-	durationType = reflect.TypeOf(time.Duration(0))
-)
 
 func (e *Encoder) encodeValue(v reflect.Value) error {
 	t := v.Type()
@@ -151,14 +149,23 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 	case reflect.String:
 		return e.encodeString(v.String())
 
-	case reflect.Slice, reflect.Array:
-		if t.Elem().Kind() == reflect.Uint8 {
-			if k == reflect.Array {
-				v = v.Slice(0, v.Len())
-			}
+	case reflect.Slice:
+		switch {
+		case t.Elem().Kind() == reflect.Uint8:
 			return e.encodeBytes(v.Bytes())
+		case v.Len() == 0:
+			return e.EncodeArray(0, nil)
+		default:
+			return e.encodeValueArray(v)
 		}
-		return e.encodeValueArray(v)
+
+	case reflect.Array:
+		switch {
+		case v.Len() == 0:
+			return e.EncodeArray(0, nil)
+		default:
+			return e.encodeValueArray(v)
+		}
 
 	case reflect.Map:
 		switch {

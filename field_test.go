@@ -50,7 +50,10 @@ func TestMakeStructField(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			if f := makeStructField(test.s); !reflect.DeepEqual(test.f, f) {
+			f := makeStructField(test.s)
+			f.decode = nil // function types are not comparable
+
+			if !reflect.DeepEqual(test.f, f) {
 				t.Errorf("%#v != %#v", test.f, f)
 			}
 		})

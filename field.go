@@ -18,6 +18,9 @@ type StructField struct {
 	// Omitzero is set to true when the field should be omitted if it has a zero
 	// value.
 	Omitzero bool
+
+	// Cache of the decoder method used for this field.
+	decode func(*Decoder, reflect.Value) (Type, error)
 }
 
 func makeStructField(f reflect.StructField) StructField {
@@ -27,6 +30,7 @@ func makeStructField(f reflect.StructField) StructField {
 		Name:      f.Name,
 		Omitempty: t.Omitempty,
 		Omitzero:  t.Omitzero,
+		decode:    decodeFuncOf(f.Type),
 	}
 
 	if len(t.Name) != 0 {

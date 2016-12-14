@@ -2,52 +2,55 @@ package objconv
 
 import (
 	"reflect"
+	"time"
 	"unsafe"
 )
 
-// Type is an enumeration that define the type of a Value.
+// Type is an enumeration that represent all the base types supported by the
+// emitters and parsers.
 type Type int
 
 const (
-	NilType Type = iota
-	BoolType
-	IntType
-	UintType
-	FloatType
-	StringType
-	BytesType
-	TimeType
-	DurationType
-	ErrorType
-	ArrayType
-	MapType
+	Nil Type = iota
+	Bool
+	Int
+	Uint
+	Float
+	String
+	Bytes
+	Time
+	Duration
+	Error
+	Array
+	Map
 )
 
+// String returns a human readable representation of the type.
 func (t Type) String() string {
 	switch t {
-	case NilType:
+	case Nil:
 		return "nil"
-	case BoolType:
+	case Bool:
 		return "bool"
-	case IntType:
+	case Int:
 		return "int"
-	case UintType:
+	case Uint:
 		return "uint"
-	case FloatType:
+	case Float:
 		return "float"
-	case StringType:
+	case String:
 		return "string"
-	case BytesType:
+	case Bytes:
 		return "bytes"
-	case TimeType:
+	case Time:
 		return "time"
-	case DurationType:
+	case Duration:
 		return "duration"
-	case ErrorType:
+	case Error:
 		return "error"
-	case ArrayType:
+	case Array:
 		return "array"
-	case MapType:
+	case Map:
 		return "map"
 	default:
 		return "<type>"
@@ -139,23 +142,9 @@ func isZeroStruct(v reflect.Value) bool {
 	return true
 }
 
-func setValue(v1 reflect.Value, v2 reflect.Value) (err error) {
-	t1 := v1.Type()
-	t2 := v2.Type()
-
-	switch {
-	case t2.AssignableTo(t1):
-		v1.Set(v2)
-
-	case t2.ConvertibleTo(t1):
-		v1.Set(v2.Convert(t1))
-
-	default:
-		err = &TypeConversionError{
-			From: t2,
-			To:   t1,
-		}
-	}
-
-	return
-}
+var (
+	timeType              = reflect.TypeOf(time.Time{})
+	durationType          = reflect.TypeOf(time.Duration(0))
+	errorInterface        = reflect.TypeOf((*error)(nil)).Elem()
+	valueDecoderInterface = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
+)

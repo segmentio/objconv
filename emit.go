@@ -4,6 +4,8 @@ import "time"
 
 // The Emitter interface must be implemented by types that provide encoding
 // of a specific format (like json, resp, ...).
+//
+// Emitters are not expected to be safe for use by multiple goroutines.
 type Emitter interface {
 	// EmitNil writes a nil value to the writer.
 	EmitNil() error

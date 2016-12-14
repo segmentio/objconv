@@ -110,54 +110,6 @@ func checkUint64Bounds(v uint64, max uint64, t reflect.Type) error {
 	return nil
 }
 
-func convertUint64ToInt(v uint64) (int, error) {
-	return int(v), checkUint64Bounds(v, uint64(IntMax), intType)
-}
-
-func convertUint64ToInt8(v uint64) (int8, error) {
-	return int8(v), checkUint64Bounds(v, Int8Max, int8Type)
-}
-
-func convertUint64ToInt16(v uint64) (int16, error) {
-	return int16(v), checkUint64Bounds(v, Int16Max, int16Type)
-}
-
-func convertUint64ToInt32(v uint64) (int32, error) {
-	return int32(v), checkUint64Bounds(v, Int32Max, int32Type)
-}
-
-func convertUint64ToInt64(v uint64) (int64, error) {
-	return int64(v), checkUint64Bounds(v, Uint64Max, int64Type)
-}
-
-func convertUint64ToUint(v uint64) (uint, error) {
-	return uint(v), checkUint64Bounds(v, uint64(UintMax), uintType)
-}
-
-func convertUint64ToUint8(v uint64) (uint8, error) {
-	return uint8(v), checkUint64Bounds(v, Uint8Max, uint8Type)
-}
-
-func convertUint64ToUint16(v uint64) (uint16, error) {
-	return uint16(v), checkUint64Bounds(v, Uint16Max, uint16Type)
-}
-
-func convertUint64ToUint32(v uint64) (uint32, error) {
-	return uint32(v), checkUint64Bounds(v, Uint32Max, uint32Type)
-}
-
-func convertUint64ToUintptr(v uint64) (uintptr, error) {
-	return uintptr(v), checkUint64Bounds(v, uint64(UintptrMax), uintptrType)
-}
-
-func convertUint64ToFloat32(v uint64) (float32, error) {
-	return float32(v), checkUint64Bounds(v, Float32IntMax, float32Type)
-}
-
-func convertUint64ToFloat64(v uint64) (float64, error) {
-	return float64(v), checkUint64Bounds(v, Float64IntMax, float64Type)
-}
-
 func checkInt64Bounds(v int64, min int64, max uint64, t reflect.Type) error {
 	if v < min || (v > 0 && uint64(v) > max) {
 		return &OutOfBoundsError{
@@ -166,52 +118,4 @@ func checkInt64Bounds(v int64, min int64, max uint64, t reflect.Type) error {
 		}
 	}
 	return nil
-}
-
-func convertInt64ToInt(v int64) (int, error) {
-	return int(v), checkInt64Bounds(v, int64(IntMin), uint64(IntMax), intType)
-}
-
-func convertInt64ToInt8(v int64) (int8, error) {
-	return int8(v), checkInt64Bounds(v, Int8Min, Int8Max, int8Type)
-}
-
-func convertInt64ToInt16(v int64) (int16, error) {
-	return int16(v), checkInt64Bounds(v, Int16Min, Int16Max, int16Type)
-}
-
-func convertInt64ToInt32(v int64) (int32, error) {
-	return int32(v), checkInt64Bounds(v, Int32Min, Int32Max, int32Type)
-}
-
-func convertInt64ToUint(v int64) (uint, error) {
-	return uint(v), checkInt64Bounds(v, int64(UintMin), uint64(UintMax), uintType)
-}
-
-func convertInt64ToUint8(v int64) (uint8, error) {
-	return uint8(v), checkInt64Bounds(v, Uint8Min, Uint8Max, uint8Type)
-}
-
-func convertInt64ToUint16(v int64) (uint16, error) {
-	return uint16(v), checkInt64Bounds(v, Uint16Min, Uint16Max, uint16Type)
-}
-
-func convertInt64ToUint32(v int64) (uint32, error) {
-	return uint32(v), checkInt64Bounds(v, Uint32Min, Uint32Max, uint32Type)
-}
-
-func convertInt64ToUint64(v int64) (uint64, error) {
-	return uint64(v), checkInt64Bounds(v, Uint64Min, Uint64Max, uint64Type)
-}
-
-func convertInt64ToUintptr(v int64) (uintptr, error) {
-	return uintptr(v), checkInt64Bounds(v, int64(UintptrMin), uint64(UintptrMax), uintptrType)
-}
-
-func convertInt64ToFloat32(v int64) (float32, error) {
-	return float32(v), checkInt64Bounds(v, Float32IntMin, Float32IntMax, float32Type)
-}
-
-func convertInt64ToFloat64(v int64) (float64, error) {
-	return float64(v), checkInt64Bounds(v, Float64IntMin, Float64IntMax, float64Type)
 }
