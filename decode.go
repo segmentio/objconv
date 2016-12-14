@@ -820,10 +820,9 @@ func decodeFuncOf(t reflect.Type) func(*Decoder, reflect.Value) (Type, error) {
 		return (*Decoder).decodeValueString
 
 	case reflect.Slice:
-		switch {
-		case t.Elem().Kind() == reflect.Uint8:
+		if t.Elem().Kind() == reflect.Uint8 {
 			return (*Decoder).decodeValueBytes
-		default:
+		} else {
 			return (*Decoder).decodeValueSlice
 		}
 
