@@ -52,6 +52,7 @@ func TestMakeStructField(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			f := makeStructField(test.s)
 			f.decode = nil // function types are not comparable
+			f.encode = nil
 
 			if !reflect.DeepEqual(test.f, f) {
 				t.Errorf("%#v != %#v", test.f, f)

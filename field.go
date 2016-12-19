@@ -19,7 +19,8 @@ type StructField struct {
 	// value.
 	Omitzero bool
 
-	// Cache of the decoder method used for this field.
+	// cache for the encoder and decoder methods
+	encode func(*Encoder, reflect.Value) error
 	decode func(*Decoder, reflect.Value) (Type, error)
 }
 
@@ -30,6 +31,7 @@ func makeStructField(f reflect.StructField) StructField {
 		Name:      f.Name,
 		Omitempty: t.Omitempty,
 		Omitzero:  t.Omitzero,
+		encode:    encodeFuncOf(f.Type),
 		decode:    decodeFuncOf(f.Type),
 	}
 

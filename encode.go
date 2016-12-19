@@ -59,136 +59,158 @@ func (e *Encoder) Encode(v interface{}) error {
 	if err := e.encodeMapValueMaybe(); err != nil {
 		return err
 	}
-
 	if v == nil {
 		return e.encodeNil()
 	}
-
-	switch x := v.(type) {
-	case string:
-		return e.encodeString(x)
-
-	case []byte:
-		return e.encodeBytes(x)
-
-	case bool:
-		return e.encodeBool(x)
-
-	case int:
-		return e.encodeInt(int64(x))
-
-	case int8:
-		return e.encodeInt(int64(x))
-
-	case int16:
-		return e.encodeInt(int64(x))
-
-	case int32:
-		return e.encodeInt(int64(x))
-
-	case int64:
-		return e.encodeInt(x)
-
-	case uint:
-		return e.encodeUint(uint64(x))
-
-	case uint8:
-		return e.encodeUint(uint64(x))
-
-	case uint16:
-		return e.encodeUint(uint64(x))
-
-	case uint32:
-		return e.encodeUint(uint64(x))
-
-	case uint64:
-		return e.encodeUint(uint64(x))
-
-	case uintptr:
-		return e.encodeUint(uint64(x))
-
-	case float32:
-		return e.encodeFloat(float64(x))
-
-	case float64:
-		return e.encodeFloat(x)
-
-	case time.Time:
-		return e.encodeTime(x)
-
-	case time.Duration:
-		return e.encodeDuration(x)
-
-	case ValueEncoder:
-		return x.EncodeValue(e)
-
-	case error:
-		return e.encodeError(x)
-
-	default:
-		return e.encodeValue(reflect.ValueOf(v))
-	}
+	return e.encodeValue(reflect.ValueOf(v))
 }
 
 func (e *Encoder) encodeValue(v reflect.Value) error {
+	return encodeFuncOf(v.Type())(e, v)
+}
+
+func (e *Encoder) encodeValueNil(v reflect.Value) error {
+	return e.encodeNil()
+}
+
+func (e *Encoder) encodeValueBool(v reflect.Value) error {
+	return e.encodeBool(v.Bool())
+}
+
+func (e *Encoder) encodeValueInt(v reflect.Value) error {
+	return e.encodeInt(v.Int())
+}
+
+func (e *Encoder) encodeValueUint(v reflect.Value) error {
+	return e.encodeUint(v.Uint())
+}
+
+func (e *Encoder) encodeValueFloat(v reflect.Value) error {
+	return e.encodeFloat(v.Float())
+}
+
+func (e *Encoder) encodeValueString(v reflect.Value) error {
+	return e.encodeString(v.String())
+}
+
+func (e *Encoder) encodeValueBytes(v reflect.Value) error {
+	return e.encodeBytes(v.Bytes())
+}
+
+func (e *Encoder) encodeValueTime(v reflect.Value) error {
+	return e.encodeTime(v.Interface().(time.Time))
+}
+
+func (e *Encoder) encodeValueDuration(v reflect.Value) error {
+	return e.encodeDuration(v.Interface().(time.Duration))
+}
+
+func (e *Encoder) encodeValueError(v reflect.Value) error {
+	return e.encodeError(v.Interface().(error))
+}
+
+func (e *Encoder) encodeValueArray(v reflect.Value) error {
 	t := v.Type()
+	f := encodeFuncOf(t.Elem())
+	i := 0
+	return e.EncodeArray(v.Len(), func(e *Encoder) (err error) {
+		err = f(e, v.Index(i))
+		i++
+		return
+	})
+}
 
-	switch k := t.Kind(); k {
-	case reflect.Bool:
-		return e.encodeBool(v.Bool())
-
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return e.encodeInt(v.Int())
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return e.encodeUint(v.Uint())
-
-	case reflect.Float32, reflect.Float64:
-		return e.encodeFloat(v.Float())
-
-	case reflect.String:
-		return e.encodeString(v.String())
-
-	case reflect.Slice:
-		switch {
-		case t.Elem().Kind() == reflect.Uint8:
-			return e.encodeBytes(v.Bytes())
-		case v.Len() == 0:
-			return e.EncodeArray(0, nil)
-		default:
-			return e.encodeValueArray(v)
-		}
-
-	case reflect.Array:
-		switch {
-		case v.Len() == 0:
-			return e.EncodeArray(0, nil)
-		default:
-			return e.encodeValueArray(v)
-		}
-
-	case reflect.Map:
-		switch {
-		case v.Len() == 0:
-			return e.EncodeMap(0, nil)
-		case e.sort:
-			return e.encodeSortedValueMap(v)
-		default:
-			return e.encodeUnsortedValueMap(v)
-		}
-
-	case reflect.Struct:
-		return e.encodeValueStruct(v)
-
-	case reflect.Ptr, reflect.Interface:
-		if v.IsNil() {
-			return e.encodeNil()
-		}
-		return e.Encode(v.Elem().Interface())
-
-	default:
-		return &UnsupportedTypeError{t}
+func (e *Encoder) encodeValueMap(v reflect.Value) error {
+	if e.sort {
+		return e.encodeValueMapSortedKeys(v)
 	}
+	return e.encodeValueMapUnsortedKeys(v)
+}
+
+func (e *Encoder) encodeValueMapSortedKeys(v reflect.Value) error {
+	t := v.Type().Key()
+	k := v.MapKeys()
+	sortValues(t, k)
+	return e.encodeValueMapKeys(v, k)
+}
+
+func (e *Encoder) encodeValueMapUnsortedKeys(v reflect.Value) error {
+	return e.encodeValueMapKeys(v, v.MapKeys())
+}
+
+func (e *Encoder) encodeValueMapKeys(v reflect.Value, keys []reflect.Value) error {
+	t := v.Type()
+	kf := encodeFuncOf(t.Key())
+	vf := encodeFuncOf(t.Elem())
+	i := 0
+	return e.EncodeMap(v.Len(), func(e *Encoder) (err error) {
+		k := keys[i]
+		v := v.MapIndex(k)
+		if err = kf(e, k); err != nil {
+			return
+		}
+		if err = e.encodeMapValue(); err != nil {
+			return
+		}
+		if err = vf(e, v); err != nil {
+			return
+		}
+		i++
+		return
+	})
+}
+
+func (e *Encoder) encodeValueStruct(v reflect.Value) (err error) {
+	s := LookupStruct(v.Type())
+	n := 0
+
+	for _, f := range s.Fields {
+		if !omit(f, v.FieldByIndex(f.Index)) {
+			n++
+		}
+	}
+
+	if err = e.encodeMapBegin(n); err != nil {
+		return
+	}
+	n = 0
+
+	for _, f := range s.Fields {
+		if fv := v.FieldByIndex(f.Index); !omit(f, fv) {
+			if n != 0 {
+				if err = e.encodeMapNext(); err != nil {
+					return
+				}
+			}
+			if err = e.encodeString(f.Name); err != nil {
+				return
+			}
+			if err = e.encodeMapValue(); err != nil {
+				return
+			}
+			if err = f.encode(e, fv); err != nil {
+				return
+			}
+			n++
+		}
+	}
+
+	return e.encodeMapEnd()
+}
+
+func (e *Encoder) encodeValuePointer(v reflect.Value) error {
+	if v.IsNil() {
+		return e.encodeNil()
+	}
+	return e.encodeValue(v.Elem())
+}
+
+func (e *Encoder) encodeValueEncoder(v reflect.Value) error {
+	return v.Interface().(ValueEncoder).EncodeValue(e)
+}
+
+func (e *Encoder) encodeValueUnsupported(v reflect.Value) error {
+	return &UnsupportedTypeError{Type: v.Type()}
 }
 
 func (e *Encoder) encodeNil() error { return e.e.EmitNil() }
@@ -210,15 +232,6 @@ func (e *Encoder) encodeTime(v time.Time) error { return e.e.EmitTime(v) }
 func (e *Encoder) encodeDuration(v time.Duration) error { return e.e.EmitDuration(v) }
 
 func (e *Encoder) encodeError(v error) error { return e.e.EmitError(v) }
-
-func (e *Encoder) encodeValueArray(v reflect.Value) error {
-	i := 0
-	return e.EncodeArray(v.Len(), func(e *Encoder) (err error) {
-		err = e.Encode(v.Index(i).Interface())
-		i++
-		return
-	})
-}
 
 // EncodeArray provides the implementation of the array encoding algorithm,
 // where n is the number of elements in the array, and f a function called to
@@ -263,29 +276,6 @@ func (e *Encoder) encodeArrayEnd() error { return e.e.EmitArrayEnd() }
 
 func (e *Encoder) encodeArrayNext() error { return e.e.EmitArrayNext() }
 
-func (e *Encoder) encodeSortedValueMap(v reflect.Value) error {
-	t := v.Type().Key()
-	k := v.MapKeys()
-	sortValues(t, k)
-	return e.encodeValueMap(v, k)
-}
-
-func (e *Encoder) encodeUnsortedValueMap(v reflect.Value) error {
-	return e.encodeValueMap(v, v.MapKeys())
-}
-
-func (e *Encoder) encodeValueMap(v reflect.Value, keys []reflect.Value) error {
-	i := 0
-	return e.EncodeMap(v.Len(), func(e *Encoder) error {
-		k := keys[i]
-		i++
-		if err := e.Encode(k.Interface()); err != nil {
-			return err
-		}
-		return e.Encode(v.MapIndex(k).Interface())
-	})
-}
-
 // EncodeMap provides the implementation of the map encoding algorithm, where n
 // is the number of elements in the map, and f a function called to encode each
 // element.
@@ -313,7 +303,12 @@ encodeMap:
 			}
 		}
 		e.key = true
-		switch err = f(e); err {
+		err = f(e)
+		// Because internal calls don't use the exported methods they may not
+		// reset this flag to false when expected, forcing the value here.
+		e.key = false
+
+		switch err {
 		case nil:
 		case End:
 			break encodeMap
@@ -339,44 +334,6 @@ func (e *Encoder) encodeMapValueMaybe() (err error) {
 		err = e.encodeMapValue()
 	}
 	return
-}
-
-func (e *Encoder) encodeValueStruct(v reflect.Value) (err error) {
-	s := LookupStruct(v.Type())
-	n := 0
-
-	for _, f := range s.Fields {
-		if !omit(f, v.FieldByIndex(f.Index)) {
-			n++
-		}
-	}
-
-	if err = e.encodeMapBegin(n); err != nil {
-		return
-	}
-	n = 0
-
-	for _, f := range s.Fields {
-		if fv := v.FieldByIndex(f.Index); !omit(f, fv) {
-			if n != 0 {
-				if err = e.encodeMapNext(); err != nil {
-					return
-				}
-			}
-			if err = e.encodeString(f.Name); err != nil {
-				return
-			}
-			if err = e.encodeMapValue(); err != nil {
-				return
-			}
-			if err = e.Encode(fv.Interface()); err != nil {
-				return
-			}
-			n++
-		}
-	}
-
-	return e.encodeMapEnd()
 }
 
 // A StreamEncoder encodes and writes a stream of values to an output stream.
@@ -490,3 +447,57 @@ var (
 		New: func() interface{} { return make([]string, 0, 20) },
 	}
 )
+
+func encodeFuncOf(t reflect.Type) func(*Encoder, reflect.Value) error {
+	switch {
+	case t == timeType:
+		return (*Encoder).encodeValueTime
+
+	case t == durationType:
+		return (*Encoder).encodeValueDuration
+
+	case t.Implements(valueEncoderInterface):
+		return (*Encoder).encodeValueEncoder
+
+	case t.Implements(errorInterface):
+		return (*Encoder).encodeValueError
+	}
+
+	switch t.Kind() {
+	case reflect.Bool:
+		return (*Encoder).encodeValueBool
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return (*Encoder).encodeValueInt
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return (*Encoder).encodeValueUint
+
+	case reflect.Float32, reflect.Float64:
+		return (*Encoder).encodeValueFloat
+
+	case reflect.String:
+		return (*Encoder).encodeValueString
+
+	case reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return (*Encoder).encodeValueBytes
+		}
+		return (*Encoder).encodeValueArray
+
+	case reflect.Array:
+		return (*Encoder).encodeValueArray
+
+	case reflect.Map:
+		return (*Encoder).encodeValueMap
+
+	case reflect.Struct:
+		return (*Encoder).encodeValueStruct
+
+	case reflect.Ptr, reflect.Interface:
+		return (*Encoder).encodeValuePointer
+
+	default:
+		return (*Encoder).encodeValueUnsupported
+	}
+}

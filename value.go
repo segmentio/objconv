@@ -146,5 +146,6 @@ var (
 	timeType              = reflect.TypeOf(time.Time{})
 	durationType          = reflect.TypeOf(time.Duration(0))
 	errorInterface        = reflect.TypeOf((*error)(nil)).Elem()
+	valueEncoderInterface = reflect.TypeOf((*ValueEncoder)(nil)).Elem()
 	valueDecoderInterface = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
 )
