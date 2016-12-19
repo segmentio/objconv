@@ -193,3 +193,66 @@ func TestDecoderDecodeType(t *testing.T) {
 		})
 	}
 }
+
+func TestDecoderDecodeToEmptyInterface(t *testing.T) {
+	tests := []interface{}{
+		// nil -> interface{}
+		nil,
+
+		// bool -> interface{}
+		true,
+		false,
+
+		// int -> interface{}
+		int64(0),
+		int64(1),
+
+		// uint -> interface{}
+		uint64(0),
+		uint64(1),
+
+		// float -> interface{}
+		float64(0),
+		float64(1),
+
+		// string -> interface{}
+		"",
+		"Hello World!",
+
+		// bytes -> interface{}
+		[]byte(""),
+		[]byte("Hello World!"),
+
+		// time -> interface{}
+		time.Now(),
+
+		// duration -> interface{}
+		1 * time.Second,
+
+		// error -> interface{}
+		errors.New("error"),
+
+		// slice -> interface{}
+		[]interface{}{},
+		[]interface{}{nil, true, false, int64(0), uint64(0), float64(0), "Hello World"},
+
+		// map -> interface{}
+		map[interface{}]interface{}{},
+		map[interface{}]interface{}{"Hello": "World!"},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%T->interface{}", test), func(t *testing.T) {
+			var dec = NewDecoder(NewValueParser(test))
+			var val interface{}
+
+			if err := dec.Decode(&val); err != nil {
+				t.Error(err)
+			}
+
+			if !reflect.DeepEqual(test, val) {
+				t.Errorf("%T => %#v != %#v", val, val, test)
+			}
+		})
+	}
+}

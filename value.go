@@ -164,4 +164,6 @@ var (
 	valueDecoderInterface    = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
 	textMarshalerInterface   = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 	textUnmarshalerInterface = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	emptyInterface           = reflect.TypeOf((*interface{})(nil)).Elem()
+	emptyInterfacePtr        = reflect.TypeOf((*interface{})(nil))
 )

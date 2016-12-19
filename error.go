@@ -80,4 +80,8 @@ var (
 	// End is expected to be returned to indicate that a function has completed
 	// its owrk, this is usually employed in generic algorithms.
 	End = errors.New("end")
+
+	// This error value is used as a building block for reflection and is never
+	// returned by the package.
+	errBase = errors.New("")
 )

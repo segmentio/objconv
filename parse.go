@@ -1,7 +1,7 @@
 package objconv
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
 	"time"
 )
@@ -153,17 +153,28 @@ func (p *ValueParser) ParseType() (Type, error) {
 	case reflect.String:
 		return String, nil
 
-	case reflect.Slice, reflect.Array:
+	case reflect.Slice:
 		if v.Type().Elem().Kind() == reflect.Uint8 {
 			return Bytes, nil
 		}
 		return Array, nil
 
-	case reflect.Map, reflect.Struct:
+	case reflect.Array:
+		return Array, nil
+
+	case reflect.Map:
 		return Map, nil
+
+	case reflect.Struct:
+		return Map, nil
+
+	case reflect.Interface:
+		if v.IsNil() {
+			return Nil, nil
+		}
 	}
 
-	panic(fmt.Sprintf("unsupported type found in value parser: %T", v.Interface()))
+	return Nil, errors.New("objconv: unsupported type found in value parser: " + v.Type().String())
 }
 
 func (p *ValueParser) ParseNil() (err error) {
@@ -315,7 +326,27 @@ func (p *ValueParser) ParseMapNext() (err error) {
 }
 
 func (p *ValueParser) value() reflect.Value {
-	return p.stack[len(p.stack)-1]
+	v := p.stack[len(p.stack)-1]
+
+	if !v.IsValid() {
+		return v
+	}
+
+	switch v.Interface().(type) {
+	case error:
+		return v
+	}
+
+dereference:
+	switch v.Kind() {
+	case reflect.Interface, reflect.Ptr:
+		if !v.IsNil() {
+			v = v.Elem()
+			goto dereference
+		}
+	}
+
+	return v
 }
 
 func (p *ValueParser) push(v reflect.Value) {
