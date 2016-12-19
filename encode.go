@@ -1,6 +1,7 @@
 package objconv
 
 import (
+	"encoding"
 	"io"
 	"reflect"
 	"sync"
@@ -207,6 +208,14 @@ func (e *Encoder) encodeValuePointer(v reflect.Value) error {
 
 func (e *Encoder) encodeValueEncoder(v reflect.Value) error {
 	return v.Interface().(ValueEncoder).EncodeValue(e)
+}
+
+func (e *Encoder) encodeValueTextMarshaler(v reflect.Value) error {
+	b, err := v.Interface().(encoding.TextMarshaler).MarshalText()
+	if err == nil {
+		err = e.encodeString(stringNoCopy(b))
+	}
+	return err
 }
 
 func (e *Encoder) encodeValueUnsupported(v reflect.Value) error {
@@ -458,6 +467,9 @@ func encodeFuncOf(t reflect.Type) func(*Encoder, reflect.Value) error {
 
 	case t.Implements(valueEncoderInterface):
 		return (*Encoder).encodeValueEncoder
+
+	case t.Implements(textMarshalerInterface):
+		return (*Encoder).encodeValueTextMarshaler
 
 	case t.Implements(errorInterface):
 		return (*Encoder).encodeValueError

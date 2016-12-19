@@ -32,7 +32,7 @@ func makeStructField(f reflect.StructField) StructField {
 		Omitempty: t.Omitempty,
 		Omitzero:  t.Omitzero,
 		encode:    encodeFuncOf(f.Type),
-		decode:    decodeFuncOf(f.Type),
+		decode:    decodeFuncOf(reflect.PtrTo(f.Type)),
 	}
 
 	if len(t.Name) != 0 {

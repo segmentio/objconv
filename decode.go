@@ -1,6 +1,7 @@
 package objconv
 
 import (
+	"encoding"
 	"errors"
 	"reflect"
 	"time"
@@ -87,7 +88,7 @@ func (d *Decoder) Decode(v interface{}) error {
 }
 
 func (d *Decoder) decodeValue(to reflect.Value) (Type, error) {
-	return decodeFuncOf(to.Type())(d, to)
+	return decodeFuncOf(to.Type())(d, to.Elem())
 }
 
 func (d *Decoder) decodeValueBool(to reflect.Value) (t Type, err error) {
@@ -462,7 +463,7 @@ func (d *Decoder) decodeValueSlice(to reflect.Value) (typ Type, err error) {
 	z := reflect.Zero(e)             // T{}
 	v := reflect.New(e).Elem()       // &T{}
 	s := reflect.MakeSlice(t, 0, 50) // make([]T, 0, 50)
-	f := decodeFuncOf(e)
+	f := decodeFuncOf(reflect.PtrTo(e))
 
 	if typ, err = d.DecodeArray(func(d *Decoder) (err error) {
 		v.Set(z) // reset to the zero-value
@@ -489,7 +490,7 @@ func (d *Decoder) decodeValueArray(to reflect.Value) (typ Type, err error) {
 	t := to.Type()       // [...]T
 	e := t.Elem()        // T
 	z := reflect.Zero(e) // T{}
-	f := decodeFuncOf(e)
+	f := decodeFuncOf(reflect.PtrTo(e))
 
 	for i := 0; i != n; i++ {
 		to.Index(i).Set(z) // reset to the zero-value
@@ -526,12 +527,12 @@ func (d *Decoder) decodeValueMap(to reflect.Value) (typ Type, err error) {
 	kt := t.Key()                // K
 	kz := reflect.Zero(kt)       // K{}
 	kv := reflect.New(kt).Elem() // &K{}
-	kf := decodeFuncOf(kt)
+	kf := decodeFuncOf(reflect.PtrTo(kt))
 
 	vt := t.Elem()               // V
 	vz := reflect.Zero(vt)       // V{}
 	vv := reflect.New(vt).Elem() // &V{}
-	vf := decodeFuncOf(vt)
+	vf := decodeFuncOf(reflect.PtrTo(vt))
 
 	if typ, err = d.DecodeMap(func(d *Decoder) (err error) {
 		kv.Set(kz) // reset the key to its zero-value
@@ -599,7 +600,7 @@ func (d *Decoder) decodeValuePointer(to reflect.Value) (typ Type, err error) {
 		v = to
 	}
 
-	if typ, err = d.decodeValue(v.Elem()); err != nil {
+	if typ, err = d.decodeValue(v); err != nil {
 		return
 	}
 
@@ -619,6 +620,18 @@ func (d *Decoder) decodeValuePointer(to reflect.Value) (typ Type, err error) {
 func (d *Decoder) decodeValueDecoder(to reflect.Value) (typ Type, err error) {
 	typ = Bool // just needs to not be Nil
 	err = to.Interface().(ValueDecoder).DecodeValue(d)
+	return
+}
+
+func (d *Decoder) decodeValueTextUnmarshaler(to reflect.Value) (typ Type, err error) {
+	var b []byte
+	var v = reflect.ValueOf(&b).Elem()
+
+	if typ, err = d.decodeValueBytes(v); err != nil {
+		return
+	}
+
+	err = to.Interface().(encoding.TextUnmarshaler).UnmarshalText(b)
 	return
 }
 
@@ -790,15 +803,22 @@ func (d *Decoder) decodeMapValueMaybe() (err error) {
 
 func decodeFuncOf(t reflect.Type) func(*Decoder, reflect.Value) (Type, error) {
 	switch {
-	case t == timeType:
+	case t == timePtrType:
 		return (*Decoder).decodeValueTime
 
-	case t == durationType:
+	case t == durationPtrType:
 		return (*Decoder).decodeValueDuration
 
 	case t.Implements(valueDecoderInterface):
 		return (*Decoder).decodeValueDecoder
 
+	case t.Implements(textUnmarshalerInterface):
+		return (*Decoder).decodeValueTextUnmarshaler
+	}
+
+	t = t.Elem()
+
+	switch {
 	case t.Implements(errorInterface):
 		return (*Decoder).decodeValueError
 	}

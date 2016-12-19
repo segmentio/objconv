@@ -1,6 +1,7 @@
 package objconv
 
 import (
+	"encoding"
 	"reflect"
 	"time"
 	"unsafe"
@@ -142,10 +143,25 @@ func isZeroStruct(v reflect.Value) bool {
 	return true
 }
 
+func stringNoCopy(b []byte) string {
+	n := len(b)
+	if n == 0 {
+		return ""
+	}
+	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
+		Data: uintptr(unsafe.Pointer(&b[0])),
+		Len:  n,
+	}))
+}
+
 var (
-	timeType              = reflect.TypeOf(time.Time{})
-	durationType          = reflect.TypeOf(time.Duration(0))
-	errorInterface        = reflect.TypeOf((*error)(nil)).Elem()
-	valueEncoderInterface = reflect.TypeOf((*ValueEncoder)(nil)).Elem()
-	valueDecoderInterface = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
+	timeType                 = reflect.TypeOf(time.Time{})
+	timePtrType              = reflect.TypeOf((*time.Time)(nil))
+	durationType             = reflect.TypeOf(time.Duration(0))
+	durationPtrType          = reflect.TypeOf((*time.Duration)(nil))
+	errorInterface           = reflect.TypeOf((*error)(nil)).Elem()
+	valueEncoderInterface    = reflect.TypeOf((*ValueEncoder)(nil)).Elem()
+	valueDecoderInterface    = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
+	textMarshalerInterface   = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	textUnmarshalerInterface = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 )
