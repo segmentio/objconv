@@ -499,21 +499,31 @@ func (d *Decoder) decodeValueSliceFromType(typ Type, to reflect.Value) (err erro
 }
 
 func (d *Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
-	t := to.Type()                   // []T
-	e := t.Elem()                    // T
-	z := reflect.Zero(e)             // T{}
-	v := reflect.New(e).Elem()       // &T{}
-	s := reflect.MakeSlice(t, 0, 20) // make([]T, 0, 20)
+	i := 0
+	n := 20
+	t := to.Type()                  // []T
+	s := reflect.MakeSlice(t, n, n) // make([]T, 20, 20)
 
 	if err = d.decodeArrayFromType(typ, func(d *Decoder) (err error) {
-		v.Set(z) // reset to the zero-value
-		if _, err = f(d, v); err != nil {
+		if i == n {
+			n *= 2
+			sc := reflect.MakeSlice(t, n, n)
+			reflect.Copy(sc, s)
+			s = sc
+		}
+
+		if _, err = f(d, s.Index(i)); err != nil {
 			return
 		}
-		s = reflect.Append(s, v)
+
+		i++
 		return
 	}); err != nil {
 		return
+	}
+
+	if i != n {
+		s = s.Slice(0, i)
 	}
 
 	if typ != Nil {
