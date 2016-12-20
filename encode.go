@@ -111,8 +111,10 @@ func (e *Encoder) encodeValueError(v reflect.Value) error {
 }
 
 func (e *Encoder) encodeValueArray(v reflect.Value) error {
-	t := v.Type()
-	f := encodeFuncOf(t.Elem())
+	return e.encodeValueArrayWith(v, encodeFuncOf(v.Type().Elem()))
+}
+
+func (e *Encoder) encodeValueArrayWith(v reflect.Value, f encodeFunc) error {
 	i := 0
 	return e.EncodeArray(v.Len(), func(e *Encoder) (err error) {
 		err = f(e, v.Index(i))
@@ -122,27 +124,17 @@ func (e *Encoder) encodeValueArray(v reflect.Value) error {
 }
 
 func (e *Encoder) encodeValueMap(v reflect.Value) error {
-	if e.sort {
-		return e.encodeValueMapSortedKeys(v)
-	}
-	return e.encodeValueMapUnsortedKeys(v)
-}
-
-func (e *Encoder) encodeValueMapSortedKeys(v reflect.Value) error {
-	t := v.Type().Key()
-	k := v.MapKeys()
-	sortValues(t, k)
-	return e.encodeValueMapKeys(v, k)
-}
-
-func (e *Encoder) encodeValueMapUnsortedKeys(v reflect.Value) error {
-	return e.encodeValueMapKeys(v, v.MapKeys())
-}
-
-func (e *Encoder) encodeValueMapKeys(v reflect.Value, keys []reflect.Value) error {
 	t := v.Type()
 	kf := encodeFuncOf(t.Key())
 	vf := encodeFuncOf(t.Elem())
+	return e.encodeValueMapWith(v, kf, vf)
+}
+
+func (e *Encoder) encodeValueMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) error {
+	keys := v.MapKeys()
+	if e.sort {
+		sortValues(v.Type().Key(), keys)
+	}
 	i := 0
 	return e.EncodeMap(v.Len(), func(e *Encoder) (err error) {
 		k := keys[i]
@@ -161,8 +153,11 @@ func (e *Encoder) encodeValueMapKeys(v reflect.Value, keys []reflect.Value) erro
 	})
 }
 
-func (e *Encoder) encodeValueStruct(v reflect.Value) (err error) {
-	s := LookupStruct(v.Type())
+func (e *Encoder) encodeValueStruct(v reflect.Value) error {
+	return e.encodeValueStructWith(v, LookupStruct(v.Type()))
+}
+
+func (e *Encoder) encodeValueStructWith(v reflect.Value, s *Struct) (err error) {
 	n := 0
 
 	for _, f := range s.Fields {
@@ -200,10 +195,14 @@ func (e *Encoder) encodeValueStruct(v reflect.Value) (err error) {
 }
 
 func (e *Encoder) encodeValuePointer(v reflect.Value) error {
+	return e.encodeValuePointerWith(v, encodeFuncOf(v.Type().Elem()))
+}
+
+func (e *Encoder) encodeValuePointerWith(v reflect.Value, f encodeFunc) error {
 	if v.IsNil() {
 		return e.encodeNil()
 	}
-	return e.encodeValue(v.Elem())
+	return f(e, v.Elem())
 }
 
 func (e *Encoder) encodeValueEncoder(v reflect.Value) error {
@@ -457,7 +456,21 @@ var (
 	}
 )
 
-func encodeFuncOf(t reflect.Type) func(*Encoder, reflect.Value) error {
+// encodeFuncOpts is used to configure how the encodeFuncOf behaves.
+type encodeFuncOpts struct {
+	recurse bool
+	structs map[reflect.Type]*Struct
+}
+
+// encodeFunc is the prototype of functions that encode values.
+type encodeFunc func(*Encoder, reflect.Value) error
+
+// encodeFuncOf returns an encoder function for t.
+func encodeFuncOf(t reflect.Type) encodeFunc {
+	return makeEncodeFunc(t, encodeFuncOpts{})
+}
+
+func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 	switch {
 	case t == timeType:
 		return (*Encoder).encodeValueTime
@@ -495,21 +508,62 @@ func encodeFuncOf(t reflect.Type) func(*Encoder, reflect.Value) error {
 		if t.Elem().Kind() == reflect.Uint8 {
 			return (*Encoder).encodeValueBytes
 		}
-		return (*Encoder).encodeValueArray
+		return makeEncodeArrayFunc(t, opts)
 
 	case reflect.Array:
-		return (*Encoder).encodeValueArray
+		return makeEncodeArrayFunc(t, opts)
 
 	case reflect.Map:
-		return (*Encoder).encodeValueMap
+		return makeEncodeMapFunc(t, opts)
 
 	case reflect.Struct:
-		return (*Encoder).encodeValueStruct
+		return makeEncodeStructFunc(t, opts)
 
 	case reflect.Ptr, reflect.Interface:
-		return (*Encoder).encodeValuePointer
+		return makeEncodePtrFunc(t, opts)
 
 	default:
 		return (*Encoder).encodeValueUnsupported
+	}
+}
+
+func makeEncodeArrayFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
+	if !opts.recurse {
+		return (*Encoder).encodeValueArray
+	}
+	f := makeEncodeFunc(t.Elem(), opts)
+	return func(e *Encoder, v reflect.Value) error {
+		return e.encodeValueArrayWith(v, f)
+	}
+}
+
+func makeEncodeMapFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
+	if !opts.recurse {
+		return (*Encoder).encodeValueMap
+	}
+	kf := makeEncodeFunc(t.Key(), opts)
+	vf := makeEncodeFunc(t.Elem(), opts)
+	return func(e *Encoder, v reflect.Value) error {
+		return e.encodeValueMapWith(v, kf, vf)
+	}
+}
+
+func makeEncodeStructFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
+	if !opts.recurse {
+		return (*Encoder).encodeValueStruct
+	}
+	s := newStruct(t, opts.structs)
+	return func(e *Encoder, v reflect.Value) error {
+		return e.encodeValueStructWith(v, s)
+	}
+}
+
+func makeEncodePtrFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
+	if !opts.recurse {
+		return (*Encoder).encodeValuePointer
+	}
+	f := makeEncodeFunc(t.Elem(), opts)
+	return func(e *Encoder, v reflect.Value) error {
+		return e.encodeValuePointerWith(v, f)
 	}
 }

@@ -50,7 +50,7 @@ func TestMakeStructField(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			f := makeStructField(test.s)
+			f := makeStructField(test.s, map[reflect.Type]*Struct{})
 			f.decode = nil // function types are not comparable
 			f.encode = nil
 

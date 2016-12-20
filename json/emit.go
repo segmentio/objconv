@@ -1,17 +1,10 @@
 package json
 
 import (
+	"io"
 	"strconv"
 	"time"
-
-	"github.com/segmentio/objconv"
 )
-
-// Emitter implements a JSON emitter that satisfies the objconv.Emitter
-// interface.
-type Emitter struct {
-	b [32]byte // buffer
-}
 
 var (
 	nullBytes  = [...]byte{'n', 'u', 'l', 'l'}
@@ -26,62 +19,71 @@ var (
 
 	comma  = [...]byte{','}
 	column = [...]byte{':'}
-	quote  = [...]byte{'"'}
 )
 
-func (e *Emitter) EmitBegin(w *objconv.Writer) {}
+// Emitter implements a JSON emitter that satisfies the objconv.Emitter
+// interface.
+type Emitter struct {
+	b [128]byte
+	s []byte
 
-func (e *Emitter) EmitEnd(w *objconv.Writer) {}
+	// W is the writer where the emitter outputs the JSON representation of the
+	// values it encodes.
+	W io.Writer
+}
 
-func (e *Emitter) EmitNil(w *objconv.Writer) { w.Write(nullBytes[:]) }
+func NewEmitter(w io.Writer) *Emitter {
+	return &Emitter{W: w}
+}
 
-func (e *Emitter) EmitBool(w *objconv.Writer, v bool) {
+func (e *Emitter) EmitBegin() error {
+	return nil
+}
+
+func (e *Emitter) EmitEnd() error {
+	return nil
+}
+
+func (e *Emitter) EmitNil() (err error) {
+	_, err = e.W.Write(nullBytes[:])
+	return
+}
+
+func (e *Emitter) EmitBool(v bool) (err error) {
 	if v {
-		w.Write(trueBytes[:])
+		_, err = e.W.Write(trueBytes[:])
 	} else {
-		w.Write(falseBytes[:])
+		_, err = e.W.Write(falseBytes[:])
 	}
+	return
 }
 
-func (e *Emitter) EmitInt(w *objconv.Writer, v int) { e.EmitInt64(w, int64(v)) }
-
-func (e *Emitter) EmitInt8(w *objconv.Writer, v int8) { e.EmitInt64(w, int64(v)) }
-
-func (e *Emitter) EmitInt16(w *objconv.Writer, v int16) { e.EmitInt64(w, int64(v)) }
-
-func (e *Emitter) EmitInt32(w *objconv.Writer, v int32) { e.EmitInt64(w, int64(v)) }
-
-func (e *Emitter) EmitInt64(w *objconv.Writer, v int64) {
-	w.Write(strconv.AppendInt(e.b[:0], v, 10))
+func (e *Emitter) EmitInt(v int64) (err error) {
+	_, err = e.W.Write(strconv.AppendInt(e.b[:0], v, 10))
+	return
 }
 
-func (e *Emitter) EmitUint(w *objconv.Writer, v uint) { e.EmitUint64(w, uint64(v)) }
-
-func (e *Emitter) EmitUint8(w *objconv.Writer, v uint8) { e.EmitUint64(w, uint64(v)) }
-
-func (e *Emitter) EmitUint16(w *objconv.Writer, v uint16) { e.EmitUint64(w, uint64(v)) }
-
-func (e *Emitter) EmitUint32(w *objconv.Writer, v uint32) { e.EmitUint64(w, uint64(v)) }
-
-func (e *Emitter) EmitUint64(w *objconv.Writer, v uint64) {
-	w.Write(strconv.AppendUint(e.b[:0], v, 10))
+func (e *Emitter) EmitUint(v uint64) (err error) {
+	_, err = e.W.Write(strconv.AppendUint(e.b[:0], v, 10))
+	return
 }
 
-func (e *Emitter) EmitUintptr(w *objconv.Writer, v uintptr) { e.EmitUint64(w, uint64(v)) }
-
-func (e *Emitter) EmitFloat32(w *objconv.Writer, v float32) { e.emitFloat(w, float64(v), 32) }
-
-func (e *Emitter) EmitFloat64(w *objconv.Writer, v float64) { e.emitFloat(w, v, 64) }
-
-func (e *Emitter) emitFloat(w *objconv.Writer, v float64, p int) {
-	w.Write(strconv.AppendFloat(e.b[:0], v, 'g', -1, p))
+func (e *Emitter) EmitFloat(v float64) (err error) {
+	_, err = e.W.Write(strconv.AppendFloat(e.b[:0], v, 'g', -1, 64))
+	return
 }
 
-func (e *Emitter) EmitString(w *objconv.Writer, v string) {
+func (e *Emitter) EmitString(v string) (err error) {
 	i := 0
 	j := 0
 	n := len(v)
-	w.Write(quote[:])
+
+	if e.s == nil {
+		e.s = e.b[:0]
+	}
+
+	s := e.s[:0]
+	s = append(s, '"')
 
 	for j != n {
 		b := v[j]
@@ -110,90 +112,66 @@ func (e *Emitter) EmitString(w *objconv.Writer, v string) {
 			continue
 		}
 
-		e.b[0] = '\\'
-		e.b[1] = b
-		w.WriteString(v[i : j-1])
-		w.Write(e.b[:2])
+		s = append(s, v[i:j-1]...)
+		s = append(s, '\\', b)
 		i = j
 	}
 
-	w.WriteString(v[i:j])
-	w.Write(quote[:])
+	s = append(s, v[i:j]...)
+	s = append(s, '"')
+	e.s = s[:0] // in case the buffer was reallocated
+
+	_, err = e.W.Write(s)
+	return
 }
 
-func (e *Emitter) EmitBytes(w *objconv.Writer, v []byte) {
-	i := 0
-	j := 0
-	n := len(v)
-	w.Write(quote[:])
-
-	for j != n {
-		b := v[j]
-		j++
-
-		switch b {
-		case '"', '\\', '/':
-			// b = b
-
-		case '\b':
-			b = 'b'
-
-		case '\f':
-			b = 'f'
-
-		case '\n':
-			b = 'n'
-
-		case '\r':
-			b = 'r'
-
-		case '\t':
-			b = 't'
-
-		default:
-			continue
-		}
-
-		e.b[0] = '\\'
-		e.b[1] = b
-		w.Write(v[i : j-1])
-		w.Write(e.b[:2])
-		i = j
-	}
-
-	w.Write(v[i:j])
-	w.Write(quote[:])
+func (e *Emitter) EmitBytes(v []byte) error {
+	return e.EmitString(string(v))
 }
 
-func (e *Emitter) EmitTime(w *objconv.Writer, v time.Time) {
-	e.EmitString(w, v.Format(time.RFC3339Nano))
+func (e *Emitter) EmitTime(v time.Time) error {
+	return e.EmitString(v.Format(time.RFC3339Nano))
 }
 
-func (e *Emitter) EmitDuration(w *objconv.Writer, v time.Duration) {
-	e.EmitString(w, v.String())
+func (e *Emitter) EmitDuration(v time.Duration) error {
+	return e.EmitString(v.String())
 }
 
-func (e *Emitter) EmitError(w *objconv.Writer, v error) {
-	e.EmitString(w, v.Error())
+func (e *Emitter) EmitError(v error) error {
+	return e.EmitString(v.Error())
 }
 
-func (e *Emitter) EmitArrayBegin(w *objconv.Writer, _ int) { w.Write(arrayOpen[:]) }
+func (e *Emitter) EmitArrayBegin(_ int) (err error) {
+	_, err = e.W.Write(arrayOpen[:])
+	return
+}
 
-func (e *Emitter) EmitArrayEnd(w *objconv.Writer) { w.Write(arrayClose[:]) }
+func (e *Emitter) EmitArrayEnd() (err error) {
+	_, err = e.W.Write(arrayClose[:])
+	return
+}
 
-func (e *Emitter) EmitArrayNext(w *objconv.Writer) { w.Write(comma[:]) }
+func (e *Emitter) EmitArrayNext() (err error) {
+	_, err = e.W.Write(comma[:])
+	return
+}
 
-func (e *Emitter) EmitMapBegin(w *objconv.Writer, _ int) { w.Write(mapOpen[:]) }
+func (e *Emitter) EmitMapBegin(_ int) (err error) {
+	_, err = e.W.Write(mapOpen[:])
+	return
+}
 
-func (e *Emitter) EmitMapEnd(w *objconv.Writer) { w.Write(mapClose[:]) }
+func (e *Emitter) EmitMapEnd() (err error) {
+	_, err = e.W.Write(mapClose[:])
+	return
+}
 
-func (e *Emitter) EmitMapValue(w *objconv.Writer) { w.Write(column[:]) }
+func (e *Emitter) EmitMapValue() (err error) {
+	_, err = e.W.Write(column[:])
+	return
+}
 
-func (e *Emitter) EmitMapNext(w *objconv.Writer) { w.Write(comma[:]) }
-
-func init() {
-	f := func() objconv.Emitter { return &Emitter{} }
-	objconv.RegisterEmitter("json", f)
-	objconv.RegisterEmitter("text/json", f)
-	objconv.RegisterEmitter("application/json", f)
+func (e *Emitter) EmitMapNext() (err error) {
+	_, err = e.W.Write(comma[:])
+	return
 }

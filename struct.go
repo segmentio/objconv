@@ -9,13 +9,18 @@ import (
 // cache meta information to make field lookups faster and avoid having to use
 // reflection to lookup the same type information over and over again.
 type Struct struct {
-	// Fields is the list of field in the structure, represented as StructField
-	// values.
-	Fields []StructField
+	Fields []StructField // the serializable fields of the struct
+}
 
-	// FieldByName is an index to lookup fields by name, the values are pointers
-	// into the Fields slice.
-	FieldByName map[string]*StructField
+// FieldByName returns the field named name in the struct s.
+func (s *Struct) FieldByName(name string) (field StructField, ok bool) {
+	for _, f := range s.Fields {
+		if f.Name == name {
+			field, ok = f, true
+			break
+		}
+	}
+	return
 }
 
 // LookupStruct behaves like MakeStruct but uses a global cache to avoid having
@@ -31,27 +36,34 @@ func LookupStruct(t reflect.Type) *Struct { return structCache.Lookup(t) }
 // Struct value.
 // The type has to be a struct type or a panic will be raised.
 func NewStruct(t reflect.Type) *Struct {
-	n := t.NumField()
-	s := &Struct{
-		Fields:      make([]StructField, 0, n),
-		FieldByName: make(map[string]*StructField, n),
+	return newStruct(t, map[reflect.Type]*Struct{})
+}
+
+func newStruct(t reflect.Type, c map[reflect.Type]*Struct) *Struct {
+	if s := c[t]; s != nil {
+		return s
 	}
 
+	n := t.NumField()
+	s := &Struct{
+		Fields: make([]StructField, 0, n),
+	}
+	c[t] = s
+
 	for i := 0; i != n; i++ {
-		f0 := t.Field(i)
+		ft := t.Field(i)
 
-		if f0.Anonymous || len(f0.PkgPath) != 0 { // anonymous or non-exported
+		if ft.Anonymous || len(ft.PkgPath) != 0 { // anonymous or non-exported
 			continue
 		}
 
-		f1 := makeStructField(f0)
+		sf := makeStructField(ft, c)
 
-		if f1.Name == "-" { // skip
+		if sf.Name == "-" { // skip
 			continue
 		}
 
-		s.Fields = append(s.Fields, f1)
-		s.FieldByName[f1.Name] = &s.Fields[len(s.Fields)-1]
+		s.Fields = append(s.Fields, sf)
 	}
 
 	return s
@@ -65,7 +77,7 @@ type StructCache struct {
 
 // NewStructCache creates and returns a new StructCache value.
 func NewStructCache() *StructCache {
-	return &StructCache{store: make(map[reflect.Type]*Struct)}
+	return &StructCache{store: make(map[reflect.Type]*Struct, 20)}
 }
 
 // Lookup takes a Go type as argument and returns the matching Struct value,

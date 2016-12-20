@@ -20,19 +20,24 @@ type StructField struct {
 	Omitzero bool
 
 	// cache for the encoder and decoder methods
-	encode func(*Encoder, reflect.Value) error
-	decode func(*Decoder, reflect.Value) (Type, error)
+	encode encodeFunc
+	decode decodeFunc
 }
 
-func makeStructField(f reflect.StructField) StructField {
+func makeStructField(f reflect.StructField, c map[reflect.Type]*Struct) StructField {
 	t := ParseTag(f.Tag.Get("objconv"))
 	s := StructField{
 		Index:     f.Index,
 		Name:      f.Name,
 		Omitempty: t.Omitempty,
 		Omitzero:  t.Omitzero,
-		encode:    encodeFuncOf(f.Type),
-		decode:    decodeFuncOf(reflect.PtrTo(f.Type)),
+
+		encode: makeEncodeFunc(f.Type, encodeFuncOpts{
+			recurse: true,
+			structs: c,
+		}),
+
+		decode: decodeFuncOf(reflect.PtrTo(f.Type)),
 	}
 
 	if len(t.Name) != 0 {

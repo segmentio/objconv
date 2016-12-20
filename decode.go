@@ -651,7 +651,7 @@ func (d *Decoder) decodeValueStructFromType(typ Type, to reflect.Value) (err err
 			return
 		}
 
-		f, ok := s.FieldByName[string(b)]
+		f, ok := s.FieldByName(string(b))
 		if !ok {
 			var v interface{} // discard
 			return d.Decode(&v)
@@ -941,7 +941,9 @@ func (d *Decoder) decodeMapValueMaybe() (err error) {
 	return
 }
 
-func decodeFuncOf(t reflect.Type) func(*Decoder, reflect.Value) (Type, error) {
+type decodeFunc func(*Decoder, reflect.Value) (Type, error)
+
+func decodeFuncOf(t reflect.Type) decodeFunc {
 	switch {
 	case t == timePtrType:
 		return (*Decoder).decodeValueTime
