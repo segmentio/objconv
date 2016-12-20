@@ -143,17 +143,6 @@ func isZeroStruct(v reflect.Value) bool {
 	return true
 }
 
-func stringNoCopy(b []byte) string {
-	n := len(b)
-	if n == 0 {
-		return ""
-	}
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
-		Data: uintptr(unsafe.Pointer(&b[0])),
-		Len:  n,
-	}))
-}
-
 var (
 	timeType                 = reflect.TypeOf(time.Time{})
 	timePtrType              = reflect.TypeOf((*time.Time)(nil))
@@ -167,3 +156,14 @@ var (
 	emptyInterface           = reflect.TypeOf((*interface{})(nil)).Elem()
 	emptyInterfacePtr        = reflect.TypeOf((*interface{})(nil))
 )
+
+func stringNoCopy(b []byte) string {
+	n := len(b)
+	if n == 0 {
+		return ""
+	}
+	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
+		Data: uintptr(unsafe.Pointer(&b[0])),
+		Len:  n,
+	}))
+}

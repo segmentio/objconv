@@ -62,15 +62,23 @@ type Parser interface {
 
 	// ParseArrayEnd is called by the array-decoding algorithm when it
 	// completes.
-	ParseArrayEnd() error
+	//
+	// The method receives the iteration counter as argument, which indicates
+	// how many values were decoded from the array.
+	ParseArrayEnd(int) error
 
 	// ParseArrayNext is called by the array-decoding algorithm between each
 	// value parsed in the array.
 	//
+	// The method receives the iteration counter as argument, which indicates
+	// how many values were decoded from the array.
+	//
 	// If the ParseArrayBegin method returned a negative value this method
 	// should return objconv.End to indicated that there is no more elements to
-	// parse in the array.
-	ParseArrayNext() error
+	// parse in the array. In this case the method is also called right before
+	// decoding the first element ot handle the case where the array is empty
+	// and the end-of-array marker can be read right away.
+	ParseArrayNext(int) error
 
 	// ParseMapBegin is called by the map-decoding algorithm when it starts.
 	//
@@ -80,19 +88,30 @@ type Parser interface {
 	ParseMapBegin() (int, error)
 
 	// ParseMapEnd is called by the map-decoding algorithm when it completes.
-	ParseMapEnd() error
+	//
+	// The method receives the iteration counter as argument, which indicates
+	// how many values were decoded from the map.
+	ParseMapEnd(int) error
 
 	// ParseMapValue is called by the map-decoding algorithm after parsing a key
 	// but before parsing the associated value.
-	ParseMapValue() error
+	//
+	// The method receives the iteration counter as argument, which indicates
+	// how many values were decoded from the map.
+	ParseMapValue(int) error
 
 	// ParseMapNext is called by the map-decoding algorithm between each
 	// value parsed in the map.
 	//
+	// The method receives the iteration counter as argument, which indicates
+	// how many values were decoded from the map.
+	//
 	// If the ParseMapBegin method returned a negative value this method should
 	// return objconv.End to indicated that there is no more elements to parse
-	// in the map.
-	ParseMapNext() error
+	// in the map. In this case the method is also called right before decoding
+	// the first element ot handle the case where the array is empty and the
+	// end-of-map marker can be read right away.
+	ParseMapNext(int) error
 }
 
 // ValueParser is parser that uses "natural" in-memory representation of data
@@ -105,8 +124,6 @@ type ValueParser struct {
 }
 
 type valueParserContext struct {
-	index  int
-	length int
 	value  reflect.Value
 	keys   []reflect.Value
 	fields []StructField
@@ -229,7 +246,7 @@ func (p *ValueParser) ParseError() (v error, err error) {
 func (p *ValueParser) ParseArrayBegin() (n int, err error) {
 	v := p.value()
 	n = v.Len()
-	p.pushContext(valueParserContext{length: n, value: v})
+	p.pushContext(valueParserContext{value: v})
 
 	if n != 0 {
 		p.push(v.Index(0))
@@ -238,22 +255,18 @@ func (p *ValueParser) ParseArrayBegin() (n int, err error) {
 	return
 }
 
-func (p *ValueParser) ParseArrayEnd() (err error) {
-	ctx := p.context()
-
-	if ctx.length != 0 {
+func (p *ValueParser) ParseArrayEnd(n int) (err error) {
+	if n != 0 {
 		p.pop()
 	}
-
 	p.popContext()
 	return
 }
 
-func (p *ValueParser) ParseArrayNext() (err error) {
+func (p *ValueParser) ParseArrayNext(n int) (err error) {
 	ctx := p.context()
-	ctx.index++
 	p.pop()
-	p.push(ctx.value.Index(ctx.index))
+	p.push(ctx.value.Index(n))
 	return
 }
 
@@ -263,7 +276,7 @@ func (p *ValueParser) ParseMapBegin() (n int, err error) {
 	if v.Kind() == reflect.Map {
 		n = v.Len()
 		k := v.MapKeys()
-		p.pushContext(valueParserContext{length: n, value: v, keys: k})
+		p.pushContext(valueParserContext{value: v, keys: k})
 		if n != 0 {
 			p.push(k[0])
 		}
@@ -287,39 +300,35 @@ func (p *ValueParser) ParseMapBegin() (n int, err error) {
 	return
 }
 
-func (p *ValueParser) ParseMapEnd() (err error) {
-	ctx := p.context()
-
-	if ctx.length != 0 {
+func (p *ValueParser) ParseMapEnd(n int) (err error) {
+	if n != 0 {
 		p.pop()
 	}
-
 	p.popContext()
 	return
 }
 
-func (p *ValueParser) ParseMapValue() (err error) {
+func (p *ValueParser) ParseMapValue(n int) (err error) {
 	ctx := p.context()
 	p.pop()
 
 	if ctx.keys != nil {
-		p.push(ctx.value.MapIndex(ctx.keys[ctx.index]))
+		p.push(ctx.value.MapIndex(ctx.keys[n]))
 	} else {
-		p.push(ctx.value.FieldByIndex(ctx.fields[ctx.index].Index))
+		p.push(ctx.value.FieldByIndex(ctx.fields[n].Index))
 	}
 
 	return
 }
 
-func (p *ValueParser) ParseMapNext() (err error) {
+func (p *ValueParser) ParseMapNext(n int) (err error) {
 	ctx := p.context()
-	ctx.index++
 	p.pop()
 
 	if ctx.keys != nil {
-		p.push(ctx.keys[ctx.index])
+		p.push(ctx.keys[n])
 	} else {
-		p.push(reflect.ValueOf(ctx.fields[ctx.index].Name))
+		p.push(reflect.ValueOf(ctx.fields[n].Name))
 	}
 
 	return

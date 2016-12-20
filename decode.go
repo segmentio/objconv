@@ -11,14 +11,6 @@ import (
 type DecoderConfig struct {
 	// Parser defines the format used by the decoder.
 	Parser Parser
-
-	// TimeFormat is used to parse time values from strings, defaults to
-	// time.RFC33339Nano.
-	TimeFormat string
-
-	// TimeLocation is the location used for parsing time values from strings if
-	// none is explicitly set, defaults to time.Local.
-	TimeLocation *time.Location
 }
 
 // A Decoder implements the algorithms for building data structures from their
@@ -27,10 +19,8 @@ type DecoderConfig struct {
 // Decoders are not safe for use by multiple goroutines.
 type Decoder struct {
 	p   Parser
-	key bool
-
-	timeFormat   string
-	timeLocation *time.Location
+	off []int   // stack of offsets when decoding maps
+	buf [20]int // initial buffer when decoding maps
 }
 
 // NewDecoder returns a new decoder object that uses parser to deserialize data
@@ -50,17 +40,9 @@ func NewDecoderWith(config DecoderConfig) *Decoder {
 	if config.Parser == nil {
 		panic("objconv.NewDecoder: the parser is nil")
 	}
-	if len(config.TimeFormat) == 0 {
-		config.TimeFormat = time.RFC3339Nano
-	}
-	if config.TimeLocation == nil {
-		config.TimeLocation = time.Local
-	}
-	return &Decoder{
-		p:            config.Parser,
-		timeFormat:   config.TimeFormat,
-		timeLocation: config.TimeLocation,
-	}
+	d := &Decoder{p: config.Parser}
+	d.off = d.buf[:0]
+	return d
 }
 
 // Decode expects v to be a pointer to a value in which the decoder will load
@@ -79,16 +61,12 @@ func (d *Decoder) Decode(v interface{}) error {
 		panic("objconv.(*Decoder).Decode: v cannot be a nil pointer")
 	}
 
-	if err := d.decodeMapValueMaybe(); err != nil {
-		return err
-	}
-
-	_, err := d.decodeValue(to)
+	_, err := d.decodeValue(to.Elem())
 	return err
 }
 
 func (d *Decoder) decodeValue(to reflect.Value) (Type, error) {
-	return decodeFuncOf(to.Type())(d, to.Elem())
+	return decodeFuncOf(to.Type())(d, to)
 }
 
 func (d *Decoder) decodeValueNil(to reflect.Value) (t Type, err error) {
@@ -424,7 +402,7 @@ func (d *Decoder) decodeValueTimeFromType(t Type, to reflect.Value) (err error) 
 	}
 
 	if t == String || t == Bytes {
-		v, err = time.ParseInLocation(d.timeFormat, string(s), d.timeLocation)
+		v, err = time.Parse(time.RFC3339Nano, string(s))
 	}
 
 	to.Set(reflect.ValueOf(v))
@@ -506,19 +484,26 @@ func (d *Decoder) decodeValueErrorFromType(t Type, to reflect.Value) (err error)
 }
 
 func (d *Decoder) decodeValueSlice(to reflect.Value) (t Type, err error) {
+	return d.decodeValueSliceWith(to, decodeFuncOf(to.Type().Elem()))
+}
+
+func (d *Decoder) decodeValueSliceWith(to reflect.Value, f decodeFunc) (t Type, err error) {
 	if t, err = d.decodeType(); err == nil {
-		err = d.decodeValueSliceFromType(t, to)
+		err = d.decodeValueSliceFromTypeWith(t, to, f)
 	}
 	return
 }
 
 func (d *Decoder) decodeValueSliceFromType(typ Type, to reflect.Value) (err error) {
+	return d.decodeValueSliceFromTypeWith(typ, to, decodeFuncOf(to.Type().Elem()))
+}
+
+func (d *Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
 	t := to.Type()                   // []T
 	e := t.Elem()                    // T
 	z := reflect.Zero(e)             // T{}
 	v := reflect.New(e).Elem()       // &T{}
 	s := reflect.MakeSlice(t, 0, 20) // make([]T, 0, 20)
-	f := decodeFuncOf(reflect.PtrTo(e))
 
 	if err = d.decodeArrayFromType(typ, func(d *Decoder) (err error) {
 		v.Set(z) // reset to the zero-value
@@ -541,18 +526,25 @@ func (d *Decoder) decodeValueSliceFromType(typ Type, to reflect.Value) (err erro
 }
 
 func (d *Decoder) decodeValueArray(to reflect.Value) (t Type, err error) {
+	return d.decodeValueArrayWith(to, decodeFuncOf(to.Type().Elem()))
+}
+
+func (d *Decoder) decodeValueArrayWith(to reflect.Value, f decodeFunc) (t Type, err error) {
 	if t, err = d.decodeType(); err == nil {
-		err = d.decodeValueArrayFromType(t, to)
+		err = d.decodeValueArrayFromTypeWith(t, to, f)
 	}
 	return
 }
 
 func (d *Decoder) decodeValueArrayFromType(typ Type, to reflect.Value) (err error) {
+	return d.decodeValueArrayFromTypeWith(typ, to, decodeFuncOf(to.Type().Elem()))
+}
+
+func (d *Decoder) decodeValueArrayFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
 	n := to.Len()        // len(to)
 	t := to.Type()       // [...]T
 	e := t.Elem()        // T
 	z := reflect.Zero(e) // T{}
-	f := decodeFuncOf(reflect.PtrTo(e))
 
 	for i := 0; i != n; i++ {
 		to.Index(i).Set(z) // reset to the zero-value
@@ -582,26 +574,34 @@ func (d *Decoder) decodeValueArrayFromType(typ Type, to reflect.Value) (err erro
 	return
 }
 
-func (d *Decoder) decodeValueMap(to reflect.Value) (t Type, err error) {
+func (d *Decoder) decodeValueMap(to reflect.Value) (Type, error) {
+	t := to.Type()
+	return d.decodeValueMapWith(to, decodeFuncOf(t.Key()), decodeFuncOf(t.Elem()))
+}
+
+func (d *Decoder) decodeValueMapWith(to reflect.Value, kf decodeFunc, vf decodeFunc) (t Type, err error) {
 	if t, err = d.decodeType(); err == nil {
-		err = d.decodeValueMapFromType(t, to)
+		err = d.decodeValueMapFromTypeWith(t, to, kf, vf)
 	}
 	return
 }
 
 func (d *Decoder) decodeValueMapFromType(typ Type, to reflect.Value) (err error) {
+	t := to.Type()
+	return d.decodeValueMapFromTypeWith(typ, to, decodeFuncOf(t.Key()), decodeFuncOf(t.Elem()))
+}
+
+func (d *Decoder) decodeValueMapFromTypeWith(typ Type, to reflect.Value, kf decodeFunc, vf decodeFunc) (err error) {
 	t := to.Type()          // map[K]V
 	m := reflect.MakeMap(t) // make(map[K]V)
 
 	kt := t.Key()                // K
 	kz := reflect.Zero(kt)       // K{}
 	kv := reflect.New(kt).Elem() // &K{}
-	kf := decodeFuncOf(reflect.PtrTo(kt))
 
 	vt := t.Elem()               // V
 	vz := reflect.Zero(vt)       // V{}
 	vv := reflect.New(vt).Elem() // &V{}
-	vf := decodeFuncOf(reflect.PtrTo(vt))
 
 	if err = d.decodeMapFromType(typ, func(d *Decoder) (err error) {
 		kv.Set(kz) // reset the key to its zero-value
@@ -630,29 +630,35 @@ func (d *Decoder) decodeValueMapFromType(typ Type, to reflect.Value) (err error)
 	return
 }
 
-func (d *Decoder) decodeValueStruct(to reflect.Value) (t Type, err error) {
+func (d *Decoder) decodeValueStruct(to reflect.Value) (Type, error) {
+	return d.decodeValueStructWith(to, LookupStruct(to.Type()))
+}
+
+func (d *Decoder) decodeValueStructWith(to reflect.Value, s *Struct) (t Type, err error) {
 	if t, err = d.decodeType(); err == nil {
-		err = d.decodeValueStructFromType(t, to)
+		err = d.decodeValueStructFromTypeWith(t, to, s)
 	}
 	return
 }
 
 func (d *Decoder) decodeValueStructFromType(typ Type, to reflect.Value) (err error) {
-	t := to.Type()
-	s := LookupStruct(t)
+	return d.decodeValueStructFromTypeWith(typ, to, LookupStruct(to.Type()))
+}
 
+func (d *Decoder) decodeValueStructFromTypeWith(typ Type, to reflect.Value, s *Struct) (err error) {
 	if err = d.decodeMapFromType(typ, func(d *Decoder) (err error) {
 		var b []byte
 
 		if b, err = d.decodeString(); err != nil {
 			return
 		}
+
 		if err = d.decodeMapValue(); err != nil {
 			return
 		}
 
-		f, ok := s.FieldByName(string(b))
-		if !ok {
+		f := s.FieldsByName[stringNoCopy(b)]
+		if f == nil {
 			var v interface{} // discard
 			return d.Decode(&v)
 		}
@@ -660,13 +666,16 @@ func (d *Decoder) decodeValueStructFromType(typ Type, to reflect.Value) (err err
 		_, err = f.decode(d, to.FieldByIndex(f.Index))
 		return
 	}); err != nil {
-		to.Set(reflect.Zero(t))
+		to.Set(reflect.Zero(to.Type()))
 	}
-
 	return
 }
 
-func (d *Decoder) decodeValuePointer(to reflect.Value) (typ Type, err error) {
+func (d *Decoder) decodeValuePointer(to reflect.Value) (Type, error) {
+	return d.decodeValuePointerWith(to, decodeFuncOf(to.Type().Elem()))
+}
+
+func (d *Decoder) decodeValuePointerWith(to reflect.Value, f decodeFunc) (typ Type, err error) {
 	var t = to.Type()
 	var v reflect.Value
 
@@ -676,7 +685,7 @@ func (d *Decoder) decodeValuePointer(to reflect.Value) (typ Type, err error) {
 		v = to
 	}
 
-	if typ, err = d.decodeValue(v); err != nil {
+	if typ, err = f(d, v.Elem()); err != nil {
 		return
 	}
 
@@ -796,14 +805,9 @@ func (d *Decoder) decodeError() (error, error) { return d.p.ParseError() }
 //
 // The method returns the underlying type of the value returned by the parser.
 func (d *Decoder) DecodeArray(f func(*Decoder) error) (t Type, err error) {
-	if err = d.decodeMapValueMaybe(); err != nil {
-		return
-	}
-
 	if t, err = d.decodeType(); err != nil {
 		return
 	}
-
 	err = d.decodeArrayFromType(t, f)
 	return
 }
@@ -830,31 +834,33 @@ func (d *Decoder) decodeArrayFromType(t Type, f func(*Decoder) error) (err error
 		return
 	}
 
-decodeArray:
-	for i := 0; n < 0 || i < n; i++ {
-		if i != 0 {
-			switch err = d.decodeArrayNext(); err {
-			case nil:
-			case End:
-				break decodeArray
-			default:
+	i := 0
+
+	for n < 0 || i < n {
+		if n < 0 || i != 0 {
+			if err = d.decodeArrayNext(i); err != nil {
+				if err == End {
+					err = nil
+					break
+				}
 				return
 			}
 		}
 		if err = f(d); err != nil {
 			return
 		}
+		i++
 	}
 
-	err = d.decodeArrayEnd()
+	err = d.decodeArrayEnd(i)
 	return
 }
 
 func (d *Decoder) decodeArrayBegin() (int, error) { return d.p.ParseArrayBegin() }
 
-func (d *Decoder) decodeArrayEnd() error { return d.p.ParseArrayEnd() }
+func (d *Decoder) decodeArrayEnd(n int) error { return d.p.ParseArrayEnd(n) }
 
-func (d *Decoder) decodeArrayNext() error { return d.p.ParseArrayNext() }
+func (d *Decoder) decodeArrayNext(n int) error { return d.p.ParseArrayNext(n) }
 
 // DecodeMap provides the implementation of the algorithm for decoding maps,
 // where f is called to decode each pair of key and value.
@@ -864,14 +870,9 @@ func (d *Decoder) decodeArrayNext() error { return d.p.ParseArrayNext() }
 //
 // The method returns the underlying type of the value returned by the parser.
 func (d *Decoder) DecodeMap(f func(*Decoder) error) (t Type, err error) {
-	if err = d.decodeMapValueMaybe(); err != nil {
-		return
-	}
-
 	if t, err = d.decodeType(); err != nil {
 		return
 	}
-
 	err = d.decodeMapFromType(t, f)
 	return
 }
@@ -898,70 +899,86 @@ func (d *Decoder) decodeMapFromType(t Type, f func(*Decoder) error) (err error) 
 		return
 	}
 
-decodeMap:
-	for i := 0; n < 0 || i < n; i++ {
-		if i != 0 {
-			switch err = d.decodeMapNext(); err {
-			case nil:
-			case End:
-				break decodeMap
-			default:
+	i := 0
+
+	for n < 0 || i < n {
+		if n < 0 || i != 0 {
+			if err = d.decodeMapNext(i); err != nil {
+				if err == End {
+					err = nil
+					break
+				}
 				return
 			}
 		}
 
-		d.key = true
+		d.off = append(d.off, i)
 		err = f(d)
-		// Because internal calls don't use the exported methods they may not
-		// reset this flag to false when expected, forcing the value here.
-		d.key = false
+		d.off = d.off[:len(d.off)-1]
 
 		if err != nil {
 			return
 		}
+
+		i++
 	}
 
-	err = d.decodeMapEnd()
+	err = d.decodeMapEnd(i)
 	return
 }
 
 func (d *Decoder) decodeMapBegin() (int, error) { return d.p.ParseMapBegin() }
 
-func (d *Decoder) decodeMapEnd() error { return d.p.ParseMapEnd() }
+func (d *Decoder) decodeMapEnd(n int) error { return d.p.ParseMapEnd(n) }
 
-func (d *Decoder) decodeMapValue() error { return d.p.ParseMapValue() }
+func (d *Decoder) decodeMapValue() error { return d.p.ParseMapValue(d.off[len(d.off)-1]) }
 
-func (d *Decoder) decodeMapNext() error { return d.p.ParseMapNext() }
+func (d *Decoder) decodeMapNext(n int) error { return d.p.ParseMapNext(n) }
 
-func (d *Decoder) decodeMapValueMaybe() (err error) {
-	if d.key {
-		d.key = false
-		err = d.decodeMapValue()
-	}
-	return
+// ValueDecoder is the interface that can be implemented by types that wish to
+// provide their own decoding algorithms.
+//
+// The DecodeValue method is called when the value is found by a decoding
+// algorithm.
+type ValueDecoder interface {
+	DecodeValue(*Decoder) error
+}
+
+// ValueDecoderFunc allos the use of regular functions or methods as value
+// decoders.
+type ValueDecoderFunc func(*Decoder) error
+
+// DecodeValue calls f(d).
+func (f ValueDecoderFunc) DecodeValue(d *Decoder) error { return f(d) }
+
+type decodeFuncOpts struct {
+	recurse bool
+	structs map[reflect.Type]*Struct
 }
 
 type decodeFunc func(*Decoder, reflect.Value) (Type, error)
 
 func decodeFuncOf(t reflect.Type) decodeFunc {
-	switch {
-	case t == timePtrType:
+	return makeDecodeFunc(t, decodeFuncOpts{})
+}
+
+func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
+	switch p := reflect.PtrTo(t); {
+	case p == timePtrType:
 		return (*Decoder).decodeValueTime
 
-	case t == durationPtrType:
+	case p == durationPtrType:
 		return (*Decoder).decodeValueDuration
 
-	case t == emptyInterfacePtr:
+	case p == emptyInterfacePtr:
 		return (*Decoder).decodeValueInterface
 
-	case t.Implements(valueDecoderInterface):
+	case p.Implements(valueDecoderInterface):
 		return (*Decoder).decodeValueDecoder
 
-	case t.Implements(textUnmarshalerInterface):
+	case p.Implements(textUnmarshalerInterface):
 		return (*Decoder).decodeValueTextUnmarshaler
 	}
-
-	t = t.Elem()
 
 	switch {
 	case t.Implements(errorInterface):
@@ -987,39 +1004,73 @@ func decodeFuncOf(t reflect.Type) decodeFunc {
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return (*Decoder).decodeValueBytes
-		} else {
-			return (*Decoder).decodeValueSlice
 		}
+		return makeDecodeSliceFunc(t, opts)
 
 	case reflect.Array:
-		return (*Decoder).decodeValueArray
+		return makeDecodeArrayFunc(t, opts)
 
 	case reflect.Map:
-		return (*Decoder).decodeValueMap
+		return makeDecodeMapFunc(t, opts)
 
 	case reflect.Struct:
-		return (*Decoder).decodeValueStruct
+		return makeDecodeStructFunc(t, opts)
 
 	case reflect.Ptr:
-		return (*Decoder).decodeValuePointer
+		return makeDecodePtrFunc(t, opts)
 
 	default:
 		return (*Decoder).decodeValueUnsupported
 	}
 }
 
-// ValueDecoder is the interface that can be implemented by types that wish to
-// provide their own decoding algorithms.
-//
-// The DecodeValue method is called when the value is found by a decoding
-// algorithm.
-type ValueDecoder interface {
-	DecodeValue(*Decoder) error
+func makeDecodeSliceFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
+	if !opts.recurse {
+		return (*Decoder).decodeValueSlice
+	}
+	f := makeDecodeFunc(t.Elem(), opts)
+	return func(e *Decoder, v reflect.Value) (Type, error) {
+		return e.decodeValueSliceWith(v, f)
+	}
 }
 
-// ValueDecoderFunc allos the use of regular functions or methods as value
-// decoders.
-type ValueDecoderFunc func(*Decoder) error
+func makeDecodeArrayFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
+	if !opts.recurse {
+		return (*Decoder).decodeValueArray
+	}
+	f := makeDecodeFunc(t.Elem(), opts)
+	return func(e *Decoder, v reflect.Value) (Type, error) {
+		return e.decodeValueArrayWith(v, f)
+	}
+}
 
-// DecodeValue calls f(d).
-func (f ValueDecoderFunc) DecodeValue(d *Decoder) error { return f(d) }
+func makeDecodeMapFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
+	if !opts.recurse {
+		return (*Decoder).decodeValueMap
+	}
+	kf := makeDecodeFunc(t.Key(), opts)
+	vf := makeDecodeFunc(t.Elem(), opts)
+	return func(e *Decoder, v reflect.Value) (Type, error) {
+		return e.decodeValueMapWith(v, kf, vf)
+	}
+}
+
+func makeDecodeStructFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
+	if !opts.recurse {
+		return (*Decoder).decodeValueStruct
+	}
+	s := newStruct(t, opts.structs)
+	return func(e *Decoder, v reflect.Value) (Type, error) {
+		return e.decodeValueStructWith(v, s)
+	}
+}
+
+func makeDecodePtrFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
+	if !opts.recurse {
+		return (*Decoder).decodeValuePointer
+	}
+	f := makeDecodeFunc(t.Elem(), opts)
+	return func(e *Decoder, v reflect.Value) (Type, error) {
+		return e.decodeValuePointerWith(v, f)
+	}
+}

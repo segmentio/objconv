@@ -37,7 +37,10 @@ func makeStructField(f reflect.StructField, c map[reflect.Type]*Struct) StructFi
 			structs: c,
 		}),
 
-		decode: decodeFuncOf(reflect.PtrTo(f.Type)),
+		decode: makeDecodeFunc(f.Type, decodeFuncOpts{
+			recurse: true,
+			structs: c,
+		}),
 	}
 
 	if len(t.Name) != 0 {

@@ -9,18 +9,8 @@ import (
 // cache meta information to make field lookups faster and avoid having to use
 // reflection to lookup the same type information over and over again.
 type Struct struct {
-	Fields []StructField // the serializable fields of the struct
-}
-
-// FieldByName returns the field named name in the struct s.
-func (s *Struct) FieldByName(name string) (field StructField, ok bool) {
-	for _, f := range s.Fields {
-		if f.Name == name {
-			field, ok = f, true
-			break
-		}
-	}
-	return
+	Fields       []StructField           // the serializable fields of the struct
+	FieldsByName map[string]*StructField // cache of fields by name
 }
 
 // LookupStruct behaves like MakeStruct but uses a global cache to avoid having
@@ -46,7 +36,8 @@ func newStruct(t reflect.Type, c map[reflect.Type]*Struct) *Struct {
 
 	n := t.NumField()
 	s := &Struct{
-		Fields: make([]StructField, 0, n),
+		Fields:       make([]StructField, 0, n),
+		FieldsByName: make(map[string]*StructField),
 	}
 	c[t] = s
 
@@ -64,6 +55,7 @@ func newStruct(t reflect.Type, c map[reflect.Type]*Struct) *Struct {
 		}
 
 		s.Fields = append(s.Fields, sf)
+		s.FieldsByName[sf.Name] = &s.Fields[len(s.Fields)-1]
 	}
 
 	return s

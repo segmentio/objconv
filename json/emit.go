@@ -26,42 +26,39 @@ var (
 type Emitter struct {
 	b [128]byte
 	s []byte
-
-	// W is the writer where the emitter outputs the JSON representation of the
-	// values it encodes.
-	W io.Writer
+	w io.Writer
 }
 
 func NewEmitter(w io.Writer) *Emitter {
-	return &Emitter{W: w}
+	return &Emitter{w: w}
 }
 
 func (e *Emitter) EmitNil() (err error) {
-	_, err = e.W.Write(nullBytes[:])
+	_, err = e.w.Write(nullBytes[:])
 	return
 }
 
 func (e *Emitter) EmitBool(v bool) (err error) {
 	if v {
-		_, err = e.W.Write(trueBytes[:])
+		_, err = e.w.Write(trueBytes[:])
 	} else {
-		_, err = e.W.Write(falseBytes[:])
+		_, err = e.w.Write(falseBytes[:])
 	}
 	return
 }
 
 func (e *Emitter) EmitInt(v int64) (err error) {
-	_, err = e.W.Write(strconv.AppendInt(e.b[:0], v, 10))
+	_, err = e.w.Write(strconv.AppendInt(e.b[:0], v, 10))
 	return
 }
 
 func (e *Emitter) EmitUint(v uint64) (err error) {
-	_, err = e.W.Write(strconv.AppendUint(e.b[:0], v, 10))
+	_, err = e.w.Write(strconv.AppendUint(e.b[:0], v, 10))
 	return
 }
 
 func (e *Emitter) EmitFloat(v float64) (err error) {
-	_, err = e.W.Write(strconv.AppendFloat(e.b[:0], v, 'g', -1, 64))
+	_, err = e.w.Write(strconv.AppendFloat(e.b[:0], v, 'g', -1, 64))
 	return
 }
 
@@ -113,7 +110,7 @@ func (e *Emitter) EmitString(v string) (err error) {
 	s = append(s, '"')
 	e.s = s[:0] // in case the buffer was reallocated
 
-	_, err = e.W.Write(s)
+	_, err = e.w.Write(s)
 	return
 }
 
@@ -134,36 +131,36 @@ func (e *Emitter) EmitError(v error) error {
 }
 
 func (e *Emitter) EmitArrayBegin(_ int) (err error) {
-	_, err = e.W.Write(arrayOpen[:])
+	_, err = e.w.Write(arrayOpen[:])
 	return
 }
 
 func (e *Emitter) EmitArrayEnd() (err error) {
-	_, err = e.W.Write(arrayClose[:])
+	_, err = e.w.Write(arrayClose[:])
 	return
 }
 
 func (e *Emitter) EmitArrayNext() (err error) {
-	_, err = e.W.Write(comma[:])
+	_, err = e.w.Write(comma[:])
 	return
 }
 
 func (e *Emitter) EmitMapBegin(_ int) (err error) {
-	_, err = e.W.Write(mapOpen[:])
+	_, err = e.w.Write(mapOpen[:])
 	return
 }
 
 func (e *Emitter) EmitMapEnd() (err error) {
-	_, err = e.W.Write(mapClose[:])
+	_, err = e.w.Write(mapClose[:])
 	return
 }
 
 func (e *Emitter) EmitMapValue() (err error) {
-	_, err = e.W.Write(column[:])
+	_, err = e.w.Write(column[:])
 	return
 }
 
 func (e *Emitter) EmitMapNext() (err error) {
-	_, err = e.W.Write(comma[:])
+	_, err = e.w.Write(comma[:])
 	return
 }

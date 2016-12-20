@@ -11,10 +11,11 @@
 package json
 
 import (
+	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -53,7 +54,7 @@ func init() {
 
 	codeJSON = data
 
-	if err := json.Unmarshal(codeJSON, &codeStruct); err != nil {
+	if err := Unmarshal(codeJSON, &codeStruct); err != nil {
 		panic("unmarshal code.json: " + err.Error())
 	}
 }
@@ -77,13 +78,7 @@ func BenchmarkCodeMarshal(b *testing.B) {
 	b.SetBytes(int64(len(codeJSON)))
 }
 
-/*
 func BenchmarkCodeDecoder(b *testing.B) {
-	if codeJSON == nil {
-		b.StopTimer()
-		codeInit()
-		b.StartTimer()
-	}
 	var buf bytes.Buffer
 	dec := NewDecoder(&buf)
 	var r codeResponse
@@ -123,11 +118,6 @@ func BenchmarkDecoderStream(b *testing.B) {
 }
 
 func BenchmarkCodeUnmarshal(b *testing.B) {
-	if codeJSON == nil {
-		b.StopTimer()
-		codeInit()
-		b.StartTimer()
-	}
 	for i := 0; i < b.N; i++ {
 		var r codeResponse
 		if err := Unmarshal(codeJSON, &r); err != nil {
@@ -138,11 +128,6 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 }
 
 func BenchmarkCodeUnmarshalReuse(b *testing.B) {
-	if codeJSON == nil {
-		b.StopTimer()
-		codeInit()
-		b.StartTimer()
-	}
 	var r codeResponse
 	for i := 0; i < b.N; i++ {
 		if err := Unmarshal(codeJSON, &r); err != nil {
@@ -194,4 +179,3 @@ func BenchmarkIssue10335(b *testing.B) {
 		}
 	}
 }
-*/
