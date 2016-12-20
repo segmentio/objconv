@@ -36,14 +36,6 @@ func NewEmitter(w io.Writer) *Emitter {
 	return &Emitter{W: w}
 }
 
-func (e *Emitter) EmitBegin() error {
-	return nil
-}
-
-func (e *Emitter) EmitEnd() error {
-	return nil
-}
-
 func (e *Emitter) EmitNil() (err error) {
 	_, err = e.W.Write(nullBytes[:])
 	return
