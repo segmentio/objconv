@@ -114,13 +114,20 @@ func (e Encoder) encodeValueMap(v reflect.Value) error {
 }
 
 func (e Encoder) encodeValueMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) error {
-	keys := v.MapKeys()
-	if e.SortMapKeys {
-		sortValues(v.Type().Key(), keys)
+	var k []reflect.Value
+	var n = v.Len()
+	var i = 0
+
+	if n != 0 {
+		k = v.MapKeys()
+
+		if e.SortMapKeys {
+			sortValues(v.Type().Key(), k)
+		}
 	}
-	i := 0
-	return e.EncodeMap(v.Len(), func(ke Encoder, ve Encoder) (err error) {
-		k := keys[i]
+
+	return e.EncodeMap(n, func(ke Encoder, ve Encoder) (err error) {
+		k := k[i]
 		v := v.MapIndex(k)
 		if err = kf(e, k); err != nil {
 			return
