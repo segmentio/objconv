@@ -127,15 +127,13 @@ func (e Encoder) encodeValueMapWith(v reflect.Value, kf encodeFunc, vf encodeFun
 	}
 
 	return e.EncodeMap(n, func(ke Encoder, ve Encoder) (err error) {
-		k := k[i]
-		v := v.MapIndex(k)
-		if err = kf(e, k); err != nil {
+		if err = kf(e, k[i]); err != nil {
 			return
 		}
 		if err = e.encodeMapValue(); err != nil {
 			return
 		}
-		if err = vf(e, v); err != nil {
+		if err = vf(e, v.MapIndex(k[i])); err != nil {
 			return
 		}
 		i++
