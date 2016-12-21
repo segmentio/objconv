@@ -256,3 +256,96 @@ func TestDecoderDecodeToEmptyInterface(t *testing.T) {
 		})
 	}
 }
+
+func TestStreamDecoder(t *testing.T) {
+	tests := [][]interface{}{
+		[]interface{}{},
+		[]interface{}{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+	}
+
+	for _, test := range tests {
+		t.Run("", func(t *testing.T) {
+			val := NewValueParser(test)
+			dec := NewStreamDecoder(val)
+
+			var v interface{}
+			var i = int64(0)
+
+			for dec.Decode(&v) == nil {
+				if !reflect.DeepEqual(v, i) {
+					t.Error(v, "!=", test)
+				}
+				i++
+			}
+
+			if int(i) != len(test) {
+				t.Error(i)
+			}
+
+			if err := dec.Err(); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestStreamRencode(t *testing.T) {
+	tests := []interface{}{
+		nil,
+		true,
+		false,
+		int64(1),
+		uint64(1),
+		float64(1),
+		"Hello World!",
+		map[interface{}]interface{}{"hello": "world"},
+		[]interface{}{
+			int64(0),
+			int64(1),
+			int64(2),
+			int64(3),
+			int64(4),
+			int64(5),
+			int64(6),
+			int64(7),
+			int64(8),
+			int64(9),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run("", func(t *testing.T) {
+			in := NewValueParser(test)
+			out := NewValueEmitter()
+
+			dec := NewStreamDecoder(in)
+			enc, err := dec.Encoder(out)
+
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			var v interface{}
+
+			for dec.Decode(&v) == nil {
+				if err := enc.Encode(v); err != nil {
+					t.Error(err)
+				}
+				v = nil
+			}
+
+			if err := dec.Err(); err != nil {
+				t.Error(err)
+			}
+
+			if err := enc.Close(); err != nil {
+				t.Error(err)
+			}
+
+			if v = out.Value(); !reflect.DeepEqual(v, test) {
+				t.Error(v, "!=", test)
+			}
+		})
+	}
+}

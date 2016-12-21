@@ -20,20 +20,18 @@ type Encoder struct {
 	key         bool
 }
 
-// NewEncoder returns a new encoder that outputs values to emitter.
+// NewEncoder returns a new encoder that outputs values to e.
 //
 // Encoders created by this function use the default encoder configuration,
 // which is equivalent to using a zero-value EncoderConfig with only the Emitter
 // field set.
 //
-// The function panics if emitter is nil.
-func NewEncoder(emitter Emitter) *Encoder {
-	if emitter == nil {
+// The function panics if e is nil.
+func NewEncoder(e Emitter) *Encoder {
+	if e == nil {
 		panic("objconv: the emitter is nil")
 	}
-	return &Encoder{
-		Emitter: emitter,
-	}
+	return &Encoder{Emitter: e}
 }
 
 // Encode encodes the generic value v.
@@ -192,6 +190,13 @@ func (e Encoder) encodeValuePointerWith(v reflect.Value, f encodeFunc) error {
 	return f(e, v.Elem())
 }
 
+func (e Encoder) encodeValueInterface(v reflect.Value) error {
+	if v.IsNil() {
+		return e.encodeNil()
+	}
+	return e.encodeValue(v.Elem())
+}
+
 func (e Encoder) encodeValueEncoder(v reflect.Value) error {
 	return v.Interface().(ValueEncoder).EncodeValue(e)
 }
@@ -338,21 +343,22 @@ type StreamEncoder struct {
 	Emitter     Emitter // the emiiter used by this encoder
 	SortMapKeys bool    // whether map keys should be sorted
 
-	err    error
-	max    int
-	cnt    int
-	opened bool
-	closed bool
+	err     error
+	max     int
+	cnt     int
+	opened  bool
+	closed  bool
+	oneshot bool
 }
 
-// NewStreamEncoder returns a new stream encoder that outputs to emitter.
-func NewStreamEncoder(emitter Emitter) *StreamEncoder {
-	if emitter == nil {
+// NewStreamEncoder returns a new stream encoder that outputs to e.
+//
+// The function panics if e is nil.
+func NewStreamEncoder(e Emitter) *StreamEncoder {
+	if e == nil {
 		panic("objconv.NewStreamEncoder: the emitter is nil")
 	}
-	return &StreamEncoder{
-		Emitter: emitter,
-	}
+	return &StreamEncoder{Emitter: e}
 }
 
 // Open explicitly tells the encoder to start the stream, setting the number
@@ -373,16 +379,16 @@ func (e *StreamEncoder) Open(n int) error {
 	if !e.opened {
 		e.max = n
 		e.opened = true
-		e.err = e.encoder().encodeArrayBegin(n)
+
+		if !e.oneshot {
+			e.err = e.encoder().encodeArrayBegin(n)
+		}
 	}
 
 	return e.err
 }
 
 // Close terminates the stream encoder.
-//
-// Calling Close is optional if the stream was open with a predefined length
-// (by calling Open with a non-negative value).
 func (e *StreamEncoder) Close() error {
 	if err := e.Open(-1); err != nil {
 		return err
@@ -390,7 +396,10 @@ func (e *StreamEncoder) Close() error {
 
 	if !e.closed {
 		e.closed = true
-		e.err = e.encoder().encodeArrayEnd()
+
+		if !e.oneshot {
+			e.err = e.encoder().encodeArrayEnd()
+		}
 	}
 
 	return e.err
@@ -409,7 +418,7 @@ func (e *StreamEncoder) Encode(v interface{}) error {
 
 	enc := e.encoder()
 
-	if e.cnt != 0 {
+	if !e.oneshot && e.cnt != 0 {
 		e.err = enc.encodeArrayNext()
 	}
 
@@ -516,8 +525,11 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 	case reflect.Struct:
 		return makeEncodeStructFunc(t, opts)
 
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Ptr:
 		return makeEncodePtrFunc(t, opts)
+
+	case reflect.Interface:
+		return Encoder.encodeValueInterface
 
 	default:
 		return Encoder.encodeValueUnsupported

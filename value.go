@@ -13,7 +13,8 @@ import (
 type Type int
 
 const (
-	Nil Type = iota
+	Unknown Type = iota
+	Nil
 	Bool
 	Int
 	Uint

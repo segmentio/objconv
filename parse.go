@@ -13,6 +13,9 @@ import (
 type Parser interface {
 	// ParseType is called by a decoder to ask the parser what is the type of
 	// the next value that can be parsed.
+	//
+	// ParseType must be idempotent, it must be possible to call it multiple
+	// without actually changing the state of the parser.
 	ParseType() (Type, error)
 
 	// ParseNil parses a nil value.

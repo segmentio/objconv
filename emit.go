@@ -71,6 +71,11 @@ type ValueEmitter struct {
 	marks []int
 }
 
+// NewValueEmitter returns a pointer to a new ValueEmitter object.
+func NewValueEmitter() *ValueEmitter {
+	return &ValueEmitter{}
+}
+
 // Value returns the value built in the emitter.
 func (e *ValueEmitter) Value() interface{} { return e.stack[0] }
 

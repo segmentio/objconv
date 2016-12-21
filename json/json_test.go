@@ -110,8 +110,6 @@ func TestUnmarshal(t *testing.T) {
 
 func TestStreamEncoder(t *testing.T) {
 	buf := &bytes.Buffer{}
-	buf.Grow(1024)
-
 	enc := NewStreamEncoder(buf)
 
 	for i := 0; i != 10; i++ {
@@ -126,6 +124,29 @@ func TestStreamEncoder(t *testing.T) {
 
 	if s := buf.String(); s != `[0,1,2,3,4,5,6,7,8,9]` {
 		t.Error(s)
+	}
+}
+
+func TestStreamDecoder(t *testing.T) {
+	json := `[0,1,2,3,4,5,6,7,8,9]`
+
+	dec := NewStreamDecoder(strings.NewReader(json))
+	cnt := 0
+	val := 0
+
+	for dec.Decode(&val) == nil {
+		if val != cnt {
+			t.Error(val, "!=", cnt)
+		}
+		cnt++
+	}
+
+	if cnt != 10 {
+		t.Error(cnt)
+	}
+
+	if err := dec.Err(); err != nil {
+		t.Error(err)
 	}
 }
 

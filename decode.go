@@ -927,6 +927,116 @@ func (d Decoder) decodeMapValue(n int) error { return d.Parser.ParseMapValue(n) 
 
 func (d Decoder) decodeMapNext(n int) error { return d.Parser.ParseMapNext(n) }
 
+// StreamDecoder decodes values in a streaming fashion, allowing an array to be
+// consumed without loading it fully in memory.
+//
+// Instances of StreamDecoder are not safe for use by multiple goroutines.
+type StreamDecoder struct {
+	// Parser to use to load values.
+	Parser Parser
+
+	// DecodeMap can be set to a function used to decode maps when there is no
+	// destination type (like when decoding to an empty interface for example).
+	DecodeMapFunc func(Decoder, Decoder) error
+
+	err error
+	typ Type
+	cnt int
+	max int
+}
+
+// NewStreamDecoder returns a new stream decoder that takes input from p.
+//
+// The funciton panics if p is nil.
+func NewStreamDecoder(p Parser) *StreamDecoder {
+	if p == nil {
+		panic("objconv: the parser is nil")
+	}
+	return &StreamDecoder{Parser: p}
+}
+
+// Err returns the last error returned by the Decode method.
+//
+// The method returns nil if the stream reached its natural end.
+func (d *StreamDecoder) Err() error {
+	if d.err == End {
+		return nil
+	}
+	return d.err
+}
+
+// Decodes the next value from the stream into v.
+func (d *StreamDecoder) Decode(v interface{}) error {
+	cnt := d.cnt
+	max := d.max
+	dec := Decoder{
+		Parser:        d.Parser,
+		DecodeMapFunc: d.DecodeMapFunc,
+	}
+
+	typ, err := d.decodeType()
+	if err != nil {
+		return err
+	}
+
+	switch typ {
+	default:
+		if max = 1; cnt == max {
+			err = End
+		}
+	case Array:
+		if cnt == 0 {
+			max, err = dec.decodeArrayBegin()
+		}
+		if cnt == max {
+			err = dec.decodeArrayEnd(cnt)
+		} else if cnt != 0 {
+			err = dec.decodeArrayNext(cnt)
+		}
+	}
+
+	if err == nil {
+		if cnt == max {
+			err = End
+		} else {
+			switch err = dec.Decode(v); err {
+			case nil:
+				cnt++
+			case End:
+				cnt++
+				max = cnt
+			}
+		}
+	}
+
+	d.err = err
+	d.cnt = cnt
+	d.max = max
+	return err
+}
+
+// Encoder returns a new StreamEncoder which can be used to re-encode the stream
+// decoded by d into e.
+//
+// The method panics if e is nil.
+func (d *StreamDecoder) Encoder(e Emitter) (enc *StreamEncoder, err error) {
+	var typ Type
+
+	if typ, err = d.decodeType(); err == nil {
+		enc = NewStreamEncoder(e)
+		enc.oneshot = typ != Array
+	}
+
+	return
+}
+
+func (d *StreamDecoder) decodeType() (Type, error) {
+	if d.err == nil && d.typ == Unknown {
+		d.typ, d.err = d.Parser.ParseType()
+	}
+	return d.typ, d.err
+}
+
 // ValueDecoder is the interface that can be implemented by types that wish to
 // provide their own decoding algorithms.
 //
