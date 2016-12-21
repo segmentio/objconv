@@ -8,7 +8,9 @@ import (
 )
 
 func NewDecoder(r io.Reader) *objconv.Decoder {
-	return objconv.NewDecoder(NewParser(r))
+	return &objconv.Decoder{
+		Parser: NewParser(r),
+	}
 }
 
 func Unmarshal(b []byte, v interface{}) error {
