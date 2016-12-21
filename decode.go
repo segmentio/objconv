@@ -511,11 +511,9 @@ func (d *Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f dec
 			reflect.Copy(sc, s)
 			s = sc
 		}
-
 		if _, err = f(d, s.Index(i)); err != nil {
 			return
 		}
-
 		i++
 		return
 	}); err != nil {
