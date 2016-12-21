@@ -1,20 +1,31 @@
 objconv [![CircleCI](https://circleci.com/gh/segmentio/objconv.svg?style=shield)](https://circleci.com/gh/segmentio/objconv) [![Go Report Card](https://goreportcard.com/badge/github.com/segmentio/objconv)](https://goreportcard.com/report/github.com/segmentio/objconv) [![GoDoc](https://godoc.org/github.com/segmentio/objconv?status.svg)](https://godoc.org/github.com/segmentio/objconv)
 =======
 
-A Go package exposing encoder and decoders that support data streaming to and
-from multiple formats.
+This Go package provides the implementation of high performance encoder and
+decoders for JSON-like object representations.
 
-The design of the package is inspired from the standard [image](https://golang.org/pkg/image/)
-package, a high-level API is exposed and the program can load specific
-implementations by importing subpackages of objconv.  
-Each subpackage provides a parser and emitter in a specific format.
+The top-level package exposes the generic types and algorithms for encoding and
+decoding values, while each sub-package implements the parser and emitters for
+specific types.
 
-Installation
-------------
+Compatibility with the standard library
+---------------------------------------
 
-```shell
-go get github.com/segmentio/objconv
-```
+The sub-packages providing implementation for specific formats also expose APIs
+that mirror those of the standard library to make it easy to integrate with the
+objconv package. However there are a couple of differences that need to be taken
+in consideration:
+
+- When struct tags are used to define the behavior of marshaling or unmarshaling
+structs, the tag name needs to be `objconv` (instead of `json` for example).
+
+- Encoder and Decoder types are not exposed in the objconv sub-packages, instead
+the types from the top-level package are used. For example, variables declared
+with the `json.Encoder` type would have to be replaced with `objconv.Encoder`.
+
+- Interfaces like `json.Marshaler` or `json.Unmarshaler` are not supported.
+However the `encoding.TextMarshaler` and `encoding.TextUnmarshaler` interfaces
+are and will produce the same results.
 
 Encoder
 -------
@@ -29,49 +40,52 @@ package main
 import (
     "os"
 
-    "github.com/segmentio/objconv"
-    _ "github.com/segmentio/objconv/json" // load the JSON codec
+    "github.com/segmentio/objconv/json"
 )
 
 func main() {
-    // prints {"hello":"world"}
-    //
-    objconv.Encode(os.Stdout, "json", struct{
-        Hello `objconv:"hello"`
-    }{"world"})
+    enc := json.NewEncoder(os.Stdout)
+    enc.Encode(struct{
+        Hello string
+    }{"World"})
 }
 ```
+```
+$ go run ./example.go
+{"Hello":"World"}
+```
 
-To support multiple serialization formats the program has to import each
-subpackage it's interested in, then it can select a different encoder name to
-change format of the output.
+Note that this code is fully compatible with the standard `encoding/json`
+package.
 
 Decoder
 -------
 
-Like the encoders, decoders can be identified by name and generate native Go
-values from their serialized representation in different formats.
-
-Here's an example of how to use a decoder:
+Here's an example of how to use a JSON decoder:
 ```go
 package main
 
 import (
-    "github.com/segmentio/objconv"
-    _ "github.com/segmentio/objconv/json" // load the JSON codec
+    "fmt"
+    "os"
+
+    "github.com/segmentio/objconv/json"
 )
 
 func main() {
-    s := `{"hello":"world"}`
     v := struct{
-       Hello `objconv:"hello"`
+        Message string
     }{}
 
-    objconv.DecodeString(s, "json", &v)
+    dec := json.NewDecoder(os.Stdin)
+    dec.Decode(&v)
 
-    // v.Hello == "world"
-    // ...
+    fmt.Println(v.Message)
 }
+```
+```
+$ echo '{ "Message": "Hello World!" }' | go run ./example.go
+Hello World!
 ```
 
 Streaming
@@ -80,7 +94,7 @@ Streaming
 One of the interesting features of the `objconv` package is the ability to read
 and write streams of data. This has several advantages in terms of memory usage
 and latency when passing data from service to service.  
-The package exposes the `StreamEncoder` and `StreamDecoder` interfaces for this
+The package exposes the `StreamEncoder` and `StreamDecoder` types for this
 purpose.
 
 For example the JSON stream encoder and decoder can produce a JSON array as a
@@ -92,7 +106,6 @@ package main
 import (
     "io"
 
-    "github.com/segmentio/objconv"
     "github.com/segmentio/objconv/json"
 )
 
@@ -102,10 +115,7 @@ func main() {
     go func() {
         defer w.Close()
 
-        enc := objconv.NewStreamEncoder(objconv.EncoderConfig{
-            Ouptut:  w,
-            Emitter: &json.Emitter{},
-        })
+        enc := json.NewStreamEncoder(w)
 
         // Produce values to the JSON stream.
         for i := 0; i != 1000; i++ {
@@ -115,10 +125,7 @@ func main() {
         enc.Close()
     }()
 
-    dec := objconv.NewStreamDecoder(objconv.DecoderConfig{
-        Input:  r,
-        Parser: &json.Parser{},
-    })
+    dec := json.NewStreamDecoder(r)
 
     // Consume values from the JSON stream.
     var v interface{}
@@ -136,12 +143,65 @@ values, this is very convenient when an program cannot predict the structure of
 the stream. If the actual data representation is not an array the stream decoder
 will simply behave like a normal decoder and produce a single value.
 
+Encoding custom types
+---------------------
+
+To override the default encoder and decoder behaviors a type may implement the
+`ValueEncoder` or `ValueDecoder` interface. The method on these interfaces are
+called to customize the default behavior.
+
+This can prove very useful to represent slice of pairs as maps for example:
+```go
+type KV struct {
+    K string
+    V interface{}
+}
+
+type M []KV
+
+// Imlpement the ValueEncoder interface to provide a custom encoding.
+func (m M) ValueEncode(e objconv.Encoder) error {
+    i := 0
+    return e.EncodeMap(func(k objconv.Encoder, v objconv.Encoder) (err error) {
+        if i == len(m) {
+            return objconv.End // done
+        }
+
+        if err = k.Encode(m[i].K); err != nil {
+            return
+        }
+
+        if err = v.Encode(m[i].V); err != nil {
+            return
+        }
+
+        i++
+        return
+    })
+}
+```
+
 Mime Types
 ----------
 
-The codecs registers themselves under multiple names, including the standard
-mime-types associated with the serialization format they implement.  
-For example the `objconv/json` package registers its encoder and decoder under
-`text/json` and `application/json` on top of the simpler `json` name.  
-This makes it easy to load encoders and decoders from an HTTP request's
-Content-Type header for example.
+The `mimetype` sub-package exposes APIs for creating encoders and decoders for
+specific mime types. When an objconv package for a specific format is imported
+it registers itself on the `mimetype` registry to be later referred by name.
+
+```go
+import (
+    "github.com/segmentio/objconv/mimetype"
+    _ "github.com/segmentio/objconv/json" // registers the JSON codec
+)
+
+func main() {
+    // Creates an encoder for the "application/json" mime type.
+    enc := mimetype.NewEncoder("application/json", os.Stdout)
+
+    if enc == nil {
+        // no encoder for the specified mime type exists
+    }
+
+    // ...
+}
+```
