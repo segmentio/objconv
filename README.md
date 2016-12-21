@@ -159,7 +159,7 @@ type KV struct {
 
 type M []KV
 
-// Imlpement the ValueEncoder interface to provide a custom encoding.
+// Implement the ValueEncoder interface to provide a custom encoding.
 func (m M) ValueEncode(e objconv.Encoder) error {
     i := 0
     return e.EncodeMap(func(k objconv.Encoder, v objconv.Encoder) (err error) {
