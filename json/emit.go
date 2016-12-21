@@ -4,6 +4,8 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/segmentio/objconv"
 )
 
 var (
@@ -127,7 +129,7 @@ func (e *Emitter) EmitTime(v time.Time) error {
 }
 
 func (e *Emitter) EmitDuration(v time.Duration) error {
-	return e.EmitString(v.String())
+	return e.EmitString(string(objconv.AppendDuration(e.b[:0], v)))
 }
 
 func (e *Emitter) EmitError(v error) error {
