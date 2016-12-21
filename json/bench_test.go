@@ -107,7 +107,6 @@ func BenchmarkCodeDecoder(b *testing.B) {
 }
 
 func BenchmarkDecoderStream(b *testing.B) {
-	codeInit()
 	var buf bytes.Buffer
 	dec := NewDecoder(&buf)
 	buf.WriteString(`"` + strings.Repeat("x", 1000000) + `"` + "\n\n\n")
@@ -122,7 +121,7 @@ func BenchmarkDecoderStream(b *testing.B) {
 			buf.WriteString(ones)
 		}
 		x = nil
-		if err := dec.Decode(&x); err != nil || x != 1.0 {
+		if err := dec.Decode(&x); err != nil || x != int64(1) {
 			b.Fatalf("Decode: %v after %d", err, i)
 		}
 	}
@@ -130,7 +129,7 @@ func BenchmarkDecoderStream(b *testing.B) {
 
 func BenchmarkCodeUnmarshal(b *testing.B) {
 	codeInit()
-	b.StopTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var r codeResponse
 		if err := Unmarshal(codeJSON, &r); err != nil {
@@ -142,13 +141,14 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 
 func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 	codeInit()
-	b.StopTimer()
+	b.ResetTimer()
 	var r codeResponse
 	for i := 0; i < b.N; i++ {
 		if err := Unmarshal(codeJSON, &r); err != nil {
 			b.Fatal("Unmarshal:", err)
 		}
 	}
+	b.SetBytes(int64(len(codeJSON)))
 }
 
 func BenchmarkUnmarshalString(b *testing.B) {

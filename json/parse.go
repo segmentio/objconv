@@ -399,6 +399,7 @@ func (p *Parser) skipSpaces() (err error) {
 		for _, b := range p.b[p.i:p.j] {
 			switch b {
 			case ' ', '\n', '\t', '\r', '\b', '\f':
+				p.i++
 			default:
 				return
 			}
