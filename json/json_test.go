@@ -53,6 +53,10 @@ var jsonTests = []struct {
 
 	{map[string]int{}, `{}`},
 	{map[string]int{"answer": 42}, `{"answer":42}`},
+	{map[string]string{}, `{}`},
+	{map[string]string{"hello": "world"}, `{"hello":"world"}`},
+	{map[string]interface{}{}, `{}`},
+	{map[string]interface{}{"hello": "world"}, `{"hello":"world"}`},
 
 	{struct{}{}, `{}`},
 	{struct {

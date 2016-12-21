@@ -102,6 +102,9 @@ func TestEncoder(t *testing.T) {
 			int64(1): int64(21),
 			int64(2): int64(42),
 		}},
+		{map[string]interface{}{"hello": "world"}, map[interface{}]interface{}{
+			"hello": "world",
+		}},
 
 		// struct
 		{struct{}{}, map[interface{}]interface{}{}},

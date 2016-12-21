@@ -179,6 +179,11 @@ var (
 	textUnmarshalerInterface = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	emptyInterface           = reflect.TypeOf((*interface{})(nil)).Elem()
 	emptyInterfacePtr        = reflect.TypeOf((*interface{})(nil))
+
+	// common map types, used for optimization for map encoding algorithms
+	mapStringStringType       = reflect.TypeOf((map[string]string)(nil))
+	mapStringInterfaceType    = reflect.TypeOf((map[string]interface{})(nil))
+	mapInterfaceInterfaceType = reflect.TypeOf((map[interface{}]interface{})(nil))
 )
 
 func stringNoCopy(b []byte) string {

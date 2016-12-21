@@ -114,6 +114,21 @@ func (e Encoder) encodeValueMap(v reflect.Value) error {
 }
 
 func (e Encoder) encodeValueMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) error {
+	t := v.Type()
+
+	if !e.SortMapKeys {
+		switch {
+		case t.ConvertibleTo(mapInterfaceInterfaceType):
+			return e.encodeValueMapInterfaceInterface(v.Convert(mapInterfaceInterfaceType))
+
+		case t.ConvertibleTo(mapStringInterfaceType):
+			return e.encodeValueMapStringInterface(v.Convert(mapStringInterfaceType))
+
+		case t.ConvertibleTo(mapStringStringType):
+			return e.encodeValueMapStringString(v.Convert(mapStringStringType))
+		}
+	}
+
 	var k []reflect.Value
 	var n = v.Len()
 	var i = 0
@@ -122,7 +137,7 @@ func (e Encoder) encodeValueMapWith(v reflect.Value, kf encodeFunc, vf encodeFun
 		k = v.MapKeys()
 
 		if e.SortMapKeys {
-			sortValues(v.Type().Key(), k)
+			sortValues(t.Key(), k)
 		}
 	}
 
@@ -139,6 +154,96 @@ func (e Encoder) encodeValueMapWith(v reflect.Value, kf encodeFunc, vf encodeFun
 		i++
 		return
 	})
+}
+
+func (e Encoder) encodeValueMapInterfaceInterface(v reflect.Value) (err error) {
+	m := v.Interface().(map[interface{}]interface{})
+	n := len(m)
+	i := 0
+
+	if err = e.encodeMapBegin(n); err != nil {
+		return
+	}
+
+	for k, v := range m {
+		if i != 0 {
+			if err = e.encodeMapNext(); err != nil {
+				return
+			}
+		}
+		if err = e.Encode(k); err != nil {
+			return
+		}
+		if err = e.encodeMapValue(); err != nil {
+			return
+		}
+		if err = e.Encode(v); err != nil {
+			return
+		}
+		i++
+	}
+
+	return e.encodeMapEnd()
+}
+
+func (e Encoder) encodeValueMapStringInterface(v reflect.Value) (err error) {
+	m := v.Interface().(map[string]interface{})
+	n := len(m)
+	i := 0
+
+	if err = e.encodeMapBegin(n); err != nil {
+		return
+	}
+
+	for k, v := range m {
+		if i != 0 {
+			if err = e.encodeMapNext(); err != nil {
+				return
+			}
+		}
+		if err = e.encodeString(k); err != nil {
+			return
+		}
+		if err = e.encodeMapValue(); err != nil {
+			return
+		}
+		if err = e.Encode(v); err != nil {
+			return
+		}
+		i++
+	}
+
+	return e.encodeMapEnd()
+}
+
+func (e Encoder) encodeValueMapStringString(v reflect.Value) (err error) {
+	m := v.Interface().(map[string]string)
+	n := len(m)
+	i := 0
+
+	if err = e.encodeMapBegin(n); err != nil {
+		return
+	}
+
+	for k, v := range m {
+		if i != 0 {
+			if err = e.encodeMapNext(); err != nil {
+				return
+			}
+		}
+		if err = e.encodeString(k); err != nil {
+			return
+		}
+		if err = e.encodeMapValue(); err != nil {
+			return
+		}
+		if err = e.encodeString(v); err != nil {
+			return
+		}
+		i++
+	}
+
+	return e.encodeMapEnd()
 }
 
 func (e Encoder) encodeValueStruct(v reflect.Value) error {
