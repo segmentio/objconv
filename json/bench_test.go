@@ -17,6 +17,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -35,32 +36,37 @@ type codeNode struct {
 	MeanT    int64       `objconv:"mean_t"`
 }
 
+var codeOnce sync.Once
 var codeJSON []byte
 var codeStruct codeResponse
 
-func init() {
-	f, err := os.Open(runtime.GOROOT() + "/src/encoding/json/testdata/code.json.gz")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		panic(err)
-	}
-	data, err := ioutil.ReadAll(gz)
-	if err != nil {
-		panic(err)
-	}
+func codeInit() {
+	codeOnce.Do(func() {
+		f, err := os.Open(runtime.GOROOT() + "/src/encoding/json/testdata/code.json.gz")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			panic(err)
+		}
+		data, err := ioutil.ReadAll(gz)
+		if err != nil {
+			panic(err)
+		}
 
-	codeJSON = data
+		codeJSON = data
 
-	if err := Unmarshal(codeJSON, &codeStruct); err != nil {
-		panic("unmarshal code.json: " + err.Error())
-	}
+		if err := Unmarshal(codeJSON, &codeStruct); err != nil {
+			panic("unmarshal code.json: " + err.Error())
+		}
+	})
 }
 
 func BenchmarkCodeEncoder(b *testing.B) {
+	codeInit()
+	b.ResetTimer()
 	enc := NewEncoder(ioutil.Discard)
 	for i := 0; i < b.N; i++ {
 		if err := enc.Encode(&codeStruct); err != nil {
@@ -71,6 +77,8 @@ func BenchmarkCodeEncoder(b *testing.B) {
 }
 
 func BenchmarkCodeMarshal(b *testing.B) {
+	codeInit()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := Marshal(&codeStruct); err != nil {
 			b.Fatal("Marshal:", err)
@@ -80,6 +88,8 @@ func BenchmarkCodeMarshal(b *testing.B) {
 }
 
 func BenchmarkCodeDecoder(b *testing.B) {
+	codeInit()
+	b.ResetTimer()
 	var buf bytes.Buffer
 	dec := NewDecoder(&buf)
 	var r codeResponse
@@ -97,7 +107,7 @@ func BenchmarkCodeDecoder(b *testing.B) {
 }
 
 func BenchmarkDecoderStream(b *testing.B) {
-	b.StopTimer()
+	codeInit()
 	var buf bytes.Buffer
 	dec := NewDecoder(&buf)
 	buf.WriteString(`"` + strings.Repeat("x", 1000000) + `"` + "\n\n\n")
@@ -106,7 +116,7 @@ func BenchmarkDecoderStream(b *testing.B) {
 		b.Fatal("Decode:", err)
 	}
 	ones := strings.Repeat(" 1\n", 300000) + "\n\n\n"
-	b.StartTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if i%300000 == 0 {
 			buf.WriteString(ones)
@@ -119,6 +129,8 @@ func BenchmarkDecoderStream(b *testing.B) {
 }
 
 func BenchmarkCodeUnmarshal(b *testing.B) {
+	codeInit()
+	b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		var r codeResponse
 		if err := Unmarshal(codeJSON, &r); err != nil {
@@ -129,6 +141,8 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 }
 
 func BenchmarkCodeUnmarshalReuse(b *testing.B) {
+	codeInit()
+	b.StopTimer()
 	var r codeResponse
 	for i := 0; i < b.N; i++ {
 		if err := Unmarshal(codeJSON, &r); err != nil {

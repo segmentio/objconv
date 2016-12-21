@@ -12,8 +12,14 @@ import (
 //
 // Decoders are not safe for use by multiple goroutines.
 type Decoder struct {
-	Parser Parser // The parser used by this decoder.
-	off    int    // offset of the value when decoding a map
+	// Parser to use to load values.
+	Parser Parser
+
+	// DecodeMap can be set to a function used to decode maps when there is no
+	// destination type (like when decoding to an empty interface for example).
+	DecodeMapFunc func(Decoder, Decoder) error
+
+	off int // offset of the value when decoding a map
 }
 
 // NewDecoder returns a decoder object that uses p, will panic if p is nil.
@@ -41,7 +47,7 @@ func (d Decoder) Decode(v interface{}) (err error) {
 	}
 
 	if d.off != 0 {
-		if d.off, err = 0, d.decodeMapValue(d.off); err != nil {
+		if d.off, err = 0, d.decodeMapValue(d.off-1); err != nil {
 			return
 		}
 	}
@@ -71,7 +77,8 @@ func (d Decoder) decodeValueNilFromType(t Type, to reflect.Value) (err error) {
 			To:   Nil,
 		}
 	}
-	to.Set(reflect.Zero(to.Type()))
+
+	to.Set(zeroValueOf(to.Type()))
 	return
 }
 
@@ -485,13 +492,15 @@ func (d Decoder) decodeValueSliceFromType(typ Type, to reflect.Value) (err error
 
 func (d Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
 	i := 0
-	n := 20
-	t := to.Type()                  // []T
-	s := reflect.MakeSlice(t, n, n) // make([]T, 20, 20)
+	n := 0
+	t := to.Type()
+	s := reflect.MakeSlice(t, 0, 0)
 
 	if err = d.decodeArrayFromType(typ, func(d Decoder) (err error) {
 		if i == n {
-			n *= 2
+			if n *= 5; n == 0 {
+				n = 10
+			}
 			sc := reflect.MakeSlice(t, n, n)
 			reflect.Copy(sc, s)
 			s = sc
@@ -505,14 +514,13 @@ func (d Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f deco
 		return
 	}
 
-	if i != n {
-		s = s.Slice(0, i)
-	}
-
-	if typ != Nil {
-		to.Set(s)
+	if typ == Nil {
+		to.Set(zeroValueOf(t))
 	} else {
-		to.Set(reflect.Zero(t))
+		if i != n {
+			s = s.Slice(0, i)
+		}
+		to.Set(s)
 	}
 
 	return
@@ -534,10 +542,10 @@ func (d Decoder) decodeValueArrayFromType(typ Type, to reflect.Value) (err error
 }
 
 func (d Decoder) decodeValueArrayFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
-	n := to.Len()        // len(to)
-	t := to.Type()       // [...]T
-	e := t.Elem()        // T
-	z := reflect.Zero(e) // T{}
+	n := to.Len()       // len(to)
+	t := to.Type()      // [...]T
+	e := t.Elem()       // T
+	z := zeroValueOf(e) // T{}
 
 	for i := 0; i != n; i++ {
 		to.Index(i).Set(z) // reset to the zero-value
@@ -589,35 +597,40 @@ func (d Decoder) decodeValueMapFromTypeWith(typ Type, to reflect.Value, kf decod
 	m := reflect.MakeMap(t) // make(map[K]V)
 
 	kt := t.Key()                // K
-	kz := reflect.Zero(kt)       // K{}
+	kz := zeroValueOf(kt)        // K{}
 	kv := reflect.New(kt).Elem() // &K{}
 
 	vt := t.Elem()               // V
-	vz := reflect.Zero(vt)       // V{}
+	vz := zeroValueOf(vt)        // V{}
 	vv := reflect.New(vt).Elem() // &V{}
 
-	if err = d.decodeMapFromType(typ, func(kd Decoder, vd Decoder) (err error) {
-		kv.Set(kz) // reset the key to its zero-value
-		vv.Set(vz) // reset the value to its zero-value
-		if _, err = kf(d, kv); err != nil {
+	f := d.DecodeMapFunc
+	if f == nil {
+		f = func(kd Decoder, vd Decoder) (err error) {
+			kv.Set(kz) // reset the key to its zero-value
+			vv.Set(vz) // reset the value to its zero-value
+			if _, err = kf(d, kv); err != nil {
+				return
+			}
+			if err = d.decodeMapValue(vd.off - 1); err != nil {
+				return
+			}
+			if _, err = vf(d, vv); err != nil {
+				return
+			}
+			m.SetMapIndex(kv, vv)
 			return
 		}
-		if err = d.decodeMapValue(vd.off - 1); err != nil {
-			return
-		}
-		if _, err = vf(d, vv); err != nil {
-			return
-		}
-		m.SetMapIndex(kv, vv)
-		return
-	}); err != nil {
+	}
+
+	if err = d.decodeMapFromType(typ, f); err != nil {
 		return
 	}
 
 	if typ != Nil {
 		to.Set(m)
 	} else {
-		to.Set(reflect.Zero(t))
+		to.Set(zeroValueOf(t))
 	}
 
 	return
@@ -659,7 +672,7 @@ func (d Decoder) decodeValueStructFromTypeWith(typ Type, to reflect.Value, s *St
 		_, err = f.decode(d, to.FieldByIndex(f.Index))
 		return
 	}); err != nil {
-		to.Set(reflect.Zero(to.Type()))
+		to.Set(zeroValueOf(to.Type()))
 	}
 	return
 }
@@ -685,7 +698,7 @@ func (d Decoder) decodeValuePointerWith(to reflect.Value, f decodeFunc) (typ Typ
 	if to.CanSet() {
 		switch {
 		case typ == Nil:
-			to.Set(reflect.Zero(t))
+			to.Set(zeroValueOf(t))
 
 		case to.IsNil():
 			to.Set(v)
@@ -752,7 +765,7 @@ func (d Decoder) decodeValueInterfaceFromType(t Type, to reflect.Value) (err err
 
 func (d Decoder) decodeValueInterfaceFromNil(to reflect.Value) (err error) {
 	if err = d.decodeNil(); err == nil {
-		to.Set(reflect.Zero(to.Type()))
+		to.Set(zeroValueOf(to.Type()))
 	}
 	return
 }
@@ -803,7 +816,7 @@ func (d Decoder) DecodeArray(f func(Decoder) error) (t Type, err error) {
 	}
 
 	if d.off != 0 {
-		if d.off, err = 0, d.decodeMapValue(d.off); err != nil {
+		if d.off, err = 0, d.decodeMapValue(d.off-1); err != nil {
 			return
 		}
 	}
@@ -876,7 +889,7 @@ func (d Decoder) DecodeMap(f func(Decoder, Decoder) error) (t Type, err error) {
 	}
 
 	if d.off != 0 {
-		if d.off, err = 0, d.decodeMapValue(d.off); err != nil {
+		if d.off, err = 0, d.decodeMapValue(d.off-1); err != nil {
 			return
 		}
 	}
@@ -920,12 +933,11 @@ func (d Decoder) decodeMapFromType(t Type, f func(Decoder, Decoder) error) (err 
 			}
 		}
 
-		err = f(
-			Decoder{Parser: d.Parser},             // key decoder
-			Decoder{Parser: d.Parser, off: i + 1}, // value decoder
-		)
+		d1 := d
+		d2 := d
+		d2.off = i + 1
 
-		if err != nil {
+		if err = f(d1, d2); err != nil {
 			return
 		}
 

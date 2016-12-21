@@ -3,6 +3,7 @@ package objconv
 import (
 	"encoding"
 	"reflect"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -141,6 +142,28 @@ func isZeroStruct(v reflect.Value) bool {
 	}
 
 	return true
+}
+
+var (
+	zeroCache = make(map[reflect.Type]reflect.Value)
+	zeroMutex sync.RWMutex
+)
+
+// zeroValueOf and the related cache is used to keep the zero values so they
+// don't need to be reallocated everytime they're used.
+func zeroValueOf(t reflect.Type) reflect.Value {
+	zeroMutex.RLock()
+	v, ok := zeroCache[t]
+	zeroMutex.RUnlock()
+
+	if !ok {
+		v = reflect.Zero(t)
+		zeroMutex.Lock()
+		zeroCache[t] = v
+		zeroMutex.Unlock()
+	}
+
+	return v
 }
 
 var (
