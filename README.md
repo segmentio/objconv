@@ -25,7 +25,7 @@ with the `json.Encoder` type would have to be replaced with `objconv.Encoder`.
 
 - Interfaces like `json.Marshaler` or `json.Unmarshaler` are not supported.
 However the `encoding.TextMarshaler` and `encoding.TextUnmarshaler` interfaces
-are and will produce the same results.
+are.
 
 Encoder
 -------
