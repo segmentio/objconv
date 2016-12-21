@@ -15,6 +15,7 @@ import (
 	"compress/gzip"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -38,7 +39,7 @@ var codeJSON []byte
 var codeStruct codeResponse
 
 func init() {
-	f, err := os.Open(os.Getenv("GOROOT") + "/src/encoding/json/testdata/code.json.gz")
+	f, err := os.Open(runtime.GOROOT() + "/src/encoding/json/testdata/code.json.gz")
 	if err != nil {
 		panic(err)
 	}
