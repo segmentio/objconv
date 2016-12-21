@@ -246,3 +246,71 @@ func BenchmarkEncoder(b *testing.B) {
 		})
 	}
 }
+
+func TestStreamEncoderFix(t *testing.T) {
+	val := &ValueEmitter{}
+	enc := NewStreamEncoder(val)
+
+	if err := enc.Open(10); err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; i != 10; i++ {
+		if err := enc.Encode(i); err != nil {
+			t.Error(err)
+		}
+	}
+
+	x1 := []interface{}{
+		int64(0),
+		int64(1),
+		int64(2),
+		int64(3),
+		int64(4),
+		int64(5),
+		int64(6),
+		int64(7),
+		int64(8),
+		int64(9),
+	}
+
+	x2 := val.Value()
+
+	if !reflect.DeepEqual(x1, x2) {
+		t.Error(x1, "!=", x2)
+	}
+}
+
+func TestStreamEncoderVar(t *testing.T) {
+	val := &ValueEmitter{}
+	enc := NewStreamEncoder(val)
+
+	for i := 0; i != 10; i++ {
+		if err := enc.Encode(i); err != nil {
+			t.Error(err)
+		}
+	}
+
+	if err := enc.Close(); err != nil {
+		t.Error(err)
+	}
+
+	x1 := []interface{}{
+		int64(0),
+		int64(1),
+		int64(2),
+		int64(3),
+		int64(4),
+		int64(5),
+		int64(6),
+		int64(7),
+		int64(8),
+		int64(9),
+	}
+
+	x2 := val.Value()
+
+	if !reflect.DeepEqual(x1, x2) {
+		t.Error(x1, "!=", x2)
+	}
+}

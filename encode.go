@@ -3,6 +3,7 @@ package objconv
 import (
 	"encoding"
 	"fmt"
+	"io"
 	"reflect"
 	"sync"
 	"time"
@@ -15,7 +16,7 @@ import (
 // Instances of Encoder are not safe for use by multiple goroutines.
 type Encoder struct {
 	Emitter     Emitter // the emitter used by this encoder
-	SortMapKeys bool    // whether the map keys should be sorted
+	SortMapKeys bool    // whether map keys should be sorted
 	key         bool
 }
 
@@ -330,36 +331,27 @@ func (e Encoder) encodeMapValue() error { return e.Emitter.EmitMapValue() }
 
 func (e Encoder) encodeMapNext() error { return e.Emitter.EmitMapNext() }
 
-/*
 // A StreamEncoder encodes and writes a stream of values to an output stream.
 //
 // Instances of StreamEncoder are not safe for use by multiple goroutines.
 type StreamEncoder struct {
-	enc    Encoder
+	Emitter     Emitter // the emiiter used by this encoder
+	SortMapKeys bool    // whether map keys should be sorted
+
 	err    error
-	len    int
-	off    int
+	max    int
+	cnt    int
 	opened bool
 	closed bool
 }
 
 // NewStreamEncoder returns a new stream encoder that outputs to emitter.
 func NewStreamEncoder(emitter Emitter) *StreamEncoder {
-	return NewStreamEncoderWith(EncoderConfig{
-		Emitter: emitter,
-	})
-}
-
-// NewStreamEncoder returns a new stream encoder configured with config.
-func NewStreamEncoderWith(config EncoderConfig) *StreamEncoder {
-	if config.Emitter == nil {
+	if emitter == nil {
 		panic("objconv.NewStreamEncoder: the emitter is nil")
 	}
 	return &StreamEncoder{
-		enc: Encoder{
-			e:    config.Emitter,
-			sort: config.SortMapKeys,
-		},
+		Emitter: emitter,
 	}
 }
 
@@ -379,23 +371,28 @@ func (e *StreamEncoder) Open(n int) error {
 	}
 
 	if !e.opened {
-		e.len = n
+		e.max = n
 		e.opened = true
-		e.err = e.enc.encodeArrayBegin(n)
+		e.err = e.encoder().encodeArrayBegin(n)
 	}
 
 	return e.err
 }
 
 // Close terminates the stream encoder.
+//
+// Calling Close is optional if the stream was open with a predefined length
+// (by calling Open with a non-negative value).
 func (e *StreamEncoder) Close() error {
 	if err := e.Open(-1); err != nil {
 		return err
 	}
+
 	if !e.closed {
 		e.closed = true
-		e.err = e.enc.encodeArrayEnd()
+		e.err = e.encoder().encodeArrayEnd()
 	}
+
 	return e.err
 }
 
@@ -406,21 +403,33 @@ func (e *StreamEncoder) Encode(v interface{}) error {
 		return err
 	}
 
-	if e.off != 0 {
-		e.err = e.enc.encodeArrayNext()
+	if e.max >= 0 && e.cnt >= e.max {
+		return fmt.Errorf("objconv: too many values sent to a stream encoder exceed the configured limit of %d", e.max)
+	}
+
+	enc := e.encoder()
+
+	if e.cnt != 0 {
+		e.err = enc.encodeArrayNext()
 	}
 
 	if e.err == nil {
-		e.err = e.enc.Encode(v)
+		e.err = enc.Encode(v)
 
-		if e.off++; e.len >= 0 && e.off >= e.len {
+		if e.cnt++; e.max >= 0 && e.cnt >= e.max {
 			e.Close()
 		}
 	}
 
 	return e.err
 }
-*/
+
+func (e *StreamEncoder) encoder() Encoder {
+	return Encoder{
+		Emitter:     e.Emitter,
+		SortMapKeys: e.SortMapKeys,
+	}
+}
 
 // ValueEncoder is the interface that can be implemented by types that wish to
 // provide their own encoding algorithms.
