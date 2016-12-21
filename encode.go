@@ -2,6 +2,7 @@ package objconv
 
 import (
 	"encoding"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -203,7 +204,7 @@ func (e Encoder) encodeValueTextMarshaler(v reflect.Value) error {
 }
 
 func (e Encoder) encodeValueUnsupported(v reflect.Value) error {
-	return &UnsupportedTypeError{Type: v.Type()}
+	return fmt.Errorf("objconv: the encoder doesn't support values of type %s", v.Type())
 }
 
 func (e Encoder) encodeNil() error { return e.Emitter.EmitNil() }

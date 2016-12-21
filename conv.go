@@ -1,6 +1,9 @@
 package objconv
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 const (
 	// UintMax is the maximum value of a uint.
@@ -100,22 +103,19 @@ var (
 	float64Type = reflect.TypeOf(float64(0))
 )
 
-func checkUint64Bounds(v uint64, max uint64, t reflect.Type) error {
+func checkUint64Bounds(v uint64, max uint64, t reflect.Type) (err error) {
 	if v > max {
-		return &OutOfBoundsError{
-			Value: v,
-			Type:  t,
-		}
+		err = fmt.Errorf("objconv: %d overflows the maximum value of %d for %s", v, max, t)
 	}
-	return nil
+	return
 }
 
-func checkInt64Bounds(v int64, min int64, max uint64, t reflect.Type) error {
-	if v < min || (v > 0 && uint64(v) > max) {
-		return &OutOfBoundsError{
-			Value: v,
-			Type:  t,
-		}
+func checkInt64Bounds(v int64, min int64, max uint64, t reflect.Type) (err error) {
+	if v < min {
+		err = fmt.Errorf("objconv: %d overflows the minimum value of %d for %s", v, min, t)
 	}
-	return nil
+	if v > 0 && uint64(v) > max {
+		err = fmt.Errorf("objconv: %d overflows the maximum value of %d for %s", v, max, t)
+	}
+	return
 }

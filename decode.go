@@ -3,6 +3,7 @@ package objconv
 import (
 	"encoding"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 )
@@ -72,10 +73,7 @@ func (d Decoder) decodeValueNilFromType(t Type, to reflect.Value) (err error) {
 	case Nil:
 		err = d.decodeNil()
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   Nil,
-		}
+		err = typeConversionError(t, Nil)
 	}
 
 	to.Set(zeroValueOf(to.Type()))
@@ -100,10 +98,7 @@ func (d Decoder) decodeValueBoolFromType(t Type, to reflect.Value) (err error) {
 		v, err = d.decodeBool()
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   Bool,
-		}
+		err = typeConversionError(t, Bool)
 	}
 
 	if err != nil {
@@ -166,10 +161,7 @@ func (d Decoder) decodeValueIntFromType(t Type, to reflect.Value) (err error) {
 		i = int64(u)
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   Int,
-		}
+		err = typeConversionError(t, Int)
 	}
 
 	if err != nil {
@@ -232,10 +224,7 @@ func (d Decoder) decodeValueUintFromType(t Type, to reflect.Value) (err error) {
 		}
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   Uint,
-		}
+		err = typeConversionError(t, Uint)
 	}
 
 	if err != nil {
@@ -274,10 +263,7 @@ func (d Decoder) decodeValueFloatFromType(t Type, to reflect.Value) (err error) 
 		f, err = d.decodeFloat()
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   Float,
-		}
+		err = typeConversionError(t, Float)
 	}
 
 	if err != nil {
@@ -309,10 +295,7 @@ func (d Decoder) decodeValueStringFromType(t Type, to reflect.Value) (err error)
 		b, err = d.decodeBytes()
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   String,
-		}
+		err = typeConversionError(t, String)
 	}
 
 	if err != nil {
@@ -345,10 +328,7 @@ func (d Decoder) decodeValueBytesFromType(t Type, to reflect.Value) (err error) 
 		b, err = d.decodeBytes()
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   String,
-		}
+		err = typeConversionError(t, String)
 	}
 
 	if err != nil {
@@ -566,10 +546,7 @@ func (d Decoder) decodeValueArrayFromTypeWith(typ Type, to reflect.Value, f deco
 	}
 
 	if (typ != Nil) && (i != n) {
-		typ, err = Nil, &ArrayLengthError{
-			Type:   t,
-			Length: n,
-		}
+		err = fmt.Errorf("objconv: array length mismatch, expected %d but only %d elements were decoded", n, i)
 	}
 
 	return
@@ -781,7 +758,7 @@ func (d Decoder) decodeValueInterfaceFrom(from interface{}, t Type, to reflect.V
 }
 
 func (d Decoder) decodeValueUnsupported(to reflect.Value) (Type, error) {
-	return Nil, &UnsupportedTypeError{Type: to.Type()}
+	return Nil, fmt.Errorf("objconv: the decoder doesn't support values of type %s", to.Type())
 }
 
 func (d Decoder) decodeType() (Type, error) { return d.Parser.ParseType() }
@@ -837,10 +814,7 @@ func (d Decoder) decodeArrayFromType(t Type, f func(Decoder) error) (err error) 
 		n, err = d.decodeArrayBegin()
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   Array,
-		}
+		err = typeConversionError(t, Array)
 	}
 
 	if err != nil {
@@ -910,10 +884,7 @@ func (d Decoder) decodeMapFromType(t Type, f func(Decoder, Decoder) error) (err 
 		n, err = d.decodeMapBegin()
 
 	default:
-		err = &TypeConversionError{
-			From: t,
-			To:   Map,
-		}
+		err = typeConversionError(t, Map)
 	}
 
 	if err != nil {
