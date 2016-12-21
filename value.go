@@ -151,7 +151,7 @@ var (
 )
 
 // zeroValueOf and the related cache is used to keep the zero values so they
-// don't need to be reallocated everytime they're used.
+// don't need to be reallocated every time they're used.
 func zeroValueOf(t reflect.Type) reflect.Value {
 	zeroMutex.RLock()
 	v, ok := zeroCache[t]

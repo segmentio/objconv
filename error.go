@@ -11,7 +11,7 @@ func typeConversionError(from Type, to Type) error {
 
 var (
 	// End is expected to be returned to indicate that a function has completed
-	// its owrk, this is usually employed in generic algorithms.
+	// its work, this is usually employed in generic algorithms.
 	End = errors.New("end")
 
 	// This error value is used as a building block for reflection and is never

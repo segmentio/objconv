@@ -143,8 +143,8 @@ values, this is very convenient when an program cannot predict the structure of
 the stream. If the actual data representation is not an array the stream decoder
 will simply behave like a normal decoder and produce a single value.
 
-Encoding custom types
----------------------
+Encoding and decoding custom types
+----------------------------------
 
 To override the default encoder and decoder behaviors a type may implement the
 `ValueEncoder` or `ValueDecoder` interface. The method on these interfaces are

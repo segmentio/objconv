@@ -23,7 +23,7 @@ func ParseTag(tag string) Tag {
 
 	name, tag := parseNextTagToken(tag)
 	tokens[0], tag = parseNextTagToken(tag)
-	tokens[1], tag = parseNextTagToken(tag)
+	tokens[1], _ = parseNextTagToken(tag)
 
 	for _, t := range tokens {
 		switch t {
