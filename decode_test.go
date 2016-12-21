@@ -163,7 +163,7 @@ func TestDecoderDecodeType(t *testing.T) {
 		{map[int]int{}, map[int]int{}},
 		{map[int]int{1: 21, 2: 42}, map[int]int{1: 21, 2: 42}},
 		{map[int]map[int]int{}, map[int]map[int]int{}},
-		{map[int]map[int]int{1: map[int]int{2: 3}}, map[int]map[int]int{1: map[int]int{2: 3}}},
+		{map[int]map[int]int{1: {2: 3}}, map[int]map[int]int{1: {2: 3}}},
 
 		// map -> struct
 		{map[string]int{}, struct{}{}},
@@ -259,8 +259,8 @@ func TestDecoderDecodeToEmptyInterface(t *testing.T) {
 
 func TestStreamDecoder(t *testing.T) {
 	tests := [][]interface{}{
-		[]interface{}{},
-		[]interface{}{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		{},
+		{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 	}
 
 	for _, test := range tests {

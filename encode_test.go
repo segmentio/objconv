@@ -122,9 +122,9 @@ func TestEncoder(t *testing.T) {
 		// list of complex data structures
 		{
 			in: []map[string]string{
-				map[string]string{"A": "hello", "B": "world"},
-				map[string]string{},
-				map[string]string{"A": "1"},
+				{"A": "hello", "B": "world"},
+				{},
+				{"A": "1"},
 			},
 			out: []interface{}{
 				map[interface{}]interface{}{"A": "hello", "B": "world"},
@@ -136,7 +136,7 @@ func TestEncoder(t *testing.T) {
 		// nested structs and maps
 		{
 			in: map[string]struct{ M map[int][]int }{
-				"answer": {map[int][]int{1: []int{1, 2, 3}, 2: nil}},
+				"answer": {map[int][]int{1: {1, 2, 3}, 2: nil}},
 			},
 			out: map[interface{}]interface{}{
 				"answer": map[interface{}]interface{}{
