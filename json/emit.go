@@ -123,7 +123,7 @@ func (e *Emitter) EmitBytes(v []byte) error {
 }
 
 func (e *Emitter) EmitTime(v time.Time) error {
-	return e.EmitString(v.Format(time.RFC3339Nano))
+	return e.EmitString(string(v.AppendFormat(e.b[:0], time.RFC3339Nano)))
 }
 
 func (e *Emitter) EmitDuration(v time.Duration) error {
