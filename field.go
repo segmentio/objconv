@@ -50,6 +50,6 @@ func makeStructField(f reflect.StructField, c map[reflect.Type]*Struct) StructFi
 	return s
 }
 
-func omit(f StructField, v reflect.Value) bool {
+func (f *StructField) omit(v reflect.Value) bool {
 	return (f.Omitempty && isEmptyValue(v)) || (f.Omitzero && isZeroValue(v))
 }

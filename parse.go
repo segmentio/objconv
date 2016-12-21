@@ -285,7 +285,7 @@ func (p *ValueParser) ParseMapBegin() (n int, err error) {
 		s := LookupStruct(v.Type())
 
 		for _, f := range s.Fields {
-			if !omit(f, v.FieldByIndex(f.Index)) {
+			if !f.omit(v.FieldByIndex(f.Index)) {
 				c.fields = append(c.fields, f)
 				n++
 			}
