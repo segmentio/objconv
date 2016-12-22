@@ -26,9 +26,9 @@ var (
 // Emitter implements a JSON emitter that satisfies the objconv.Emitter
 // interface.
 type Emitter struct {
-	b [128]byte
-	s []byte
 	w io.Writer
+	s []byte
+	b [128]byte
 }
 
 func NewEmitter(w io.Writer) *Emitter {

@@ -211,7 +211,7 @@ func (p *Parser) ParseString() (v []byte, err error) {
 				v = v[:i+n]
 				continue
 
-			default: // not sure what this escape sequence i
+			default: // not sure what this escape sequence is
 				v = append(v, '\\')
 			}
 		} else if b == '\\' {
@@ -413,7 +413,7 @@ func (p *Parser) readUnicode() (r rune, err error) {
 		return
 	}
 
-	if code, err = strconv.ParseUint(stringNoCopy(chunk), 16, 32); err != nil {
+	if code, err = strconv.ParseUint(stringNoCopy(chunk), 16, 16); err != nil {
 		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code point but found '%s'", string(chunk))
 		return
 	}
