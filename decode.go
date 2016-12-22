@@ -1221,17 +1221,17 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	case reflect.Struct:
 		return makeDecodeStructFunc(t, opts)
 
-	case reflect.Map:
-		return makeDecodeMapFunc(t, opts)
-
-	case reflect.Ptr:
-		return makeDecodePtrFunc(t, opts)
-
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return Decoder.decodeValueBytes
 		}
 		return makeDecodeSliceFunc(t, opts)
+
+	case reflect.Map:
+		return makeDecodeMapFunc(t, opts)
+
+	case reflect.Ptr:
+		return makeDecodePtrFunc(t, opts)
 
 	case reflect.Array:
 		return makeDecodeArrayFunc(t, opts)

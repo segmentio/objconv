@@ -587,13 +587,36 @@ func encodeFuncOf(t reflect.Type) encodeFunc {
 }
 
 func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
-	switch {
-	case t == timeType:
+	switch t {
+	case boolType:
+		return Encoder.encodeValueBool
+
+	case stringType:
+		return Encoder.encodeValueString
+
+	case bytesType:
+		return Encoder.encodeValueBytes
+
+	case timeType:
 		return Encoder.encodeValueTime
 
-	case t == durationType:
+	case durationType:
 		return Encoder.encodeValueDuration
 
+	case emptyInterface:
+		return Encoder.encodeValueInterface
+
+	case intType, int8Type, int16Type, int32Type, int64Type:
+		return Encoder.encodeValueInt
+
+	case uintType, uint8Type, uint16Type, uint32Type, uint64Type, uintptrType:
+		return Encoder.encodeValueUint
+
+	case float32Type, float64Type:
+		return Encoder.encodeValueFloat
+	}
+
+	switch {
 	case t.Implements(valueEncoderInterface):
 		return Encoder.encodeValueEncoder
 
@@ -605,6 +628,24 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 	}
 
 	switch t.Kind() {
+	case reflect.Struct:
+		return makeEncodeStructFunc(t, opts)
+
+	case reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return Encoder.encodeValueBytes
+		}
+		return makeEncodeArrayFunc(t, opts)
+
+	case reflect.Map:
+		return makeEncodeMapFunc(t, opts)
+
+	case reflect.Ptr:
+		return makeEncodePtrFunc(t, opts)
+
+	case reflect.Array:
+		return makeEncodeArrayFunc(t, opts)
+
 	case reflect.Bool:
 		return Encoder.encodeValueBool
 
@@ -619,27 +660,6 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 
 	case reflect.String:
 		return Encoder.encodeValueString
-
-	case reflect.Slice:
-		if t.Elem().Kind() == reflect.Uint8 {
-			return Encoder.encodeValueBytes
-		}
-		return makeEncodeArrayFunc(t, opts)
-
-	case reflect.Array:
-		return makeEncodeArrayFunc(t, opts)
-
-	case reflect.Map:
-		return makeEncodeMapFunc(t, opts)
-
-	case reflect.Struct:
-		return makeEncodeStructFunc(t, opts)
-
-	case reflect.Ptr:
-		return makeEncodePtrFunc(t, opts)
-
-	case reflect.Interface:
-		return Encoder.encodeValueInterface
 
 	default:
 		return Encoder.encodeValueUnsupported
