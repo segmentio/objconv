@@ -116,19 +116,35 @@ func (e *Emitter) EmitString(v string) (err error) {
 	return
 }
 
-func (e *Emitter) EmitBytes(v []byte) error {
+func (e *Emitter) EmitBytes(v []byte) (err error) {
 	return e.EmitString(string(v))
 }
 
-func (e *Emitter) EmitTime(v time.Time) error {
-	return e.EmitString(string(v.AppendFormat(e.b[:0], time.RFC3339Nano)))
+func (e *Emitter) EmitTime(v time.Time) (err error) {
+	s := e.s[:0]
+
+	s = append(s, '"')
+	s = v.AppendFormat(s, time.RFC3339Nano)
+	s = append(s, '"')
+
+	e.s = s[:0]
+	_, err = e.w.Write(s)
+	return
 }
 
-func (e *Emitter) EmitDuration(v time.Duration) error {
-	return e.EmitString(string(objconv.AppendDuration(e.b[:0], v)))
+func (e *Emitter) EmitDuration(v time.Duration) (err error) {
+	s := e.s[:0]
+
+	s = append(s, '"')
+	s = objconv.AppendDuration(s, v)
+	s = append(s, '"')
+
+	e.s = s[:0]
+	_, err = e.w.Write(s)
+	return
 }
 
-func (e *Emitter) EmitError(v error) error {
+func (e *Emitter) EmitError(v error) (err error) {
 	return e.EmitString(v.Error())
 }
 
