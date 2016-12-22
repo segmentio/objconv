@@ -21,11 +21,8 @@ func NewStreamEncoder(w io.Writer) *objconv.StreamEncoder {
 // Marshal writes the JSON representation of v to a byte slice returned in b.
 func Marshal(v interface{}) (b []byte, err error) {
 	m := marshalerPool.Get().(*marshaler)
-	e := objconv.Encoder{
-		Emitter: m,
-	}
 
-	if err = e.Encode(v); err == nil {
+	if err = (objconv.Encoder{Emitter: m}).Encode(v); err == nil {
 		b = m.bytes()
 	} else {
 		m.reset()

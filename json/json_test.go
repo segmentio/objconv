@@ -207,6 +207,30 @@ func BenchmarkEncoder(b *testing.B) {
 	}
 }
 
+func BenchmarkUnmarshal(b *testing.B) {
+	for _, test := range jsonTests {
+		var t reflect.Type
+
+		if test.v == nil {
+			t = reflect.TypeOf((*interface{})(nil)).Elem()
+		} else {
+			t = reflect.TypeOf(test.v)
+		}
+
+		v := reflect.New(t).Interface()
+		s := []byte(test.s)
+
+		b.Run(test.s, func(b *testing.B) {
+			for i := 0; i != b.N; i++ {
+				if err := Unmarshal(s, v); err != nil {
+					b.Fatal(err)
+				}
+			}
+			b.SetBytes(int64(len(test.s)))
+		})
+	}
+}
+
 func BenchmarkDecoder(b *testing.B) {
 	r := strings.NewReader("")
 	p := NewParser(nil)
