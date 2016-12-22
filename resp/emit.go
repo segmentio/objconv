@@ -241,5 +241,20 @@ func appendCRLF(b []byte) []byte {
 }
 
 func indexCRLF(s string) int {
-	return strings.Index(s, "\r\n")
+	for i, n := 0, len(s); i != n; i++ {
+		j := strings.IndexByte(s[i:], '\r')
+
+		if j < 0 {
+			break
+		}
+
+		if j++; j == n {
+			break
+		}
+
+		if s[j] == '\n' {
+			return j - 1
+		}
+	}
+	return -1
 }
