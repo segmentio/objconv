@@ -478,7 +478,7 @@ func (d Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f deco
 		return
 	}
 
-	s := zeroValueOf(t)
+	s := reflect.MakeSlice(t, 0, 0)
 	i := 0
 	n := 0
 

@@ -417,9 +417,13 @@ func (p *Parser) fill() (err error) {
 	p.i = 0
 	p.j = n
 
-	if n, err = p.r.Read(p.b[p.j:]); n > 0 {
+	if n, err = io.ReadFull(p.r, p.b[p.j:]); n > 0 {
 		err = nil
 		p.j += n
+	}
+
+	if err == io.ErrUnexpectedEOF {
+		err = nil
 	}
 
 	if err == nil && p.i == p.j {
