@@ -118,7 +118,7 @@ func (p *Parser) ParseBool() (v bool, err error) {
 }
 
 func (p *Parser) ParseInt() (v int64, err error) {
-	if v, err = strconv.ParseInt(stringNoCopy(p.s), 10, 64); err != nil {
+	if v, err = objconv.ParseInt(p.s); err != nil {
 		return
 	}
 	p.i += len(p.s)
@@ -398,7 +398,7 @@ func (p *Parser) readToken(token []byte) (err error) {
 		if bytes.Equal(chunk, token) {
 			p.i += n
 		} else {
-			err = fmt.Errorf("objconv/json: expected '%s' but found '%s'", string(token), string(chunk))
+			err = fmt.Errorf("objconv/json: expected %#v but found %#v", string(token), string(chunk))
 		}
 	}
 
@@ -413,8 +413,13 @@ func (p *Parser) readUnicode() (r rune, err error) {
 		return
 	}
 
-	if code, err = strconv.ParseUint(stringNoCopy(chunk), 16, 16); err != nil {
-		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code point but found '%s'", string(chunk))
+	if code, err = objconv.ParseUintHex(chunk); err != nil {
+		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code point but found %#v", string(chunk))
+		return
+	}
+
+	if code > objconv.Uint16Max {
+		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code points but found an overflowing value %X", code)
 		return
 	}
 

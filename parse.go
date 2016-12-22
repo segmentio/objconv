@@ -2,6 +2,7 @@ package objconv
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 )
@@ -379,4 +380,91 @@ func (p *ValueParser) popContext() {
 
 func (p *ValueParser) context() *valueParserContext {
 	return &p.ctx[len(p.ctx)-1]
+}
+
+// ParseInt parses a decimanl representation of an int64 from b.
+//
+// The function is equivalent to calling strconv.ParseInt(string(b), 10, 64) but
+// it prevents Go from making a memory allocation for converting a byte slice to
+// a string (escape analysis fails due to the error returned by strconv.ParseInt).
+//
+// Because it only works with base 10 the function is also significantly faster
+// than strconv.ParseInt.
+func ParseInt(b []byte) (int64, error) {
+	var neg bool
+	var val int64
+
+	if len(b) == 0 {
+		return 0, errors.New("objconv: an empty string is not a valid decimal representation of a signed 64 bits integer")
+	}
+
+	if b[0] == '-' {
+		neg = true
+
+		if b = b[1:]; len(b) == 0 {
+			return 0, errors.New("objconv: \"-\" is not a valid decimal representation of a signed 64 bits integer")
+		}
+	}
+
+	for _, d := range b {
+		if !(d >= '0' && d <= '9') {
+			return 0, fmt.Errorf("objconv: %#v is not a valid decimal representation of a signed 64 bits integer", string(b))
+		}
+
+		x := int64(d - '0')
+
+		if val > (Int64Max/10 - x) {
+			return 0, fmt.Errorf("objconv: %#v overflows the maximum values of a signed 64 bits integer", string(b))
+		}
+
+		val = val*10 + x
+	}
+
+	if neg {
+		val = -val
+	}
+
+	return val, nil
+}
+
+// ParseUintHex parses a hexadecimanl representation of a uint64 from b.
+//
+// The function is equivalent to calling strconv.ParseUint(string(b), 16, 64) but
+// it prevents Go from making a memory allocation for converting a byte slice to
+// a string (escape analysis fails due to the error returned by strconv.ParseUint).
+//
+// Because it only works with base 16 the function is also significantly faster
+// than strconv.ParseUint.
+func ParseUintHex(b []byte) (uint64, error) {
+	var val uint64
+
+	if len(b) == 0 {
+		return 0, errors.New("objconv: an empty string is not a valid hexadecimal representation of an unsigned 64 bits integer")
+	}
+
+	for _, d := range b {
+		var x uint64
+
+		switch {
+		case d >= '0' && d <= '9':
+			x = uint64(d - '0')
+
+		case d >= 'A' && d <= 'F':
+			x = uint64(d-'A') + 0xA
+
+		case d >= 'a' && d <= 'f':
+			x = uint64(d-'a') + 0xA
+
+		default:
+			return 0, fmt.Errorf("objconv: %#v is not a valid hexadecimal representation of an unsigned 64 bits integer", string(b))
+		}
+
+		if val > (Int64Max/0x10 - x) {
+			return 0, fmt.Errorf("objconv: %#v overflows the maximum values of an unsigned 64 bits integer", string(b))
+		}
+
+		val = val*0x10 + x
+	}
+
+	return val, nil
 }

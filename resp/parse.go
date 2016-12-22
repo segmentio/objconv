@@ -5,10 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
-	"strconv"
 	"time"
-	"unsafe"
 
 	"github.com/segmentio/objconv"
 )
@@ -132,7 +129,7 @@ func (p *Parser) ParseInt() (v int64, err error) {
 		goto failure
 	}
 
-	if v, err = strconv.ParseInt(stringNoCopy(line[1:]), 10, 64); err != nil {
+	if v, err = objconv.ParseInt(line[1:]); err != nil {
 		goto failure
 	}
 
@@ -192,7 +189,7 @@ func (p *Parser) ParseBytes() (v []byte, err error) {
 		goto failure
 	}
 
-	if size, err = strconv.ParseInt(stringNoCopy(line[1:]), 10, 64); err != nil || size < 0 || size > int64(objconv.IntMax) {
+	if size, err = objconv.ParseInt(line[1:]); err != nil || size < 0 || size > int64(objconv.IntMax) {
 		goto failure
 	}
 	p.skipLine()
@@ -256,7 +253,7 @@ func (p *Parser) ParseArrayBegin() (n int, err error) {
 		goto failure
 	}
 
-	if size, err = strconv.ParseInt(stringNoCopy(line[1:]), 10, 64); err != nil || size < 0 || size > int64(objconv.IntMax) {
+	if size, err = objconv.ParseInt(line[1:]); err != nil || size < 0 || size > int64(objconv.IntMax) {
 		goto failure
 	}
 
@@ -359,17 +356,6 @@ func (p *Parser) peekChunk(size int) (chunk []byte, err error) {
 
 func (p *Parser) skipLine() {
 	p.n, p.i = p.i, 0
-}
-
-func stringNoCopy(b []byte) string {
-	n := len(b)
-	if n == 0 {
-		return ""
-	}
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
-		Data: uintptr(unsafe.Pointer(&b[0])),
-		Len:  n,
-	}))
 }
 
 func bytesIndexCRLF(b []byte) int {
