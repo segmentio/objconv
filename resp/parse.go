@@ -333,12 +333,14 @@ func (p *Parser) peekChunk(size int) (chunk []byte, err error) {
 		}
 
 		var n int
+
 		if n, err = p.r.Read(p.b[:]); n > 0 {
 			err = nil
 			p.s = append(p.s, p.b[:n]...)
-		}
-
-		if err != nil {
+		} else if err != nil {
+			return
+		} else {
+			err = io.ErrNoProgress
 			return
 		}
 	}

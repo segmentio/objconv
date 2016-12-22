@@ -457,15 +457,15 @@ func (p *Parser) fill() (err error) {
 	copy(p.b[:n], p.b[p.i:p.j])
 	p.i = 0
 	p.j = n
-	j := n
 
 	if n, err = p.r.Read(p.b[p.j:]); n > 0 {
 		err = nil
 		p.j += n
-	}
-
-	if err == nil && p.j == j {
+	} else if err != nil {
+		return
+	} else {
 		err = io.ErrNoProgress
+		return
 	}
 
 	return
