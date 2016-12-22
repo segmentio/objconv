@@ -3,6 +3,7 @@ package json
 import (
 	"bytes"
 	"io"
+	"sync"
 
 	"github.com/segmentio/objconv"
 )
@@ -19,12 +20,28 @@ func NewStreamEncoder(w io.Writer) *objconv.StreamEncoder {
 
 // Marshal writes the JSON representation of v to a byte slice returned in b.
 func Marshal(v interface{}) (b []byte, err error) {
-	buf := &bytes.Buffer{}
-	buf.Grow(1024)
+	buf := bufferPool.Get().(*bytes.Buffer)
+	emt := emitterPool.Get().(*Emitter)
+	emt.Reset(buf)
 
-	if err = NewEncoder(buf).Encode(v); err == nil {
-		b = buf.Bytes()
+	enc := objconv.Encoder{
+		Emitter: emt,
 	}
 
+	if err = enc.Encode(v); err == nil {
+		b, *buf = buf.Bytes(), bytes.Buffer{}
+	}
+
+	emt.Reset(nil)
+	emitterPool.Put(emt)
+	bufferPool.Put(buf)
 	return
+}
+
+var bufferPool = sync.Pool{
+	New: func() interface{} { return &bytes.Buffer{} },
+}
+
+var emitterPool = sync.Pool{
+	New: func() interface{} { return &Emitter{} },
 }

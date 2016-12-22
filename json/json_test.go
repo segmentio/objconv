@@ -180,7 +180,19 @@ func TestStreamDecoder(t *testing.T) {
 	}
 }
 
-func BenchmarkObjconvEncoder(b *testing.B) {
+func BenchmarkMarshal(b *testing.B) {
+	for _, test := range jsonTests {
+		b.Run(test.s, func(b *testing.B) {
+			for i := 0; i != b.N; i++ {
+				if _, err := Marshal(test.v); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkEncoder(b *testing.B) {
 	e := NewEncoder(ioutil.Discard)
 
 	for _, test := range jsonTests {
@@ -195,7 +207,7 @@ func BenchmarkObjconvEncoder(b *testing.B) {
 	}
 }
 
-func BenchmarkObjconvDecoder(b *testing.B) {
+func BenchmarkDecoder(b *testing.B) {
 	r := strings.NewReader("")
 	p := NewParser(nil)
 	d := objconv.NewDecoder(p)
