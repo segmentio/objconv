@@ -348,9 +348,6 @@ func (p *Parser) peekNumber() (b []byte, err error) {
 		var c byte
 
 		if c, err = p.peekByteAt(i); err != nil {
-			if i != 0 && err == io.EOF {
-				err = nil
-			}
 			break
 		}
 
@@ -420,6 +417,7 @@ func (p *Parser) fill() (err error) {
 	copy(p.b[:n], p.b[p.i:p.j])
 	p.i = 0
 	p.j = n
+	j := n
 
 	if n, err = p.r.Read(p.b[p.j:]); n > 0 {
 		err = nil
@@ -430,7 +428,7 @@ func (p *Parser) fill() (err error) {
 		err = nil
 	}
 
-	if err == nil && p.i == p.j {
+	if err == nil && p.j == j {
 		err = io.ErrNoProgress
 	}
 
