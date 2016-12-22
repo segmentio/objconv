@@ -169,6 +169,14 @@ func TestDecoderDecodeType(t *testing.T) {
 		{map[string]int{}, struct{}{}},
 		{map[string]int{"A": 42}, struct{ A int }{42}},
 
+		// struct -> map
+		{struct{}{}, map[string]interface{}{}},
+		{struct{ A int }{42}, map[string]interface{}{"A": int64(42)}},
+		{struct{}{}, map[interface{}]interface{}{}},
+		{struct{ A int }{42}, map[interface{}]interface{}{"A": int64(42)}},
+		{struct{}{}, map[string]string{}},
+		{struct{ A string }{"42"}, map[string]string{"A": "42"}},
+
 		// struct -> struct
 		{struct{}{}, struct{}{}},
 		{struct{ A int }{42}, struct{ A int }{42}},

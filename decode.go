@@ -570,7 +570,24 @@ func (d Decoder) decodeValueMapFromType(typ Type, to reflect.Value) (err error) 
 }
 
 func (d Decoder) decodeValueMapFromTypeWith(typ Type, to reflect.Value, kf decodeFunc, vf decodeFunc) (err error) {
-	t := to.Type()          // map[K]V
+	t := to.Type() // map[K]V
+
+	if typ == Nil {
+		to.Set(zeroValueOf(t))
+		return
+	}
+
+	switch t {
+	case mapInterfaceInterfaceType:
+		return d.decodeValueMapInterfaceInterface(typ, to)
+
+	case mapStringInterfaceType:
+		return d.decodeValueMapStringInterface(typ, to)
+
+	case mapStringStringType:
+		return d.decodeValueMapStringString(typ, to)
+	}
+
 	m := reflect.MakeMap(t) // make(map[K]V)
 
 	kt := t.Key()                // K
@@ -604,13 +621,103 @@ func (d Decoder) decodeValueMapFromTypeWith(typ Type, to reflect.Value, kf decod
 		return
 	}
 
-	if typ != Nil {
-		to.Set(m)
-	} else {
-		to.Set(zeroValueOf(t))
+	to.Set(m)
+	return
+}
+
+func (d Decoder) decodeValueMapInterfaceInterface(typ Type, to reflect.Value) error {
+	m := to.Interface().(map[interface{}]interface{})
+
+	if m == nil {
+		m = make(map[interface{}]interface{})
+		to.Set(reflect.ValueOf(m))
 	}
 
-	return
+	for k := range m {
+		delete(m, k)
+	}
+
+	return d.decodeMapFromType(typ, func(kd Decoder, vd Decoder) (err error) {
+		var k interface{}
+		var v interface{}
+
+		if err = kd.Decode(&k); err != nil {
+			return
+		}
+		if err = vd.Decode(&v); err != nil {
+			return
+		}
+
+		m[k] = v
+		return
+	})
+}
+
+func (d Decoder) decodeValueMapStringInterface(typ Type, to reflect.Value) (err error) {
+	m := to.Interface().(map[string]interface{})
+
+	if m == nil {
+		m = make(map[string]interface{})
+		to.Set(reflect.ValueOf(m))
+	}
+
+	for k := range m {
+		delete(m, k)
+	}
+
+	return d.decodeMapFromType(typ, func(kd Decoder, vd Decoder) (err error) {
+		var b []byte
+		var k string
+		var v interface{}
+
+		if b, err = d.decodeString(); err != nil {
+			return
+		}
+		k = string(b)
+
+		if err = vd.Decode(&v); err != nil {
+			return
+		}
+
+		m[k] = v
+		return
+	})
+}
+
+func (d Decoder) decodeValueMapStringString(typ Type, to reflect.Value) (err error) {
+	m := to.Interface().(map[string]string)
+
+	if m == nil {
+		m = make(map[string]string)
+		to.Set(reflect.ValueOf(m))
+	}
+
+	for k := range m {
+		delete(m, k)
+	}
+
+	return d.decodeMapFromType(typ, func(kd Decoder, vd Decoder) (err error) {
+		var b []byte
+		var k string
+		var v string
+
+		if b, err = d.decodeString(); err != nil {
+			return
+		}
+		k = string(b)
+
+		if err = d.decodeMapValue(vd.off - 1); err != nil {
+			return
+		}
+
+		if b, err = d.decodeString(); err != nil {
+			return
+		}
+		v = string(b)
+
+		m[k] = v
+		return
+	})
 }
 
 func (d Decoder) decodeValueStruct(to reflect.Value) (Type, error) {
