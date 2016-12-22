@@ -91,7 +91,7 @@ func (p *Parser) ParseType() (t objconv.Type, err error) {
 }
 
 func (p *Parser) ParseNil() (err error) {
-	return p.readString(nullBytes)
+	return p.readToken(nullBytes[:])
 }
 
 func (p *Parser) ParseBool() (v bool, err error) {
@@ -103,10 +103,10 @@ func (p *Parser) ParseBool() (v bool, err error) {
 
 	switch b {
 	case 'f':
-		v, err = false, p.readString(falseBytes)
+		v, err = false, p.readToken(falseBytes[:])
 
 	case 't':
-		v, err = true, p.readString(trueBytes)
+		v, err = true, p.readToken(trueBytes[:])
 
 	default:
 		err = fmt.Errorf("objconv/json: expected boolean but found '%c'", b)
@@ -376,15 +376,15 @@ func (p *Parser) readByte(b byte) (err error) {
 	return
 }
 
-func (p *Parser) readString(s []byte) (err error) {
+func (p *Parser) readToken(token []byte) (err error) {
 	var chunk []byte
-	var n = len(s)
+	var n = len(token)
 
 	if chunk, err = p.peek(n); err == nil {
-		if bytes.Equal(chunk, s) {
+		if bytes.Equal(chunk, token) {
 			p.i += n
 		} else {
-			err = fmt.Errorf("objconv/json: expected '%s' but found '%s'", s, string(chunk))
+			err = fmt.Errorf("objconv/json: expected '%s' but found '%s'", string(token), string(chunk))
 		}
 	}
 
