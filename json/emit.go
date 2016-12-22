@@ -32,7 +32,9 @@ type Emitter struct {
 }
 
 func NewEmitter(w io.Writer) *Emitter {
-	return &Emitter{w: w}
+	e := &Emitter{w: w}
+	e.s = e.b[:0]
+	return e
 }
 
 func (e *Emitter) Reset(w io.Writer) {
@@ -72,13 +74,7 @@ func (e *Emitter) EmitString(v string) (err error) {
 	i := 0
 	j := 0
 	n := len(v)
-
-	if e.s == nil {
-		e.s = e.b[:0]
-	}
-
-	s := e.s[:0]
-	s = append(s, '"')
+	s := append(e.s[:0], '"')
 
 	for j != n {
 		b := v[j]
