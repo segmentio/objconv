@@ -471,10 +471,16 @@ func (d Decoder) decodeValueSliceFromType(typ Type, to reflect.Value) (err error
 }
 
 func (d Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
+	t := to.Type()
+
+	if typ == Nil {
+		to.Set(zeroValueOf(t))
+		return
+	}
+
+	s := zeroValueOf(t)
 	i := 0
 	n := 0
-	t := to.Type()
-	s := reflect.MakeSlice(t, 0, 0)
 
 	if err = d.decodeArrayFromType(typ, func(d Decoder) (err error) {
 		if i == n {
@@ -494,15 +500,11 @@ func (d Decoder) decodeValueSliceFromTypeWith(typ Type, to reflect.Value, f deco
 		return
 	}
 
-	if typ == Nil {
-		to.Set(zeroValueOf(t))
-	} else {
-		if i != n {
-			s = s.Slice(0, i)
-		}
-		to.Set(s)
+	if i != n {
+		s = s.Slice(0, i)
 	}
 
+	to.Set(s)
 	return
 }
 

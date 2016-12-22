@@ -50,6 +50,8 @@ var jsonTests = []struct {
 
 	{[]int{}, `[]`},
 	{[]int{1, 2, 3}, `[1,2,3]`},
+	{[]interface{}{}, `[]`},
+	{[]interface{}{nil, true, false}, `[null,true,false]`},
 
 	{map[string]int{}, `{}`},
 	{map[string]int{"answer": 42}, `{"answer":42}`},
