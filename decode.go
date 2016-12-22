@@ -411,10 +411,10 @@ func (d Decoder) decodeValueDurationFromType(t Type, to reflect.Value) (err erro
 	}
 
 	if t == String || t == Bytes {
-		v, err = time.ParseDuration(string(s))
+		v, err = time.ParseDuration(stringNoCopy(s))
 	}
 
-	to.Set(reflect.ValueOf(v))
+	to.SetInt(int64(v))
 	return
 }
 
