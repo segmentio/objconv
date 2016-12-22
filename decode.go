@@ -374,7 +374,7 @@ func (d Decoder) decodeValueTimeFromType(t Type, to reflect.Value) (err error) {
 	}
 
 	if t == String || t == Bytes {
-		v, err = time.Parse(time.RFC3339Nano, string(s))
+		v, err = time.Parse(time.RFC3339Nano, stringNoCopy(s))
 	}
 
 	to.Set(reflect.ValueOf(v))
