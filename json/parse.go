@@ -299,7 +299,7 @@ func (p *Parser) ParseMapNext(n int) (err error) {
 }
 
 func (p *Parser) peek(n int) (b []byte, err error) {
-	if (p.i + n) > p.j {
+	for (p.i + n) > p.j {
 		if err = p.fill(); err != nil {
 			return
 		}
@@ -313,7 +313,7 @@ func (p *Parser) peek(n int) (b []byte, err error) {
 }
 
 func (p *Parser) peekByteAt(i int) (b byte, err error) {
-	if (p.i + i + 1) > p.j {
+	for (p.i + i + 1) > p.j {
 		if err = p.fill(); err != nil {
 			return
 		}
@@ -421,12 +421,12 @@ func (p *Parser) fill() (err error) {
 	p.i = 0
 	p.j = n
 
-	if n, err = io.ReadFull(p.r, p.b[p.j:]); n > 0 {
+	if n, err = p.r.Read(p.b[p.j:]); n > 0 {
 		err = nil
 		p.j += n
 	}
 
-	if err == io.ErrUnexpectedEOF {
+	if err == io.EOF {
 		err = nil
 	}
 
