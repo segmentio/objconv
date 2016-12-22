@@ -114,6 +114,30 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
+func TestUnicode(t *testing.T) {
+	tests := []struct {
+		in  string
+		out string
+	}{
+		{`"\u2022"`, "•"},
+		{`"\uDC00D800"`, "�"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.out, func(t *testing.T) {
+			var s string
+
+			if err := Unmarshal([]byte(test.in), &s); err != nil {
+				t.Error(err)
+			}
+
+			if s != test.out {
+				t.Error(s)
+			}
+		})
+	}
+}
+
 func TestStreamEncoder(t *testing.T) {
 	buf := &bytes.Buffer{}
 	enc := NewStreamEncoder(buf)

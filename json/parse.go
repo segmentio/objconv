@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"unicode/utf16"
+	"unicode/utf8"
 	"unsafe"
 
 	"github.com/segmentio/objconv"
@@ -174,6 +176,8 @@ func (p *Parser) ParseString() (v []byte, err error) {
 		if escaped {
 			escaped = false
 			switch b {
+			case '"', '\\', '/':
+				// simple escaped character
 			case 'n':
 				b = '\n'
 
@@ -189,6 +193,26 @@ func (p *Parser) ParseString() (v []byte, err error) {
 			case 'f':
 				b = '\f'
 
+			case 'u':
+				var r1 rune
+				var r2 rune
+				if r1, err = p.readUnicode(); err != nil {
+					return
+				}
+				if utf16.IsSurrogate(r1) {
+					if r2, err = p.readUnicode(); err != nil {
+						return
+					}
+					r1 = utf16.DecodeRune(r1, r2)
+				}
+				v = append(v, 0, 0, 0, 0) // make room for 4 bytes
+				i := len(v) - 4
+				n := utf8.EncodeRune(v[i:], r1)
+				v = v[:i+n]
+				continue
+
+			default: // not sure what this escape sequence i
+				v = append(v, '\\')
 			}
 		} else if b == '\\' {
 			escaped = true
@@ -304,10 +328,6 @@ func (p *Parser) peek(n int) (b []byte, err error) {
 		if err = p.fill(); err != nil {
 			return
 		}
-		if p.i == 0 && p.j <= n {
-			err = io.ErrShortBuffer
-			return
-		}
 	}
 	b = p.b[p.i : p.i+n]
 	return
@@ -316,10 +336,6 @@ func (p *Parser) peek(n int) (b []byte, err error) {
 func (p *Parser) peekByteAt(i int) (b byte, err error) {
 	for (p.i + i + 1) > p.j {
 		if err = p.fill(); err != nil {
-			return
-		}
-		if p.i == 0 && p.j <= (i+1) {
-			err = io.ErrShortBuffer
 			return
 		}
 	}
@@ -386,6 +402,24 @@ func (p *Parser) readToken(token []byte) (err error) {
 		}
 	}
 
+	return
+}
+
+func (p *Parser) readUnicode() (r rune, err error) {
+	var chunk []byte
+	var code uint64
+
+	if chunk, err = p.peek(4); err != nil {
+		return
+	}
+
+	if code, err = strconv.ParseUint(stringNoCopy(chunk), 16, 32); err != nil {
+		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code point but found '%s'", string(chunk))
+		return
+	}
+
+	p.i += 4
+	r = rune(code)
 	return
 }
 
