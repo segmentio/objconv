@@ -19,6 +19,7 @@ var (
 
 type Parser struct {
 	r io.Reader // reader to load bytes from
+	i int       // offset of the end of line in s
 	n int       // offset of the first unread byte in s
 	s []byte    // buffer used for building strings
 	a [128]byte // initial backend array for s
@@ -104,7 +105,7 @@ func (p *Parser) ParseNil() (err error) {
 		goto failure
 	}
 
-	p.n += len(line) + 2
+	p.skipLine()
 	return
 failure:
 	err = fmt.Errorf("objconv/resp: expected null value but found %#v", string(line))
@@ -135,7 +136,7 @@ func (p *Parser) ParseInt() (v int64, err error) {
 		goto failure
 	}
 
-	p.n += len(line) + 2
+	p.skipLine()
 	return
 failure:
 	err = fmt.Errorf("objconv/resp: expected integer value but found %#v", string(line))
@@ -167,7 +168,7 @@ func (p *Parser) ParseString() (v []byte, err error) {
 	}
 
 	v = line[1:]
-	p.n += len(line) + 2
+	p.skipLine()
 	return
 failure:
 	err = fmt.Errorf("objconv/resp: expected simple string value but found %#v", string(line))
@@ -194,7 +195,7 @@ func (p *Parser) ParseBytes() (v []byte, err error) {
 	if size, err = strconv.ParseInt(stringNoCopy(line[1:]), 10, 64); err != nil || size < 0 || size > int64(objconv.IntMax) {
 		goto failure
 	}
-	p.n += len(line) + 2
+	p.skipLine()
 
 	if v, err = p.peekChunk(int(size)); err != nil {
 		return
@@ -231,7 +232,7 @@ func (p *Parser) ParseError() (v error, err error) {
 	}
 
 	v = errors.New(string(line[1:]))
-	p.n += len(line) + 2
+	p.skipLine()
 	return
 failure:
 	err = fmt.Errorf("objconv/resp: expected simple string value but found %#v", string(line))
@@ -259,7 +260,7 @@ func (p *Parser) ParseArrayBegin() (n int, err error) {
 		goto failure
 	}
 
-	p.n += len(line) + 2
+	p.skipLine()
 	n = int(size)
 	return
 failure:
@@ -292,13 +293,18 @@ func (p *Parser) ParseMapNext(n int) (err error) {
 }
 
 func (p *Parser) peekLine() (line []byte, err error) {
+	if p.i != 0 {
+		line = p.s[p.n : p.i-2]
+		return
+	}
+
 	if p.s == nil {
 		p.s = p.a[:0]
 	}
 
 	for {
-		if i := bytes.Index(p.s[p.n:], crlfBytes[:]); i >= 0 {
-			line = p.s[p.n : p.n+i]
+		if i := bytesIndexCRLF(p.s[p.n:]); i >= 0 {
+			line, p.i = p.s[p.n:p.n+i], p.n+i+2
 			return
 		}
 
@@ -321,7 +327,7 @@ func (p *Parser) peekLine() (line []byte, err error) {
 }
 
 func (p *Parser) peekChunk(size int) (chunk []byte, err error) {
-	size += 2 // \r\n
+	size += 2 // CRLF
 
 	for {
 		if len(p.s) >= (size + p.n) {
@@ -343,12 +349,16 @@ func (p *Parser) peekChunk(size int) (chunk []byte, err error) {
 	chunk = p.s[p.n : p.n+size]
 
 	if !bytes.HasSuffix(chunk, crlfBytes[:]) {
-		err = fmt.Errorf("objconv/resp: expected close '\\r\\n' sequence at the end of a bulk string but found %#v", string(chunk))
+		err = fmt.Errorf("objconv/resp: expected a CRLF sequence at the end of a bulk string but found %#v", string(chunk))
 	} else {
 		chunk = chunk[:len(chunk)-2]
 	}
 
 	return
+}
+
+func (p *Parser) skipLine() {
+	p.n, p.i = p.i, 0
 }
 
 func stringNoCopy(b []byte) string {
@@ -360,4 +370,23 @@ func stringNoCopy(b []byte) string {
 		Data: uintptr(unsafe.Pointer(&b[0])),
 		Len:  n,
 	}))
+}
+
+func bytesIndexCRLF(b []byte) int {
+	for i, n := 0, len(b); i != n; i++ {
+		j := bytes.IndexByte(b[i:], '\r')
+
+		if j < 0 {
+			break
+		}
+
+		if j++; j == n {
+			break
+		}
+
+		if b[j] == '\n' {
+			return j - 1
+		}
+	}
+	return -1
 }
