@@ -45,9 +45,7 @@ import (
 
 func main() {
     enc := json.NewEncoder(os.Stdout)
-    enc.Encode(struct{
-        Hello string
-    }{"World"})
+    enc.Encode(struct{ Hello string }{"World"})
 }
 ```
 ```
@@ -73,9 +71,7 @@ import (
 )
 
 func main() {
-    v := struct{
-        Message string
-    }{}
+    v := struct{ Message string }{}
 
     dec := json.NewDecoder(os.Stdin)
     dec.Decode(&v)
