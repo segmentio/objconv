@@ -41,7 +41,6 @@ type unmarshaler struct {
 
 func newUnmarshaler() *unmarshaler {
 	u := &unmarshaler{}
-	u.s = u.c[:0]
 	u.r = &u.b
 	return u
 }
