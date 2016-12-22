@@ -713,27 +713,27 @@ func (d Decoder) decodeValueInterfaceFromType(t Type, to reflect.Value) (err err
 	case Nil:
 		err = d.decodeValueInterfaceFromNil(to)
 	case Bool:
-		err = d.decodeValueInterfaceFrom(false, t, to, Decoder.decodeValueBoolFromType)
+		err = d.decodeValueInterfaceFrom(boolType, t, to, Decoder.decodeValueBoolFromType)
 	case Int:
-		err = d.decodeValueInterfaceFrom(int64(0), t, to, Decoder.decodeValueIntFromType)
+		err = d.decodeValueInterfaceFrom(int64Type, t, to, Decoder.decodeValueIntFromType)
 	case Uint:
-		err = d.decodeValueInterfaceFrom(uint64(0), t, to, Decoder.decodeValueUintFromType)
+		err = d.decodeValueInterfaceFrom(uint64Type, t, to, Decoder.decodeValueUintFromType)
 	case Float:
-		err = d.decodeValueInterfaceFrom(float64(0), t, to, Decoder.decodeValueFloatFromType)
+		err = d.decodeValueInterfaceFrom(float64Type, t, to, Decoder.decodeValueFloatFromType)
 	case String:
-		err = d.decodeValueInterfaceFrom("", t, to, Decoder.decodeValueStringFromType)
+		err = d.decodeValueInterfaceFrom(stringType, t, to, Decoder.decodeValueStringFromType)
 	case Bytes:
-		err = d.decodeValueInterfaceFrom(([]byte)(nil), t, to, Decoder.decodeValueBytesFromType)
+		err = d.decodeValueInterfaceFrom(bytesType, t, to, Decoder.decodeValueBytesFromType)
 	case Time:
-		err = d.decodeValueInterfaceFrom(time.Time{}, t, to, Decoder.decodeValueTimeFromType)
+		err = d.decodeValueInterfaceFrom(timeType, t, to, Decoder.decodeValueTimeFromType)
 	case Duration:
-		err = d.decodeValueInterfaceFrom(time.Duration(0), t, to, Decoder.decodeValueDurationFromType)
+		err = d.decodeValueInterfaceFrom(durationType, t, to, Decoder.decodeValueDurationFromType)
 	case Error:
-		err = d.decodeValueInterfaceFrom(errBase, t, to, Decoder.decodeValueErrorFromType)
+		err = d.decodeValueInterfaceFrom(errorInterface, t, to, Decoder.decodeValueErrorFromType)
 	case Array:
-		err = d.decodeValueInterfaceFrom(([]interface{})(nil), t, to, Decoder.decodeValueSliceFromType)
+		err = d.decodeValueInterfaceFrom(sliceInterfaceType, t, to, Decoder.decodeValueSliceFromType)
 	case Map:
-		err = d.decodeValueInterfaceFrom((map[interface{}]interface{})(nil), t, to, Decoder.decodeValueMapFromType)
+		err = d.decodeValueInterfaceFrom(mapInterfaceInterfaceType, t, to, Decoder.decodeValueMapFromType)
 	default:
 		panic("objconv: parser returned an unsupported value type: " + t.String())
 	}
@@ -747,8 +747,8 @@ func (d Decoder) decodeValueInterfaceFromNil(to reflect.Value) (err error) {
 	return
 }
 
-func (d Decoder) decodeValueInterfaceFrom(from interface{}, t Type, to reflect.Value, decode func(Decoder, Type, reflect.Value) error) (err error) {
-	v := reflect.New(reflect.TypeOf(from)).Elem()
+func (d Decoder) decodeValueInterfaceFrom(from reflect.Type, t Type, to reflect.Value, decode func(Decoder, Type, reflect.Value) error) (err error) {
+	v := reflect.New(from).Elem()
 
 	if err = decode(d, t, v); err == nil {
 		to.Set(v)

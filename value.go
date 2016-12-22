@@ -168,10 +168,15 @@ func zeroValueOf(t reflect.Type) reflect.Value {
 }
 
 var (
-	timeType                 = reflect.TypeOf(time.Time{})
-	timePtrType              = reflect.TypeOf((*time.Time)(nil))
-	durationType             = reflect.TypeOf(time.Duration(0))
-	durationPtrType          = reflect.TypeOf((*time.Duration)(nil))
+	boolType           = reflect.TypeOf(false)
+	stringType         = reflect.TypeOf("")
+	bytesType          = reflect.TypeOf([]byte(nil))
+	timeType           = reflect.TypeOf(time.Time{})
+	timePtrType        = reflect.TypeOf((*time.Time)(nil))
+	durationType       = reflect.TypeOf(time.Duration(0))
+	durationPtrType    = reflect.TypeOf((*time.Duration)(nil))
+	sliceInterfaceType = reflect.TypeOf(([]interface{})(nil))
+
 	errorInterface           = reflect.TypeOf((*error)(nil)).Elem()
 	valueEncoderInterface    = reflect.TypeOf((*ValueEncoder)(nil)).Elem()
 	valueDecoderInterface    = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
