@@ -168,22 +168,34 @@ func zeroValueOf(t reflect.Type) reflect.Value {
 }
 
 var (
+	// basic types
 	boolType           = reflect.TypeOf(false)
+	intType            = reflect.TypeOf(int(0))
+	int8Type           = reflect.TypeOf(int8(0))
+	int16Type          = reflect.TypeOf(int16(0))
+	int32Type          = reflect.TypeOf(int32(0))
+	int64Type          = reflect.TypeOf(int64(0))
+	uintType           = reflect.TypeOf(uint(0))
+	uint8Type          = reflect.TypeOf(uint8(0))
+	uint16Type         = reflect.TypeOf(uint16(0))
+	uint32Type         = reflect.TypeOf(uint32(0))
+	uint64Type         = reflect.TypeOf(uint64(0))
+	uintptrType        = reflect.TypeOf(uintptr(0))
+	float32Type        = reflect.TypeOf(float32(0))
+	float64Type        = reflect.TypeOf(float64(0))
 	stringType         = reflect.TypeOf("")
 	bytesType          = reflect.TypeOf([]byte(nil))
 	timeType           = reflect.TypeOf(time.Time{})
-	timePtrType        = reflect.TypeOf((*time.Time)(nil))
 	durationType       = reflect.TypeOf(time.Duration(0))
-	durationPtrType    = reflect.TypeOf((*time.Duration)(nil))
 	sliceInterfaceType = reflect.TypeOf(([]interface{})(nil))
 
+	// interfaces
 	errorInterface           = reflect.TypeOf((*error)(nil)).Elem()
 	valueEncoderInterface    = reflect.TypeOf((*ValueEncoder)(nil)).Elem()
 	valueDecoderInterface    = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
 	textMarshalerInterface   = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 	textUnmarshalerInterface = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	emptyInterface           = reflect.TypeOf((*interface{})(nil)).Elem()
-	emptyInterfacePtr        = reflect.TypeOf((*interface{})(nil))
 
 	// common map types, used for optimization for map encoding algorithms
 	mapStringStringType       = reflect.TypeOf((map[string]string)(nil))

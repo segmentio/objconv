@@ -1174,29 +1174,68 @@ func decodeFuncOf(t reflect.Type) decodeFunc {
 }
 
 func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
-	switch p := reflect.PtrTo(t); {
-	case p == timePtrType:
+	// fast path: check if it's a basic go type
+	switch t {
+	case boolType:
+		return Decoder.decodeValueBool
+
+	case stringType:
+		return Decoder.decodeValueString
+
+	case bytesType:
+		return Decoder.decodeValueBytes
+
+	case timeType:
 		return Decoder.decodeValueTime
 
-	case p == durationPtrType:
+	case durationType:
 		return Decoder.decodeValueDuration
 
-	case p == emptyInterfacePtr:
+	case emptyInterface:
 		return Decoder.decodeValueInterface
 
+	case intType, int8Type, int16Type, int32Type, int64Type:
+		return Decoder.decodeValueInt
+
+	case uintType, uint8Type, uint16Type, uint32Type, uint64Type, uintptrType:
+		return Decoder.decodeValueUint
+
+	case float32Type, float64Type:
+		return Decoder.decodeValueFloat
+	}
+
+	// check if it implements one of the special case interfaces
+	switch p := reflect.PtrTo(t); {
 	case p.Implements(valueDecoderInterface):
 		return Decoder.decodeValueDecoder
 
 	case p.Implements(textUnmarshalerInterface):
 		return Decoder.decodeValueTextUnmarshaler
-	}
 
-	switch {
 	case t.Implements(errorInterface):
 		return Decoder.decodeValueError
 	}
 
+	// check what kind is the type, potentially generate a decoder
 	switch t.Kind() {
+	case reflect.Struct:
+		return makeDecodeStructFunc(t, opts)
+
+	case reflect.Map:
+		return makeDecodeMapFunc(t, opts)
+
+	case reflect.Ptr:
+		return makeDecodePtrFunc(t, opts)
+
+	case reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return Decoder.decodeValueBytes
+		}
+		return makeDecodeSliceFunc(t, opts)
+
+	case reflect.Array:
+		return makeDecodeArrayFunc(t, opts)
+
 	case reflect.Bool:
 		return Decoder.decodeValueBool
 
@@ -1211,24 +1250,6 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 
 	case reflect.String:
 		return Decoder.decodeValueString
-
-	case reflect.Slice:
-		if t.Elem().Kind() == reflect.Uint8 {
-			return Decoder.decodeValueBytes
-		}
-		return makeDecodeSliceFunc(t, opts)
-
-	case reflect.Array:
-		return makeDecodeArrayFunc(t, opts)
-
-	case reflect.Map:
-		return makeDecodeMapFunc(t, opts)
-
-	case reflect.Struct:
-		return makeDecodeStructFunc(t, opts)
-
-	case reflect.Ptr:
-		return makeDecodePtrFunc(t, opts)
 
 	default:
 		return Decoder.decodeValueUnsupported
