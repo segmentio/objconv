@@ -36,3 +36,16 @@ func BenchmarkEncoder(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkMarshal(b *testing.B) {
+	for _, test := range respTests {
+		b.Run(strings.Replace(test.s, "\r\n", "", -1), func(b *testing.B) {
+			for i := 0; i != b.N; i++ {
+				if _, err := Marshal(test.v); err != nil {
+					b.Fatal(err)
+				}
+			}
+			b.SetBytes(int64(len(test.s)))
+		})
+	}
+}

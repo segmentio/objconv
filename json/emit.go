@@ -28,12 +28,12 @@ var (
 type Emitter struct {
 	w io.Writer
 	s []byte
-	b [128]byte
+	a [128]byte
 }
 
 func NewEmitter(w io.Writer) *Emitter {
 	e := &Emitter{w: w}
-	e.s = e.b[:0]
+	e.s = e.a[:0]
 	return e
 }
 
@@ -56,17 +56,17 @@ func (e *Emitter) EmitBool(v bool) (err error) {
 }
 
 func (e *Emitter) EmitInt(v int64) (err error) {
-	_, err = e.w.Write(strconv.AppendInt(e.b[:0], v, 10))
+	_, err = e.w.Write(strconv.AppendInt(e.s[:0], v, 10))
 	return
 }
 
 func (e *Emitter) EmitUint(v uint64) (err error) {
-	_, err = e.w.Write(strconv.AppendUint(e.b[:0], v, 10))
+	_, err = e.w.Write(strconv.AppendUint(e.s[:0], v, 10))
 	return
 }
 
 func (e *Emitter) EmitFloat(v float64) (err error) {
-	_, err = e.w.Write(strconv.AppendFloat(e.b[:0], v, 'g', -1, 64))
+	_, err = e.w.Write(strconv.AppendFloat(e.s[:0], v, 'g', -1, 64))
 	return
 }
 

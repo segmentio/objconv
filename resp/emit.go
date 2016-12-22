@@ -22,12 +22,12 @@ var (
 type Emitter struct {
 	w io.Writer
 	s []byte
-	b [128]byte
+	a [128]byte
 }
 
 func NewEmitter(w io.Writer) *Emitter {
 	e := &Emitter{w: w}
-	e.s = e.b[:0]
+	e.s = e.a[:0]
 	return e
 }
 
