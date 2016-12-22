@@ -188,6 +188,7 @@ func (p *Parser) ParseString() (v []byte, err error) {
 
 			case 'f':
 				b = '\f'
+
 			}
 		} else if b == '\\' {
 			escaped = true
@@ -422,10 +423,6 @@ func (p *Parser) fill() (err error) {
 	if n, err = p.r.Read(p.b[p.j:]); n > 0 {
 		err = nil
 		p.j += n
-	}
-
-	if err == io.EOF {
-		err = nil
 	}
 
 	if err == nil && p.j == j {
