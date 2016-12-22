@@ -91,7 +91,7 @@ func (p *Parser) ParseType() (t objconv.Type, err error) {
 }
 
 func (p *Parser) ParseNil() (err error) {
-	return p.readString("null")
+	return p.readString(nullBytes)
 }
 
 func (p *Parser) ParseBool() (v bool, err error) {
@@ -103,10 +103,10 @@ func (p *Parser) ParseBool() (v bool, err error) {
 
 	switch b {
 	case 'f':
-		v, err = false, p.readString("false")
+		v, err = false, p.readString(falseBytes)
 
 	case 't':
-		v, err = true, p.readString("true")
+		v, err = true, p.readString(trueBytes)
 
 	default:
 		err = fmt.Errorf("objconv/json: expected boolean but found '%c'", b)
@@ -376,12 +376,12 @@ func (p *Parser) readByte(b byte) (err error) {
 	return
 }
 
-func (p *Parser) readString(s string) (err error) {
+func (p *Parser) readString(s []byte) (err error) {
 	var chunk []byte
 	var n = len(s)
 
 	if chunk, err = p.peek(n); err == nil {
-		if string(chunk) == s {
+		if bytes.Equal(chunk, s) {
 			p.i += n
 		} else {
 			err = fmt.Errorf("objconv/json: expected '%s' but found '%s'", s, string(chunk))

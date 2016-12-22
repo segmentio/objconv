@@ -749,7 +749,7 @@ func (d Decoder) decodeValueStructFromTypeWith(typ Type, to reflect.Value, s *St
 			return
 		}
 
-		f := s.FieldsByName[stringNoCopy(b)]
+		f := s.FieldsByName[string(b)]
 		if f == nil {
 			var v interface{} // discard
 			return d.Decode(&v)
