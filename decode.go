@@ -214,13 +214,13 @@ func (d Decoder) decodeValueUintFromType(t Type, to reflect.Value) (err error) {
 
 		switch t := to.Type(); t.Kind() {
 		case reflect.Uint:
-			err = checkUint64Bounds(u, uint64(IntMax), t)
+			err = checkUint64Bounds(u, uint64(UintMax), t)
 		case reflect.Uint8:
-			err = checkUint64Bounds(u, Int8Max, t)
+			err = checkUint64Bounds(u, Uint8Max, t)
 		case reflect.Uint16:
-			err = checkUint64Bounds(u, Int16Max, t)
+			err = checkUint64Bounds(u, Uint16Max, t)
 		case reflect.Uint32:
-			err = checkUint64Bounds(u, Int32Max, t)
+			err = checkUint64Bounds(u, Uint32Max, t)
 		}
 
 	default:

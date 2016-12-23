@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"time"
+	"unsafe"
 
 	"github.com/segmentio/objconv"
 )
@@ -30,21 +31,62 @@ func (p *Parser) Buffered() io.Reader {
 	return bytes.NewReader(p.b[p.i:p.j])
 }
 
-func (p *Parser) ParseType() (t objconv.Type, err error) {
-	var b []byte
-
-	if b, err = p.peek(1); err != nil {
-		return
+func (p *Parser) ParseType() (objconv.Type, error) {
+	b, err := p.peek(1)
+	if err != nil {
+		return objconv.Unknown, err
 	}
 
-	switch b[0] {
+	tag := b[0]
+
+	switch {
+	case (tag & PositiveFixintMask) == PositiveFixintTag:
+		return objconv.Int, nil
+
+	case (tag & NegativeFixintMask) == NegativeFixintTag:
+		return objconv.Int, nil
+
+	case (tag & FixstrMask) == FixstrTag:
+		return objconv.String, nil
+
+	case (tag & FixarrayMask) == FixarrayTag:
+		return objconv.Array, nil
+
+	case (tag & FixmapMask) == FixmapTag:
+		return objconv.Map, nil
+	}
+
+	switch tag {
 	case Nil:
-		t = objconv.Nil
-		return
+		return objconv.Nil, nil
+
+	case False, True:
+		return objconv.Bool, nil
+
+	case Int8, Int16, Int32, Int64:
+		return objconv.Int, nil
+
+	case Uint8, Uint16, Uint32, Uint64:
+		return objconv.Uint, nil
+
+	case Float32, Float64:
+		return objconv.Float, nil
+
+	case Str8, Str16, Str32:
+		return objconv.String, nil
+
+	case Bin8, Bin16, Bin32:
+		return objconv.Bytes, nil
+
+	case Array16, Array32:
+		return objconv.Array, nil
+
+	case Map16, Map32:
+		return objconv.Map, nil
 	}
 
-	err = fmt.Errorf("objconv/msgpack: unknown tag '%#X'", b[0])
-	return
+	return objconv.Unknown, fmt.Errorf("objconv/msgpack: unknown tag '%#x'", tag)
+
 }
 
 func (p *Parser) ParseNil() (err error) {
@@ -53,22 +95,119 @@ func (p *Parser) ParseNil() (err error) {
 }
 
 func (p *Parser) ParseBool() (v bool, err error) {
+	v = p.b[p.i] == True
+	p.i++
 	return
 }
 
 func (p *Parser) ParseInt() (v int64, err error) {
+	tag := p.b[p.i]
+	p.i++
+
+	var b []byte
+	var n int
+
+	switch {
+	case (tag & PositiveFixintMask) == PositiveFixintTag:
+		return int64(int8(tag)), nil
+	case (tag & NegativeFixintMask) == NegativeFixintTag:
+		return int64(int8(tag)), nil
+	}
+
+	switch tag {
+	case Int8:
+		n = 1
+	case Int16:
+		n = 2
+	case Int32:
+		n = 4
+	default:
+		n = 8
+	}
+
+	if b, err = p.peek(n); err != nil {
+		return
+	}
+
+	switch n {
+	case 1:
+		v = int64(int8(b[0]))
+	case 2:
+		v = int64(int16(getUint16(b)))
+	case 4:
+		v = int64(int32(getUint32(b)))
+	default:
+		v = int64(getUint64(b))
+	}
+
+	p.i += n
 	return
 }
 
 func (p *Parser) ParseUint() (v uint64, err error) {
+	tag := p.b[p.i]
+	p.i++
+
+	var b []byte
+	var n int
+
+	switch tag {
+	case Uint8:
+		n = 1
+	case Uint16:
+		n = 2
+	case Uint32:
+		n = 4
+	default:
+		n = 8
+	}
+
+	if b, err = p.peek(n); err != nil {
+		return
+	}
+
+	switch n {
+	case 1:
+		v = uint64(b[0])
+	case 2:
+		v = uint64(getUint16(b))
+	case 4:
+		v = uint64(getUint32(b))
+	default:
+		v = getUint64(b)
+	}
+
+	p.i += n
 	return
 }
 
 func (p *Parser) ParseFloat() (v float64, err error) {
+	tag := p.b[p.i]
+	p.i++
+
+	var b []byte
+
+	switch tag {
+	case Float32:
+		b, err = p.peek(4)
+		u := getUint32(b[:4])
+		v = float64(*((*float32)(unsafe.Pointer(&u))))
+		p.i += 4
+
+	default:
+		b, err = p.peek(8)
+		u := getUint64(b[:8])
+		v = *((*float64)(unsafe.Pointer(&u)))
+		p.i += 8
+	}
+
 	return
 }
 
 func (p *Parser) ParseString() (v []byte, err error) {
+	tag := p.b[p.i]
+	p.i++
+
 	return
 }
 
