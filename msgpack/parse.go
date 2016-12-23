@@ -91,7 +91,7 @@ func (p *Parser) ParseType() (objconv.Type, error) {
 			return objconv.Unknown, err
 		}
 
-		switch tag = b[1]; tag {
+		switch tag = b[1]; int8(tag) {
 		case ExtTime:
 			return objconv.Time, nil
 
@@ -120,7 +120,7 @@ func (p *Parser) ParseType() (objconv.Type, error) {
 		return objconv.Unknown, err
 	}
 
-	switch tag = b[len(b)-1]; tag {
+	switch tag = b[len(b)-1]; int8(tag) {
 	case ExtTime:
 		return objconv.Time, nil
 
@@ -349,8 +349,7 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 		}
 		p.i += 8
 		ts := getUint64(b)
-		s = int64(ts >> 30)
-		ns = int64(ts & 0x3FFFFFFF)
+		s, ns = int64(ts)&0x3FFFFFFFF, int64(ts>>34)
 
 	case Ext8: // 32-bit unsigned nanoseconds + 64 bits signed timestamp
 		if b, err = p.peek(1); err != nil {
@@ -365,8 +364,7 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 			return
 		}
 		p.i += 12
-		ns = int64(getUint32(b))
-		s = int64(getUint64(b[4:]))
+		s, ns = int64(getUint64(b[4:])), int64(getUint32(b))
 
 	default:
 		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a timestamp '%#d'", tag)

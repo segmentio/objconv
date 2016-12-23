@@ -90,8 +90,9 @@ var msgpackTests = []interface{}{
 	time.Hour,
 
 	// time
-	time.Time{},
-	time.Now(),
+	time.Unix(0, 0),
+	time.Unix(1, 42),
+	time.Unix(17179869184, 999999999),
 
 	// error
 	errors.New(""),
