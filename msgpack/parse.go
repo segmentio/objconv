@@ -14,6 +14,7 @@ type Parser struct {
 	r io.Reader // reader to load bytes from
 	i int       // offset of the first unread byte in b
 	j int       // offset + 1 of the last unread byte in b
+	s []byte    // string buffer
 	b [240]byte // read buffer
 }
 
@@ -190,12 +191,20 @@ func (p *Parser) ParseFloat() (v float64, err error) {
 	switch tag {
 	case Float32:
 		b, err = p.peek(4)
+	default:
+		b, err = p.peek(8)
+	}
+
+	if err != nil {
+		return
+	}
+
+	switch tag {
+	case Float32:
 		u := getUint32(b[:4])
 		v = float64(*((*float32)(unsafe.Pointer(&u))))
 		p.i += 4
-
 	default:
-		b, err = p.peek(8)
 		u := getUint64(b[:8])
 		v = *((*float64)(unsafe.Pointer(&u)))
 		p.i += 8
@@ -208,11 +217,72 @@ func (p *Parser) ParseString() (v []byte, err error) {
 	tag := p.b[p.i]
 	p.i++
 
-	return
+	n := 0
+
+	if (tag & FixstrMask) == FixstrTag {
+		n = int(tag & ^byte(FixstrMask))
+	} else {
+		var b []byte
+
+		switch tag {
+		case Str8:
+			b, err = p.peek(1)
+		case Str16:
+			b, err = p.peek(2)
+		default:
+			b, err = p.peek(4)
+		}
+
+		if err != nil {
+			return
+		}
+
+		switch len(b) {
+		case 1:
+			n = int(b[0])
+		case 2:
+			n = int(getUint16(b))
+		default:
+			n = int(getUint32(b))
+		}
+
+		p.i += len(b)
+	}
+
+	return p.read(n)
 }
 
 func (p *Parser) ParseBytes() (v []byte, err error) {
-	return
+	tag := p.b[p.i]
+	p.i++
+
+	var b []byte
+	var n int
+
+	switch tag {
+	case Bin8:
+		b, err = p.peek(1)
+	case Bin16:
+		b, err = p.peek(2)
+	default:
+		b, err = p.peek(4)
+	}
+
+	if err != nil {
+		return
+	}
+
+	switch len(b) {
+	case 1:
+		n = int(b[0])
+	case 2:
+		n = int(getUint16(b))
+	default:
+		n = int(getUint32(b))
+	}
+
+	p.i += len(b)
+	return p.read(n)
 }
 
 func (p *Parser) ParseTime() (v time.Time, err error) {
@@ -228,6 +298,35 @@ func (p *Parser) ParseError() (v error, err error) {
 }
 
 func (p *Parser) ParseArrayBegin() (n int, err error) {
+	tag := p.b[p.i]
+	p.i++
+
+	if (tag & FixarrayMask) == FixarrayTag {
+		n = int(int8(tag & ^byte(FixarrayMask)))
+	} else {
+		var b []byte
+
+		switch tag {
+		case Array16:
+			b, err = p.peek(2)
+		default:
+			b, err = p.peek(4)
+		}
+
+		if err != nil {
+			return
+		}
+
+		switch len(b) {
+		case 2:
+			n = int(getUint16(b))
+		default:
+			n = int(getUint32(b))
+		}
+
+		p.i += len(b)
+	}
+
 	return
 }
 
@@ -240,6 +339,35 @@ func (p *Parser) ParseArrayNext(n int) (err error) {
 }
 
 func (p *Parser) ParseMapBegin() (n int, err error) {
+	tag := p.b[p.i]
+	p.i++
+
+	if (tag & FixmapMask) == FixmapTag {
+		n = int(int8(tag & ^byte(FixmapMask)))
+	} else {
+		var b []byte
+
+		switch tag {
+		case Map16:
+			b, err = p.peek(2)
+		default:
+			b, err = p.peek(4)
+		}
+
+		if err != nil {
+			return
+		}
+
+		switch len(b) {
+		case 2:
+			n = int(getUint16(b))
+		default:
+			n = int(getUint32(b))
+		}
+
+		p.i += len(b)
+	}
+
 	return
 }
 
@@ -252,6 +380,40 @@ func (p *Parser) ParseMapValue(n int) (err error) {
 }
 
 func (p *Parser) ParseMapNext(n int) (err error) {
+	return
+}
+
+func (p *Parser) read(n int) (b []byte, err error) {
+	if n <= (p.j - p.i) { // check if the string is already buffered
+		b = p.b[p.i : p.i+n]
+		p.i += n
+		return
+	}
+
+	if n <= len(p.b) { // check if the string can be loaded in the read buffer
+		if b, err = p.peek(n); err != nil {
+			return
+		}
+		p.i += n
+		return
+	}
+
+	if cap(p.s) < n {
+		p.s = make([]byte, n, align(n, 1024))
+	} else {
+		p.s = p.s[:n]
+	}
+
+	copy(p.s, p.b[p.i:p.j])
+	n = p.j - p.i
+	p.i = 0
+	p.j = 0
+
+	if _, err = io.ReadFull(p.r, p.s[n:]); err != nil {
+		return
+	}
+
+	b = p.s
 	return
 }
 

@@ -49,7 +49,7 @@ func (e *Emitter) EmitBool(v bool) (err error) {
 	return
 }
 
-func (e *Emitter) EmitInt(v int64) (err error) {
+func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 	s := e.s[:0]
 
 	s = append(s, ':')
@@ -61,7 +61,7 @@ func (e *Emitter) EmitInt(v int64) (err error) {
 	return
 }
 
-func (e *Emitter) EmitUint(v uint64) (err error) {
+func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
 	if v > objconv.Int64Max {
 		return fmt.Errorf("objconv/resp: %d overflows the maximum integer value of %d", v, objconv.Int64Max)
 	}
@@ -77,11 +77,11 @@ func (e *Emitter) EmitUint(v uint64) (err error) {
 	return
 }
 
-func (e *Emitter) EmitFloat(v float64) (err error) {
+func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
 	s := e.s[:0]
 
 	s = append(s, '+')
-	s = appendFloat(s, v)
+	s = appendFloat(s, v, bitSize)
 	s = appendCRLF(s)
 
 	e.s = s[:0]
@@ -232,8 +232,8 @@ func appendUint(b []byte, v uint64) []byte {
 	return strconv.AppendUint(b, v, 10)
 }
 
-func appendFloat(b []byte, v float64) []byte {
-	return strconv.AppendFloat(b, v, 'g', -1, 64)
+func appendFloat(b []byte, v float64, bitSize int) []byte {
+	return strconv.AppendFloat(b, v, 'g', -1, bitSize)
 }
 
 func appendCRLF(b []byte) []byte {

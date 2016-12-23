@@ -1,8 +1,10 @@
 package msgpack
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/segmentio/objconv"
@@ -46,16 +48,10 @@ var msgpackTests = []interface{}{
 	int64(objconv.Int64Max),
 	int64(objconv.Int64Min),
 
-	// uint8
+	// uint8, uint16, uint32, uint64
 	uint8(objconv.Uint8Max),
-
-	// uint16
 	uint16(objconv.Uint16Max),
-
-	// uint32
 	uint32(objconv.Uint32Max),
-
-	// uint64
 	uint64(objconv.Uint64Max),
 
 	// float32
@@ -67,11 +63,58 @@ var msgpackTests = []interface{}{
 	float64(0),
 	float64(objconv.Float64IntMin),
 	float64(objconv.Float64IntMax),
+
+	// fixstr
+	"",
+	"Hello World!",
+
+	// str8, str16, str32
+	strings.Repeat("A", 32),
+	strings.Repeat("A", objconv.Uint8Max+1),
+	strings.Repeat("A", objconv.Uint16Max+1),
+
+	// bin8, bin16, bin32
+	[]byte(""),
+	[]byte("Hello World!"),
+	bytes.Repeat([]byte("A"), objconv.Uint8Max+1),
+	bytes.Repeat([]byte("A"), objconv.Uint16Max+1),
+
+	// fixarray
+	[]int{},
+	[]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+
+	// array16, array32
+	make([]int, objconv.Uint8Max+1),
+	make([]int, objconv.Uint16Max+1),
+
+	// fixmap
+	makeMap(0),
+	makeMap(15),
+
+	// map16, map32
+	makeMap(objconv.Uint8Max + 1),
+	makeMap(objconv.Uint16Max + 1),
+}
+
+func makeMap(n int) map[int]int {
+	m := make(map[int]int, n)
+	for i := 0; i != n; i++ {
+		m[i] = i
+	}
+	return m
+}
+
+func testName(v interface{}) string {
+	s := fmt.Sprintf("%#v", v)
+	if len(s) > 20 {
+		s = s[:20] + "..."
+	}
+	return s
 }
 
 func TestMsgpack(t *testing.T) {
 	for _, test := range msgpackTests {
-		t.Run(fmt.Sprintf("%#v", test), func(t *testing.T) {
+		t.Run(testName(test), func(t *testing.T) {
 			var typ reflect.Type
 
 			if test == nil {

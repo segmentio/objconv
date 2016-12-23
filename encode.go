@@ -62,15 +62,55 @@ func (e Encoder) encodeValueBool(v reflect.Value) error {
 }
 
 func (e Encoder) encodeValueInt(v reflect.Value) error {
-	return e.encodeInt(v.Int())
+	return e.encodeInt(v.Int(), 0)
+}
+
+func (e Encoder) encodeValueInt8(v reflect.Value) error {
+	return e.encodeInt(v.Int(), 8)
+}
+
+func (e Encoder) encodeValueInt16(v reflect.Value) error {
+	return e.encodeInt(v.Int(), 16)
+}
+
+func (e Encoder) encodeValueInt32(v reflect.Value) error {
+	return e.encodeInt(v.Int(), 32)
+}
+
+func (e Encoder) encodeValueInt64(v reflect.Value) error {
+	return e.encodeInt(v.Int(), 64)
 }
 
 func (e Encoder) encodeValueUint(v reflect.Value) error {
-	return e.encodeUint(v.Uint())
+	return e.encodeUint(v.Uint(), 0)
 }
 
-func (e Encoder) encodeValueFloat(v reflect.Value) error {
-	return e.encodeFloat(v.Float())
+func (e Encoder) encodeValueUint8(v reflect.Value) error {
+	return e.encodeUint(v.Uint(), 8)
+}
+
+func (e Encoder) encodeValueUint16(v reflect.Value) error {
+	return e.encodeUint(v.Uint(), 16)
+}
+
+func (e Encoder) encodeValueUint32(v reflect.Value) error {
+	return e.encodeUint(v.Uint(), 32)
+}
+
+func (e Encoder) encodeValueUint64(v reflect.Value) error {
+	return e.encodeUint(v.Uint(), 64)
+}
+
+func (e Encoder) encodeValueUintptr(v reflect.Value) error {
+	return e.encodeUint(v.Uint(), 0)
+}
+
+func (e Encoder) encodeValueFloat32(v reflect.Value) error {
+	return e.encodeFloat(v.Float(), 32)
+}
+
+func (e Encoder) encodeValueFloat64(v reflect.Value) error {
+	return e.encodeFloat(v.Float(), 64)
 }
 
 func (e Encoder) encodeValueString(v reflect.Value) error {
@@ -327,11 +367,11 @@ func (e Encoder) encodeNil() error { return e.Emitter.EmitNil() }
 
 func (e Encoder) encodeBool(v bool) error { return e.Emitter.EmitBool(v) }
 
-func (e Encoder) encodeInt(v int64) error { return e.Emitter.EmitInt(v) }
+func (e Encoder) encodeInt(v int64, bs int) error { return e.Emitter.EmitInt(v, bs) }
 
-func (e Encoder) encodeUint(v uint64) error { return e.Emitter.EmitUint(v) }
+func (e Encoder) encodeUint(v uint64, bs int) error { return e.Emitter.EmitUint(v, bs) }
 
-func (e Encoder) encodeFloat(v float64) error { return e.Emitter.EmitFloat(v) }
+func (e Encoder) encodeFloat(v float64, bs int) error { return e.Emitter.EmitFloat(v, bs) }
 
 func (e Encoder) encodeString(v string) error { return e.Emitter.EmitString(v) }
 
@@ -606,14 +646,44 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 	case emptyInterface:
 		return Encoder.encodeValueInterface
 
-	case intType, int8Type, int16Type, int32Type, int64Type:
+	case intType:
 		return Encoder.encodeValueInt
 
-	case uintType, uint8Type, uint16Type, uint32Type, uint64Type, uintptrType:
+	case int8Type:
+		return Encoder.encodeValueInt8
+
+	case int16Type:
+		return Encoder.encodeValueInt16
+
+	case int32Type:
+		return Encoder.encodeValueInt32
+
+	case int64Type:
+		return Encoder.encodeValueInt64
+
+	case uintType:
 		return Encoder.encodeValueUint
 
-	case float32Type, float64Type:
-		return Encoder.encodeValueFloat
+	case uint8Type:
+		return Encoder.encodeValueUint8
+
+	case uint16Type:
+		return Encoder.encodeValueUint16
+
+	case uint32Type:
+		return Encoder.encodeValueUint32
+
+	case uint64Type:
+		return Encoder.encodeValueUint64
+
+	case uintptrType:
+		return Encoder.encodeValueUintptr
+
+	case float32Type:
+		return Encoder.encodeValueFloat32
+
+	case float64Type:
+		return Encoder.encodeValueFloat64
 	}
 
 	switch {
@@ -646,20 +716,50 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 	case reflect.Array:
 		return makeEncodeArrayFunc(t, opts)
 
+	case reflect.String:
+		return Encoder.encodeValueString
+
 	case reflect.Bool:
 		return Encoder.encodeValueBool
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int:
 		return Encoder.encodeValueInt
 
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+	case reflect.Int8:
+		return Encoder.encodeValueInt8
+
+	case reflect.Int16:
+		return Encoder.encodeValueInt16
+
+	case reflect.Int32:
+		return Encoder.encodeValueInt32
+
+	case reflect.Int64:
+		return Encoder.encodeValueInt64
+
+	case reflect.Uint:
 		return Encoder.encodeValueUint
 
-	case reflect.Float32, reflect.Float64:
-		return Encoder.encodeValueFloat
+	case reflect.Uint8:
+		return Encoder.encodeValueUint8
 
-	case reflect.String:
-		return Encoder.encodeValueString
+	case reflect.Uint16:
+		return Encoder.encodeValueUint16
+
+	case reflect.Uint32:
+		return Encoder.encodeValueUint32
+
+	case reflect.Uint64:
+		return Encoder.encodeValueUint64
+
+	case reflect.Uintptr:
+		return Encoder.encodeValueUintptr
+
+	case reflect.Float32:
+		return Encoder.encodeValueFloat32
+
+	case reflect.Float64:
+		return Encoder.encodeValueFloat64
 
 	default:
 		return Encoder.encodeValueUnsupported

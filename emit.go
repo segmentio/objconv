@@ -14,13 +14,13 @@ type Emitter interface {
 	EmitBool(bool) error
 
 	// EmitInt writes an integer value to the writer.
-	EmitInt(int64) error
+	EmitInt(v int64, bitSize int) error
 
 	// EmitUint writes an unsigned integer value to the writer.
-	EmitUint(uint64) error
+	EmitUint(v uint64, bitSize int) error
 
 	// EmitFloat writes a floating point value to the writer.
-	EmitFloat(float64) error
+	EmitFloat(v float64, bitSize int) error
 
 	// EmitString writes a string value to the writer.
 	EmitString(string) error
@@ -83,11 +83,11 @@ func (e *ValueEmitter) EmitNil() error { return e.push(nil) }
 
 func (e *ValueEmitter) EmitBool(v bool) error { return e.push(v) }
 
-func (e *ValueEmitter) EmitInt(v int64) error { return e.push(v) }
+func (e *ValueEmitter) EmitInt(v int64, _ int) error { return e.push(v) }
 
-func (e *ValueEmitter) EmitUint(v uint64) error { return e.push(v) }
+func (e *ValueEmitter) EmitUint(v uint64, _ int) error { return e.push(v) }
 
-func (e *ValueEmitter) EmitFloat(v float64) error { return e.push(v) }
+func (e *ValueEmitter) EmitFloat(v float64, _ int) error { return e.push(v) }
 
 func (e *ValueEmitter) EmitString(v string) error { return e.push(v) }
 
@@ -158,38 +158,21 @@ func (e *ValueEmitter) popMark() int {
 // used to disable an encoder output if necessary.
 type DiscardEmitter struct{}
 
-func (e DiscardEmitter) EmitNil() error { return nil }
-
-func (e DiscardEmitter) EmitBool(v bool) error { return nil }
-
-func (e DiscardEmitter) EmitInt(v int64) error { return nil }
-
-func (e DiscardEmitter) EmitUint(v uint64) error { return nil }
-
-func (e DiscardEmitter) EmitFloat(v float64) error { return nil }
-
-func (e DiscardEmitter) EmitString(v string) error { return nil }
-
-func (e DiscardEmitter) EmitBytes(v []byte) error { return nil }
-
-func (e DiscardEmitter) EmitTime(v time.Time) error { return nil }
-
+func (e DiscardEmitter) EmitNil() error                     { return nil }
+func (e DiscardEmitter) EmitBool(v bool) error              { return nil }
+func (e DiscardEmitter) EmitInt(v int64, _ int) error       { return nil }
+func (e DiscardEmitter) EmitUint(v uint64, _ int) error     { return nil }
+func (e DiscardEmitter) EmitFloat(v float64, _ int) error   { return nil }
+func (e DiscardEmitter) EmitString(v string) error          { return nil }
+func (e DiscardEmitter) EmitBytes(v []byte) error           { return nil }
+func (e DiscardEmitter) EmitTime(v time.Time) error         { return nil }
 func (e DiscardEmitter) EmitDuration(v time.Duration) error { return nil }
-
-func (e DiscardEmitter) EmitError(v error) error { return nil }
-
-func (e DiscardEmitter) EmitArrayBegin(v int) error { return nil }
-
-func (e DiscardEmitter) EmitArrayEnd() error { return nil }
-
-func (e DiscardEmitter) EmitArrayNext() error { return nil }
-
-func (e DiscardEmitter) EmitMapBegin(v int) error { return nil }
-
-func (e DiscardEmitter) EmitMapEnd() error { return nil }
-
-func (e DiscardEmitter) EmitMapDiscard() error { return nil }
-
-func (e DiscardEmitter) EmitMapNext() error { return nil }
-
-func (e DiscardEmitter) EmitMapValue() error { return nil }
+func (e DiscardEmitter) EmitError(v error) error            { return nil }
+func (e DiscardEmitter) EmitArrayBegin(v int) error         { return nil }
+func (e DiscardEmitter) EmitArrayEnd() error                { return nil }
+func (e DiscardEmitter) EmitArrayNext() error               { return nil }
+func (e DiscardEmitter) EmitMapBegin(v int) error           { return nil }
+func (e DiscardEmitter) EmitMapEnd() error                  { return nil }
+func (e DiscardEmitter) EmitMapDiscard() error              { return nil }
+func (e DiscardEmitter) EmitMapNext() error                 { return nil }
+func (e DiscardEmitter) EmitMapValue() error                { return nil }

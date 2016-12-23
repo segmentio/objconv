@@ -83,3 +83,10 @@ func getUint32(b []byte) uint32 {
 func getUint64(b []byte) uint64 {
 	return binary.BigEndian.Uint64(b)
 }
+
+func align(n int, a int) int {
+	if (n % a) == 0 {
+		return n
+	}
+	return ((n / a) + 1) * a
+}

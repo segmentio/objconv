@@ -55,18 +55,18 @@ func (e *Emitter) EmitBool(v bool) (err error) {
 	return
 }
 
-func (e *Emitter) EmitInt(v int64) (err error) {
+func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 	_, err = e.w.Write(strconv.AppendInt(e.s[:0], v, 10))
 	return
 }
 
-func (e *Emitter) EmitUint(v uint64) (err error) {
+func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
 	_, err = e.w.Write(strconv.AppendUint(e.s[:0], v, 10))
 	return
 }
 
-func (e *Emitter) EmitFloat(v float64) (err error) {
-	_, err = e.w.Write(strconv.AppendFloat(e.s[:0], v, 'g', -1, 64))
+func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
+	_, err = e.w.Write(strconv.AppendFloat(e.s[:0], v, 'g', -1, bitSize))
 	return
 }
 

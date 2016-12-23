@@ -1,6 +1,7 @@
 package msgpack
 
 import (
+	"fmt"
 	"io"
 	"time"
 	"unsafe"
@@ -39,7 +40,7 @@ func (e *Emitter) EmitBool(v bool) (err error) {
 	return
 }
 
-func (e *Emitter) EmitInt(v int64) (err error) {
+func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 	n := 0
 
 	if v >= 0 {
@@ -96,7 +97,7 @@ func (e *Emitter) EmitInt(v int64) (err error) {
 	return
 }
 
-func (e *Emitter) EmitUint(v uint64) (err error) {
+func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
 	n := 0
 
 	switch {
@@ -125,18 +126,99 @@ func (e *Emitter) EmitUint(v uint64) (err error) {
 	return
 }
 
-func (e *Emitter) EmitFloat(v float64) (err error) {
-	e.b[0] = Float64
-	putUint64(e.b[1:], *((*uint64)(unsafe.Pointer(&v))))
-	_, err = e.w.Write(e.b[:9])
+func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
+	switch bitSize {
+	case 32:
+		f := float32(v)
+		e.b[0] = Float32
+		putUint32(e.b[1:], *((*uint32)(unsafe.Pointer(&f))))
+		_, err = e.w.Write(e.b[:5])
+	default:
+		e.b[0] = Float64
+		putUint64(e.b[1:], *((*uint64)(unsafe.Pointer(&v))))
+		_, err = e.w.Write(e.b[:9])
+	}
 	return
 }
 
 func (e *Emitter) EmitString(v string) (err error) {
-	return
+	n := len(v)
+
+	switch {
+	case n <= 31:
+		e.b[0] = byte(n) | FixstrTag
+		n = 1
+
+	case n <= objconv.Uint8Max:
+		e.b[0] = Str8
+		e.b[1] = byte(n)
+		n = 2
+
+	case n <= objconv.Uint16Max:
+		e.b[0] = Str16
+		putUint16(e.b[1:], uint16(n))
+		n = 3
+
+	case n <= objconv.Uint32Max:
+		e.b[0] = Str32
+		putUint32(e.b[1:], uint32(n))
+		n = 5
+
+	default:
+		err = fmt.Errorf("objconv/msgpack: string of length %d is too long to be encoded", n)
+	}
+
+	for {
+		n1 := len(v)
+		n2 := len(e.b[n:])
+
+		if n1 > n2 {
+			n1 = n2
+		}
+
+		copy(e.b[n:], v[:n1])
+
+		if _, err = e.w.Write(e.b[:n+n1]); err != nil {
+			return
+		}
+
+		v = v[n1:]
+		n = 0
+
+		if len(v) == 0 {
+			return
+		}
+	}
 }
 
 func (e *Emitter) EmitBytes(v []byte) (err error) {
+	n := len(v)
+
+	switch {
+	case n <= objconv.Uint8Max:
+		e.b[0] = Bin8
+		e.b[1] = byte(n)
+		n = 2
+
+	case n <= objconv.Uint16Max:
+		e.b[0] = Bin16
+		putUint16(e.b[1:], uint16(n))
+		n = 3
+
+	case n <= objconv.Uint32Max:
+		e.b[0] = Bin32
+		putUint32(e.b[1:], uint32(n))
+		n = 5
+
+	default:
+		err = fmt.Errorf("objconv/msgpack: byte slice of length %d is too long to be encoded", n)
+	}
+
+	if _, err = e.w.Write(e.b[:n]); err != nil {
+		return
+	}
+
+	_, err = e.w.Write(v)
 	return
 }
 
@@ -153,6 +235,27 @@ func (e *Emitter) EmitError(v error) (err error) {
 }
 
 func (e *Emitter) EmitArrayBegin(n int) (err error) {
+	switch {
+	case n <= 15:
+		e.b[0] = byte(n) | FixarrayTag
+		n = 1
+
+	case n <= objconv.Uint16Max:
+		e.b[0] = Array16
+		putUint16(e.b[1:], uint16(n))
+		n = 3
+
+	case n <= objconv.Uint32Max:
+		e.b[0] = Array32
+		putUint32(e.b[1:], uint32(n))
+		n = 5
+
+	default:
+		err = fmt.Errorf("objconv/msgpack: array of length %d is too long to be encoded", n)
+		return
+	}
+
+	_, err = e.w.Write(e.b[:n])
 	return
 }
 
@@ -165,6 +268,27 @@ func (e *Emitter) EmitArrayNext() (err error) {
 }
 
 func (e *Emitter) EmitMapBegin(n int) (err error) {
+	switch {
+	case n <= 15:
+		e.b[0] = byte(n) | FixmapTag
+		n = 1
+
+	case n <= objconv.Uint16Max:
+		e.b[0] = Map16
+		putUint16(e.b[1:], uint16(n))
+		n = 3
+
+	case n <= objconv.Uint32Max:
+		e.b[0] = Map32
+		putUint32(e.b[1:], uint32(n))
+		n = 5
+
+	default:
+		err = fmt.Errorf("objconv/msgpack: map of length %d is too long to be encoded", n)
+		return
+	}
+
+	_, err = e.w.Write(e.b[:n])
 	return
 }
 
