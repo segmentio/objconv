@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -117,16 +118,16 @@ var msgpackTests = []interface{}{
 	makeMap(objconv.Uint16Max + 1),
 }
 
-func makeMap(n int) map[int]int {
-	m := make(map[int]int, n)
+func makeMap(n int) map[string]string {
+	m := make(map[string]string, n)
 	for i := 0; i != n; i++ {
-		m[i] = i
+		m[strconv.Itoa(i)] = "A"
 	}
 	return m
 }
 
 func testName(v interface{}) string {
-	s := fmt.Sprintf("%v", v)
+	s := fmt.Sprintf("%T:%v", v, v)
 	if len(s) > 20 {
 		s = s[:20] + "..."
 	}

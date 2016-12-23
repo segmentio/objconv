@@ -377,7 +377,7 @@ func (d Decoder) decodeValueTimeFromType(t Type, to reflect.Value) (err error) {
 		v, err = time.Parse(time.RFC3339Nano, string(s))
 	}
 
-	to.Set(reflect.ValueOf(v))
+	*(to.Addr().Interface().(*time.Time)) = v
 	return
 }
 
