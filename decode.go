@@ -672,7 +672,7 @@ func (d Decoder) decodeValueMapStringInterface(typ Type, to reflect.Value) (err 
 		var k string
 		var v interface{}
 
-		if b, err = d.decodeString(); err != nil {
+		if b, err = d.decodeTypeAndString(); err != nil {
 			return
 		}
 		k = string(b)
@@ -703,7 +703,7 @@ func (d Decoder) decodeValueMapStringString(typ Type, to reflect.Value) (err err
 		var k string
 		var v string
 
-		if b, err = d.decodeString(); err != nil {
+		if b, err = d.decodeTypeAndString(); err != nil {
 			return
 		}
 		k = string(b)
@@ -712,7 +712,7 @@ func (d Decoder) decodeValueMapStringString(typ Type, to reflect.Value) (err err
 			return
 		}
 
-		if b, err = d.decodeString(); err != nil {
+		if b, err = d.decodeTypeAndString(); err != nil {
 			return
 		}
 		v = string(b)
@@ -741,7 +741,7 @@ func (d Decoder) decodeValueStructFromTypeWith(typ Type, to reflect.Value, s *St
 	if err = d.decodeMapFromType(typ, func(kd Decoder, vd Decoder) (err error) {
 		var b []byte
 
-		if b, err = d.decodeString(); err != nil {
+		if b, err = d.decodeTypeAndString(); err != nil {
 			return
 		}
 
@@ -868,6 +868,27 @@ func (d Decoder) decodeValueInterfaceFrom(from reflect.Type, t Type, to reflect.
 
 func (d Decoder) decodeValueUnsupported(to reflect.Value) (Type, error) {
 	return Nil, fmt.Errorf("objconv: the decoder doesn't support values of type %s", to.Type())
+}
+
+func (d Decoder) decodeTypeAndString() (b []byte, err error) {
+	var t Type
+
+	if t, err = d.decodeType(); err == nil {
+		// This algorithm is the same than the one used in
+		// decodeValueStringWithType, and should be kept in sync.
+		switch t {
+		case Nil:
+			err = d.decodeNil()
+		case String:
+			b, err = d.decodeString()
+		case Bytes:
+			b, err = d.decodeBytes()
+		default:
+			err = typeConversionError(t, String)
+		}
+	}
+
+	return
 }
 
 func (d Decoder) decodeType() (Type, error) { return d.Parser.ParseType() }

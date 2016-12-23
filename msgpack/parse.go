@@ -589,7 +589,7 @@ func (p *Parser) fill() (err error) {
 	p.i = 0
 	p.j = n
 
-	if n, err = p.r.Read(p.b[p.j:]); n > 0 {
+	if n, err = p.r.Read(p.b[n:]); n > 0 {
 		err = nil
 		p.j += n
 	} else if err != nil {
