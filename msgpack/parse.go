@@ -349,7 +349,7 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 		}
 		p.i += 8
 		ts := getUint64(b)
-		s, ns = int64(ts)&0x3FFFFFFFF, int64(ts>>34)
+		s, ns = int64(ts&0x3FFFFFFFF), int64(ts>>34)
 
 	case Ext8: // 32-bit unsigned nanoseconds + 64 bits signed timestamp
 		if b, err = p.peek(1); err != nil {
