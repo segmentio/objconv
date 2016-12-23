@@ -2,10 +2,12 @@ package msgpack
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/segmentio/objconv"
 )
@@ -79,6 +81,24 @@ var msgpackTests = []interface{}{
 	bytes.Repeat([]byte("A"), objconv.Uint8Max+1),
 	bytes.Repeat([]byte("A"), objconv.Uint16Max+1),
 
+	// duration
+	time.Nanosecond,
+	time.Microsecond,
+	time.Millisecond,
+	time.Second,
+	time.Minute,
+	time.Hour,
+
+	// time
+	time.Time{},
+	time.Now(),
+
+	// error
+	errors.New(""),
+	errors.New("Hello World!"),
+	errors.New(strings.Repeat("A", objconv.Uint8Max+1)),
+	errors.New(strings.Repeat("A", objconv.Uint16Max+1)),
+
 	// fixarray
 	[]int{},
 	[]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
@@ -105,7 +125,7 @@ func makeMap(n int) map[int]int {
 }
 
 func testName(v interface{}) string {
-	s := fmt.Sprintf("%#v", v)
+	s := fmt.Sprintf("%v", v)
 	if len(s) > 20 {
 		s = s[:20] + "..."
 	}

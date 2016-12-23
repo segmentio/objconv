@@ -2,6 +2,7 @@ package msgpack
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -84,10 +85,50 @@ func (p *Parser) ParseType() (objconv.Type, error) {
 
 	case Map16, Map32:
 		return objconv.Map, nil
+
+	case Fixext1, Fixext2, Fixext4, Fixext8, Fixext16:
+		if b, err = p.peek(2); err != nil {
+			return objconv.Unknown, err
+		}
+
+		switch tag = b[1]; tag {
+		case ExtTime:
+			return objconv.Time, nil
+
+		case ExtDuration:
+			return objconv.Duration, nil
+
+		default:
+			return objconv.Unknown, fmt.Errorf("objconv/msgpack: unsupported extension '%d'", tag)
+		}
+
+	case Ext8, Ext16, Ext32: // continue after the switch
+	default:
+		return objconv.Unknown, fmt.Errorf("objconv/msgpack: unknown tag '%#x'", tag)
 	}
 
-	return objconv.Unknown, fmt.Errorf("objconv/msgpack: unknown tag '%#x'", tag)
+	switch tag {
+	case Ext8:
+		b, err = p.peek(3)
+	case Ext16:
+		b, err = p.peek(4)
+	default:
+		b, err = p.peek(6)
+	}
 
+	if err != nil {
+		return objconv.Unknown, err
+	}
+
+	switch tag = b[len(b)-1]; tag {
+	case ExtTime:
+		return objconv.Time, nil
+
+	case ExtError:
+		return objconv.Error, nil
+	}
+
+	return objconv.Unknown, fmt.Errorf("objconv/msgpack: unknown extension '%d'", tag)
 }
 
 func (p *Parser) ParseNil() (err error) {
@@ -226,18 +267,19 @@ func (p *Parser) ParseString() (v []byte, err error) {
 
 		switch tag {
 		case Str8:
-			b, err = p.peek(1)
+			n = 1
 		case Str16:
-			b, err = p.peek(2)
+			n = 2
 		default:
-			b, err = p.peek(4)
+			n = 4
 		}
 
-		if err != nil {
+		if b, err = p.peek(n); err != nil {
 			return
 		}
+		p.i += n
 
-		switch len(b) {
+		switch n {
 		case 1:
 			n = int(b[0])
 		case 2:
@@ -245,8 +287,6 @@ func (p *Parser) ParseString() (v []byte, err error) {
 		default:
 			n = int(getUint32(b))
 		}
-
-		p.i += len(b)
 	}
 
 	return p.read(n)
@@ -261,18 +301,19 @@ func (p *Parser) ParseBytes() (v []byte, err error) {
 
 	switch tag {
 	case Bin8:
-		b, err = p.peek(1)
+		n = 1
 	case Bin16:
-		b, err = p.peek(2)
+		n = 2
 	default:
-		b, err = p.peek(4)
+		n = 4
 	}
 
-	if err != nil {
+	if b, err = p.peek(n); err != nil {
 		return
 	}
+	p.i += n
 
-	switch len(b) {
+	switch n {
 	case 1:
 		n = int(b[0])
 	case 2:
@@ -281,19 +322,136 @@ func (p *Parser) ParseBytes() (v []byte, err error) {
 		n = int(getUint32(b))
 	}
 
-	p.i += len(b)
 	return p.read(n)
 }
 
 func (p *Parser) ParseTime() (v time.Time, err error) {
+	tag := p.b[p.i]
+	p.i++
+
+	var b []byte
+	var s int64
+	var ns int64
+
+	switch tag {
+	case Fixext4: // 32-bit unsigned timestamp
+		p.i++
+		if b, err = p.peek(4); err != nil {
+			return
+		}
+		p.i += 4
+		s = int64(getUint32(b))
+
+	case Fixext8: // 30-bit unsigned nanoseconds + 34-bit unsigned timestamp
+		p.i++
+		if b, err = p.peek(8); err != nil {
+			return
+		}
+		p.i += 8
+		ts := getUint64(b)
+		s = int64(ts >> 30)
+		ns = int64(ts & 0x3FFFFFFF)
+
+	case Ext8: // 32-bit unsigned nanoseconds + 64 bits signed timestamp
+		if b, err = p.peek(1); err != nil {
+			return
+		}
+		if b[0] != 12 {
+			err = fmt.Errorf("objconv/msgpack: invalid timestamp length, expected 12 but found %d", int(b[0]))
+			return
+		}
+		p.i += 2 // skip the extension length and type
+		if b, err = p.peek(12); err != nil {
+			return
+		}
+		p.i += 12
+		ns = int64(getUint32(b))
+		s = int64(getUint64(b[4:]))
+
+	default:
+		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a timestamp '%#d'", tag)
+		return
+	}
+
+	v = time.Unix(s, ns)
 	return
 }
 
 func (p *Parser) ParseDuration() (v time.Duration, err error) {
+	tag := p.b[p.i]
+	p.i += 2 // skip the extension type as well
+
+	var b []byte
+	var n int
+
+	switch tag {
+	case Fixext1:
+		n = 1
+	case Fixext2:
+		n = 2
+	case Fixext4:
+		n = 4
+	case Fixext8:
+		n = 8
+	default:
+		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a duration '%#d'", tag)
+		return
+	}
+
+	if b, err = p.peek(n); err != nil {
+		return
+	}
+
+	switch n {
+	case 1:
+		v = time.Duration(int8(b[0]))
+	case 2:
+		v = time.Duration(int16(getUint16(b)))
+	case 4:
+		v = time.Duration(int32(getUint32(b)))
+	default:
+		v = time.Duration(getUint64(b))
+	}
+
+	p.i += n
 	return
 }
 
 func (p *Parser) ParseError() (v error, err error) {
+	tag := p.b[p.i]
+	p.i++
+
+	var b []byte
+	var n int
+
+	switch tag {
+	case Ext8:
+		n = 1
+	case Ext16:
+		n = 2
+	default:
+		n = 4
+	}
+
+	if b, err = p.peek(n); err != nil {
+		return
+	}
+	p.i += n + 1 // +1 for the extension type
+
+	switch n {
+	case 1:
+		n = int(b[0])
+	case 2:
+		n = int(getUint16(b))
+	default:
+		n = int(getUint32(b))
+	}
+
+	if b, err = p.read(n); err != nil {
+		return
+	}
+
+	v = errors.New(string(b))
 	return
 }
 

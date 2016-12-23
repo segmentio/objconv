@@ -58,6 +58,10 @@ const (
 
 	NegativeFixintMask = 0xE0
 	NegativeFixintTag  = 0xE0
+
+	ExtTime     = 0xFF
+	ExtDuration = 0x31
+	ExtError    = 0x32
 )
 
 func putUint16(b []byte, v uint16) {
