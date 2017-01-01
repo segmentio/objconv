@@ -1,7 +1,9 @@
 package resp
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -57,6 +59,51 @@ func TestMarshal(t *testing.T) {
 
 			if s := string(b); s != test.s {
 				t.Error(s)
+			}
+		})
+	}
+}
+
+func TestStreamEncoder(t *testing.T) {
+	tests := []struct {
+		a []int
+		s string
+	}{
+		{
+			a: []int{},
+			s: "*0\r\n",
+		},
+		{
+			a: []int{1},
+			s: "*1\r\n:1\r\n",
+		},
+		{
+			a: []int{1, 2},
+			s: "*2\r\n:1\r\n:2\r\n",
+		},
+		{
+			a: []int{1, 2, 3},
+			s: "*3\r\n:1\r\n:2\r\n:3\r\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%#v", test), func(t *testing.T) {
+			b := &bytes.Buffer{}
+			e := NewStreamEncoder(b)
+
+			for _, v := range test.a {
+				if err := e.Encode(v); err != nil {
+					t.Error(err)
+				}
+			}
+
+			if err := e.Close(); err != nil {
+				t.Error(err)
+			}
+
+			if s := b.String(); s != test.s {
+				t.Errorf("%#v", s)
 			}
 		})
 	}

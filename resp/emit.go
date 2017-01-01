@@ -1,6 +1,7 @@
 package resp
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strconv"
@@ -21,13 +22,36 @@ var (
 // interface.
 type Emitter struct {
 	w io.Writer
+
+	// This byte slice is used as a local buffer to format values before they
+	// are written to the output.
 	s []byte
+
+	// This array acts as the initial buffer for s to avoid dynamic memory
+	// allocations for the most common use cases.
 	a [128]byte
+
+	// This stack is used to cache arrays that are emitted in streaming mode,
+	// where the length of the array is not known before outputing all the
+	// elements.
+	stack []context
+
+	// sback is used as the initial backing array for the stack slice to avoid
+	// dynamic memory allocations for the most common use cases.
+	sback [8]context
+}
+
+type context struct {
+	b bytes.Buffer // buffer where the array elements are cached
+	w io.Writer    // the previous writer where b will be flushed
+	n int          // the length of the array as initially set by the encoder
+	i int          // the number of elements written to the array
 }
 
 func NewEmitter(w io.Writer) *Emitter {
 	e := &Emitter{w: w}
 	e.s = e.a[:0]
+	e.stack = e.sback[:0]
 	return e
 }
 
@@ -181,35 +205,50 @@ func (e *Emitter) EmitError(v error) (err error) {
 }
 
 func (e *Emitter) EmitArrayBegin(n int) (err error) {
-	s := e.s[:0]
+	e.stack = append(e.stack, context{n: n})
+	c := &e.stack[len(e.stack)-1]
 
-	s = append(s, '*')
-	s = appendUint(s, uint64(n))
-	s = appendCRLF(s)
+	if n < 0 {
+		c.w = e.w
+		e.w = &c.b
+	} else {
+		err = e.emitArray(n)
+	}
 
-	e.s = s[:0]
-	_, err = e.w.Write(s)
 	return
 }
 
 func (e *Emitter) EmitArrayEnd() (err error) {
+	i := len(e.stack) - 1
+	c := e.stack[i]
+	e.stack = e.stack[:i]
+
+	if c.n < 0 {
+		e.w = c.w
+
+		if c.b.Len() != 0 {
+			c.i++
+		}
+
+		if err = e.emitArray(c.i); err != nil {
+			return
+		}
+
+		if _, err = c.b.WriteTo(c.w); err != nil {
+			return
+		}
+	}
+
 	return
 }
 
 func (e *Emitter) EmitArrayNext() (err error) {
+	e.stack[len(e.stack)-1].i++
 	return
 }
 
 func (e *Emitter) EmitMapBegin(n int) (err error) {
-	s := e.s[:0]
-
-	s = append(s, '*')
-	s = appendUint(s, 2*uint64(n))
-	s = appendCRLF(s)
-
-	e.s = s[:0]
-	_, err = e.w.Write(s)
-	return
+	return e.emitArray(n + n)
 }
 
 func (e *Emitter) EmitMapEnd() (err error) {
@@ -221,6 +260,18 @@ func (e *Emitter) EmitMapValue() (err error) {
 }
 
 func (e *Emitter) EmitMapNext() (err error) {
+	return
+}
+
+func (e *Emitter) emitArray(n int) (err error) {
+	s := e.s[:0]
+
+	s = append(s, '*')
+	s = appendUint(s, uint64(n))
+	s = appendCRLF(s)
+
+	e.s = s[:0]
+	_, err = e.w.Write(s)
 	return
 }
 
