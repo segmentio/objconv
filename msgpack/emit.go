@@ -1,8 +1,10 @@
 package msgpack
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -14,10 +16,27 @@ import (
 type Emitter struct {
 	w io.Writer
 	b [240]byte
+
+	// This stack is used to cache arrays that are emitted in streaming mode,
+	// where the length of the array is not known before outputing all the
+	// elements.
+	stack []*context
+
+	// sback is used as the initial backing array for the stack slice to avoid
+	// dynamic memory allocations for the most common use cases.
+	sback [8]*context
+}
+
+type context struct {
+	b bytes.Buffer // buffer where the array elements are cached
+	w io.Writer    // the previous writer where b will be flushed
+	n int          // the number of elements written to the array
 }
 
 func NewEmitter(w io.Writer) *Emitter {
-	return &Emitter{w: w}
+	e := &Emitter{w: w}
+	e.stack = e.sback[:0]
+	return e
 }
 
 func (e *Emitter) Reset(w io.Writer) {
@@ -325,39 +344,57 @@ func (e *Emitter) EmitError(v error) (err error) {
 }
 
 func (e *Emitter) EmitArrayBegin(n int) (err error) {
-	switch {
-	case n <= 15:
-		e.b[0] = byte(n) | FixarrayTag
-		n = 1
+	var c *context
 
-	case n <= objconv.Uint16Max:
-		e.b[0] = Array16
-		putUint16(e.b[1:], uint16(n))
-		n = 3
-
-	case n <= objconv.Uint32Max:
-		e.b[0] = Array32
-		putUint32(e.b[1:], uint32(n))
-		n = 5
-
-	default:
-		err = fmt.Errorf("objconv/msgpack: array of length %d is too long to be encoded", n)
-		return
+	if n < 0 {
+		c = contextPool.Get().(*context)
+		c.b.Truncate(0)
+		c.n = 0
+		c.w = e.w
+		e.w = &c.b
+	} else {
+		err = e.emitArray(n)
 	}
 
-	_, err = e.w.Write(e.b[:n])
+	e.stack = append(e.stack, c)
 	return
 }
 
 func (e *Emitter) EmitArrayEnd() (err error) {
+	i := len(e.stack) - 1
+	c := e.stack[i]
+	e.stack = e.stack[:i]
+
+	if c != nil {
+		e.w = c.w
+
+		if c.b.Len() != 0 {
+			c.n++
+		}
+
+		if err = e.emitArray(c.n); err == nil {
+			_, err = c.b.WriteTo(c.w)
+		}
+
+		contextPool.Put(c)
+	}
+
 	return
 }
 
 func (e *Emitter) EmitArrayNext() (err error) {
+	if c := e.stack[len(e.stack)-1]; c != nil {
+		c.n++
+	}
 	return
 }
 
 func (e *Emitter) EmitMapBegin(n int) (err error) {
+	if n < 0 {
+		err = fmt.Errorf("objconv/msgpack: encoding maps of unknown length is not supported (n = %d)", n)
+		return
+	}
+
 	switch {
 	case n <= 15:
 		e.b[0] = byte(n) | FixmapTag
@@ -392,4 +429,33 @@ func (e *Emitter) EmitMapValue() (err error) {
 
 func (e *Emitter) EmitMapNext() (err error) {
 	return
+}
+
+func (e *Emitter) emitArray(n int) (err error) {
+	switch {
+	case n <= 15:
+		e.b[0] = byte(n) | FixarrayTag
+		n = 1
+
+	case n <= objconv.Uint16Max:
+		e.b[0] = Array16
+		putUint16(e.b[1:], uint16(n))
+		n = 3
+
+	case n <= objconv.Uint32Max:
+		e.b[0] = Array32
+		putUint32(e.b[1:], uint32(n))
+		n = 5
+
+	default:
+		err = fmt.Errorf("objconv/msgpack: array of length %d is too long to be encoded", n)
+		return
+	}
+
+	_, err = e.w.Write(e.b[:n])
+	return
+}
+
+var contextPool = sync.Pool{
+	New: func() interface{} { return &context{} },
 }

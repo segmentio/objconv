@@ -367,7 +367,7 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 		s, ns = int64(getUint64(b[4:])), int64(getUint32(b))
 
 	default:
-		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a timestamp '%#d'", tag)
+		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a timestamp '%d'", tag)
 		return
 	}
 
@@ -392,7 +392,7 @@ func (p *Parser) ParseDuration() (v time.Duration, err error) {
 	case Fixext8:
 		n = 8
 	default:
-		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a duration '%#d'", tag)
+		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a duration '%d'", tag)
 		return
 	}
 
