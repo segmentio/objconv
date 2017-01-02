@@ -2,7 +2,10 @@ package cbor
 
 import (
 	"io"
+	"math"
 	"time"
+
+	"github.com/segmentio/objconv"
 )
 
 // Emitter implements a MessagePack emitter that satisfies the objconv.Emitter
@@ -30,22 +33,72 @@ func (e *Emitter) Reset(w io.Writer) {
 }
 
 func (e *Emitter) EmitNil() (err error) {
+	e.b[0] = majorByte(MajorType7, Null)
+	_, err = e.w.Write(e.b[:1])
 	return
 }
 
 func (e *Emitter) EmitBool(v bool) (err error) {
+	if v {
+		e.b[0] = majorByte(MajorType7, True)
+	} else {
+		e.b[0] = majorByte(MajorType7, False)
+	}
+	_, err = e.w.Write(e.b[:1])
 	return
 }
 
 func (e *Emitter) EmitInt(v int64, _ int) (err error) {
+	if v >= 0 {
+		return e.EmitUint(uint64(v), 0)
+	}
+
+	// TODO
 	return
 }
 
 func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
+	var n int
+
+	switch {
+	case v <= 23:
+		n = 1
+		e.b[0] = majorByte(MajorType0, byte(v))
+
+	case v <= objconv.Uint8Max:
+		n = 2
+		e.b[0] = majorByte(MajorType0, Uint8)
+		e.b[1] = uint8(v)
+
+	case v <= objconv.Uint16Max:
+		n = 3
+		e.b[0] = majorByte(MajorType0, Uint16)
+		putUint16(e.b[1:], uint16(v))
+
+	case v <= objconv.Uint32Max:
+		n = 5
+		e.b[0] = majorByte(MajorType0, Uint32)
+		putUint32(e.b[1:], uint32(v))
+
+	default:
+		n = 9
+		e.b[0] = majorByte(MajorType0, Uint64)
+		putUint64(e.b[1:], v)
+	}
+
+	_, err = e.w.Write(e.b[:n])
 	return
 }
 
 func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
+	if bitSize == 32 {
+		e.b[0] = majorByte(MajorType7, Float32)
+		putUint32(e.b[1:], math.Float32bits(float32(v)))
+	} else {
+		e.b[0] = majorByte(MajorType7, Float64)
+		putUint64(e.b[1:], math.Float64bits(v))
+	}
+	_, err = e.w.Write(e.b[:1+(bitSize/8)])
 	return
 }
 

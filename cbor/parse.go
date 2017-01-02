@@ -2,7 +2,9 @@ package cbor
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/segmentio/objconv"
@@ -31,14 +33,93 @@ func (p *Parser) Buffered() io.Reader {
 }
 
 func (p *Parser) ParseType() (typ objconv.Type, err error) {
+	var s []byte
+
+	if s, err = p.peek(1); err != nil {
+		return
+	}
+
+	switch m, b := majorTypeOf(s[0]); m {
+	case MajorType0:
+		typ = objconv.Uint
+
+	case MajorType1:
+		typ = objconv.Int
+
+	case MajorType2:
+		typ = objconv.Bytes
+
+	case MajorType3:
+		typ = objconv.String
+
+	case MajorType4:
+		typ = objconv.Array
+
+	case MajorType5:
+		typ = objconv.Map
+
+	case MajorType6:
+		// TODO:
+		err = fmt.Errorf("objconv/cbor: tags are not supported yet")
+
+	default:
+		switch b {
+		case Null, Undefined:
+			typ = objconv.Nil
+
+		case False, True:
+			typ = objconv.Bool
+
+		case Float16, Float32, Float64:
+			typ = objconv.Float
+
+		case Extension:
+			typ = objconv.Uint
+
+		default:
+			err = fmt.Errorf("objconv/cbor: unexpected value in major type 7: %d", b)
+		}
+	}
+
+	return
+}
+
+func (p *Parser) parseType7() (b byte, err error) {
+	var s []byte
+
+	if s, err = p.peek(1); err != nil {
+		return
+	}
+
+	if _, b = majorTypeOf(s[0]); b != Extension {
+		p.i++
+	} else {
+		if s, err = p.peek(2); err != nil {
+			return
+		}
+		if b = s[1]; b < 32 {
+			err = fmt.Errorf("objconv/cbor: invalid extended simple value in major type 7: %d", b)
+			return
+		}
+		p.i += 2
+	}
+
 	return
 }
 
 func (p *Parser) ParseNil() (err error) {
+	_, err = p.parseType7()
 	return
 }
 
 func (p *Parser) ParseBool() (v bool, err error) {
+	var b byte
+
+	if b, err = p.parseType7(); err != nil {
+		return
+	}
+
+	v = b == True
 	return
 }
 
@@ -47,10 +128,90 @@ func (p *Parser) ParseInt() (v int64, err error) {
 }
 
 func (p *Parser) ParseUint() (v uint64, err error) {
+	var s []byte
+	var m byte
+	var b byte
+	var n int
+
+	if s, err = p.peek(1); err != nil {
+		return
+	}
+
+	if m, b = majorTypeOf(s[0]); m != MajorType0 { // m == MajorType7 && b == Extension
+		if b, err = p.parseType7(); err != nil {
+			return
+		}
+		v = uint64(b)
+		return
+	}
+
+	if b <= 23 {
+		v = uint64(b)
+		return
+	}
+
+	switch b {
+	case Uint8:
+		n = 2
+	case Uint16:
+		n = 3
+	case Uint32:
+		n = 5
+	default:
+		n = 9
+	}
+
+	if s, err = p.peek(n); err != nil {
+		return
+	}
+
+	switch b {
+	case Uint8:
+		v = uint64(s[1])
+	case Uint16:
+		v = uint64(getUint16(s[1:]))
+	case Uint32:
+		v = uint64(getUint32(s[1:]))
+	default:
+		v = getUint64(s[1:])
+	}
+
+	p.i += n
 	return
 }
 
 func (p *Parser) ParseFloat() (v float64, err error) {
+	var s []byte
+	var n int
+	var b byte
+
+	if b, err = p.parseType7(); err != nil {
+		return
+	}
+
+	switch b {
+	case Float16:
+		n = 2
+	case Float32:
+		n = 4
+	default:
+		n = 8
+	}
+
+	if s, err = p.peek(n); err != nil {
+		return
+	}
+	p.i += n
+
+	switch b {
+	case Float16:
+		v = float64(math.Float32frombits(f16tof32bits(getUint16(s))))
+	case Float32:
+		v = float64(math.Float32frombits(getUint32(s)))
+	default:
+		v = math.Float64frombits(getUint64(s))
+	}
+
 	return
 }
 
