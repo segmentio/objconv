@@ -130,7 +130,7 @@ type ValueParser struct {
 type valueParserContext struct {
 	value  reflect.Value
 	keys   []reflect.Value
-	fields []StructField
+	fields []structField
 }
 
 // NewValueParser creates a new parser that exposes the value v.
@@ -286,10 +286,10 @@ func (p *ValueParser) ParseMapBegin() (n int, err error) {
 		}
 	} else {
 		c := valueParserContext{value: v}
-		s := LookupStruct(v.Type())
+		s := structCache.lookup(v.Type())
 
-		for _, f := range s.Fields {
-			if !f.omit(v.FieldByIndex(f.Index)) {
+		for _, f := range s.fields {
+			if !f.omit(v.FieldByIndex(f.index)) {
 				c.fields = append(c.fields, f)
 				n++
 			}
@@ -297,7 +297,7 @@ func (p *ValueParser) ParseMapBegin() (n int, err error) {
 
 		p.pushContext(c)
 		if n != 0 {
-			p.push(reflect.ValueOf(c.fields[0].Name))
+			p.push(reflect.ValueOf(c.fields[0].name))
 		}
 	}
 
@@ -319,7 +319,7 @@ func (p *ValueParser) ParseMapValue(n int) (err error) {
 	if ctx.keys != nil {
 		p.push(ctx.value.MapIndex(ctx.keys[n]))
 	} else {
-		p.push(ctx.value.FieldByIndex(ctx.fields[n].Index))
+		p.push(ctx.value.FieldByIndex(ctx.fields[n].index))
 	}
 
 	return
@@ -332,7 +332,7 @@ func (p *ValueParser) ParseMapNext(n int) (err error) {
 	if ctx.keys != nil {
 		p.push(ctx.keys[n])
 	} else {
-		p.push(reflect.ValueOf(ctx.fields[n].Name))
+		p.push(reflect.ValueOf(ctx.fields[n].name))
 	}
 
 	return

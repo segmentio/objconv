@@ -5,35 +5,35 @@ import (
 	"sync"
 )
 
-// StructField represents a single field of a struct and carries information
+// structField represents a single field of a struct and carries information
 // useful to the algorithms of the objconv package.
-type StructField struct {
+type structField struct {
 	// The index of the field in the structure.
-	Index []int
+	index []int
 
 	// The name of the field in the structure.
-	Name string
+	name string
 
 	// Omitempty is set to true when the field should be omitted if it has an
 	// empty value.
-	Omitempty bool
+	omitempty bool
 
 	// Omitzero is set to true when the field should be omitted if it has a zero
 	// value.
-	Omitzero bool
+	omitzero bool
 
 	// cache for the encoder and decoder methods
 	encode encodeFunc
 	decode decodeFunc
 }
 
-func makeStructField(f reflect.StructField, c map[reflect.Type]*Struct) StructField {
-	t := ParseTag(f.Tag.Get("objconv"))
-	s := StructField{
-		Index:     f.Index,
-		Name:      f.Name,
-		Omitempty: t.Omitempty,
-		Omitzero:  t.Omitzero,
+func makeStructField(f reflect.StructField, c map[reflect.Type]*structType) structField {
+	t := parseTag(f.Tag.Get("objconv"))
+	s := structField{
+		index:     f.Index,
+		name:      f.Name,
+		omitempty: t.omitempty,
+		omitzero:  t.omitzero,
 
 		encode: makeEncodeFunc(f.Type, encodeFuncOpts{
 			recurse: true,
@@ -46,50 +46,37 @@ func makeStructField(f reflect.StructField, c map[reflect.Type]*Struct) StructFi
 		}),
 	}
 
-	if len(t.Name) != 0 {
-		s.Name = t.Name
+	if len(t.name) != 0 {
+		s.name = t.name
 	}
 
 	return s
 }
 
-func (f *StructField) omit(v reflect.Value) bool {
-	return (f.Omitempty && isEmptyValue(v)) || (f.Omitzero && isZeroValue(v))
+func (f *structField) omit(v reflect.Value) bool {
+	return (f.omitempty && isEmptyValue(v)) || (f.omitzero && isZeroValue(v))
 }
 
-// Struct is used to represent a Go structure in internal data structures that
-// cache meta information to make field lookups faster and avoid having to use
-// reflection to lookup the same type information over and over again.
-type Struct struct {
-	Fields       []StructField           // the serializable fields of the struct
-	FieldsByName map[string]*StructField // cache of fields by name
+// structType is used to represent a Go structure in internal data structures
+// that cache meta information to make field lookups faster and avoid having to
+// use reflection to lookup the same type information over and over again.
+type structType struct {
+	fields       []structField           // the serializable fields of the struct
+	fieldsByName map[string]*structField // cache of fields by name
 }
 
-// LookupStruct behaves like MakeStruct but uses a global cache to avoid having
-// to recreate the struct values when not needed.
-//
-// As much as possible you should be using this function instead of calling
-// MakeStruct or maintaining your own cache so the program can efficiently make
-// use of the cache and avoid storing duplicate information in different parts
-// of the program.
-func LookupStruct(t reflect.Type) *Struct { return structCache.Lookup(t) }
-
-// NewStruct takes a Go type as argument and extract information to make a new
-// Struct value.
+// newStructType takes a Go type as argument and extract information to make a
+// new structType value.
 // The type has to be a struct type or a panic will be raised.
-func NewStruct(t reflect.Type) *Struct {
-	return newStruct(t, map[reflect.Type]*Struct{})
-}
-
-func newStruct(t reflect.Type, c map[reflect.Type]*Struct) *Struct {
+func newStructType(t reflect.Type, c map[reflect.Type]*structType) *structType {
 	if s := c[t]; s != nil {
 		return s
 	}
 
 	n := t.NumField()
-	s := &Struct{
-		Fields:       make([]StructField, 0, n),
-		FieldsByName: make(map[string]*StructField),
+	s := &structType{
+		fields:       make([]structField, 0, n),
+		fieldsByName: make(map[string]*structField),
 	}
 	c[t] = s
 
@@ -102,32 +89,27 @@ func newStruct(t reflect.Type, c map[reflect.Type]*Struct) *Struct {
 
 		sf := makeStructField(ft, c)
 
-		if sf.Name == "-" { // skip
+		if sf.name == "-" { // skip
 			continue
 		}
 
-		s.Fields = append(s.Fields, sf)
-		s.FieldsByName[sf.Name] = &s.Fields[len(s.Fields)-1]
+		s.fields = append(s.fields, sf)
+		s.fieldsByName[sf.name] = &s.fields[len(s.fields)-1]
 	}
 
 	return s
 }
 
-// StructCache is a simple cache for mapping Go types to Struct values.
-type StructCache struct {
+// structTypeCache is a simple cache for mapping Go types to Struct values.
+type structTypeCache struct {
 	mutex sync.RWMutex
-	store map[reflect.Type]*Struct
+	store map[reflect.Type]*structType
 }
 
-// NewStructCache creates and returns a new StructCache value.
-func NewStructCache() *StructCache {
-	return &StructCache{store: make(map[reflect.Type]*Struct, 20)}
-}
-
-// Lookup takes a Go type as argument and returns the matching Struct value,
+// lookup takes a Go type as argument and returns the matching structType value,
 // potentially creating it if it didn't already exist.
 // This method is safe to call from multiple goroutines.
-func (cache *StructCache) Lookup(t reflect.Type) (s *Struct) {
+func (cache *structTypeCache) lookup(t reflect.Type) (s *structType) {
 	cache.mutex.RLock()
 	s = cache.store[t]
 	cache.mutex.RUnlock()
@@ -139,7 +121,7 @@ func (cache *StructCache) Lookup(t reflect.Type) (s *Struct) {
 		// often, we take the approach of keeping the logic simple and avoid
 		// a more complex synchronization logic required to solve this edge
 		// case.
-		s = NewStruct(t)
+		s = newStructType(t, map[reflect.Type]*structType{})
 		cache.mutex.Lock()
 		cache.store[t] = s
 		cache.mutex.Unlock()
@@ -152,5 +134,7 @@ var (
 	// This struct cache is used to avoid reusing reflection over and over when
 	// the objconv functions are called. The performance improvements on iterating
 	// over struct fields are huge, this is a really important optimization:
-	structCache = NewStructCache()
+	structCache = structTypeCache{
+		store: make(map[reflect.Type]*structType),
+	}
 )

@@ -283,15 +283,15 @@ func (e Encoder) encodeMapStringString(v reflect.Value) (err error) {
 }
 
 func (e Encoder) encodeStruct(v reflect.Value) error {
-	return e.encodeStructWith(v, LookupStruct(v.Type()))
+	return e.encodeStructWith(v, structCache.lookup(v.Type()))
 }
 
-func (e Encoder) encodeStructWith(v reflect.Value, s *Struct) (err error) {
+func (e Encoder) encodeStructWith(v reflect.Value, s *structType) (err error) {
 	n := 0
 
-	for i := range s.Fields {
-		f := &s.Fields[i]
-		if !f.omit(v.FieldByIndex(f.Index)) {
+	for i := range s.fields {
+		f := &s.fields[i]
+		if !f.omit(v.FieldByIndex(f.index)) {
 			n++
 		}
 	}
@@ -301,15 +301,15 @@ func (e Encoder) encodeStructWith(v reflect.Value, s *Struct) (err error) {
 	}
 	n = 0
 
-	for i := range s.Fields {
-		f := &s.Fields[i]
-		if fv := v.FieldByIndex(f.Index); !f.omit(fv) {
+	for i := range s.fields {
+		f := &s.fields[i]
+		if fv := v.FieldByIndex(f.index); !f.omit(fv) {
 			if n != 0 {
 				if err = e.Emitter.EmitMapNext(); err != nil {
 					return
 				}
 			}
-			if err = e.Emitter.EmitString(f.Name); err != nil {
+			if err = e.Emitter.EmitString(f.name); err != nil {
 				return
 			}
 			if err = e.Emitter.EmitMapValue(); err != nil {
@@ -571,7 +571,7 @@ var (
 // encodeFuncOpts is used to configure how the encodeFuncOf behaves.
 type encodeFuncOpts struct {
 	recurse bool
-	structs map[reflect.Type]*Struct
+	structs map[reflect.Type]*structType
 }
 
 // encodeFunc is the prototype of functions that encode values.
@@ -747,7 +747,7 @@ func makeEncodeStructFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 	if !opts.recurse {
 		return Encoder.encodeStruct
 	}
-	s := newStruct(t, opts.structs)
+	s := newStructType(t, opts.structs)
 	return func(e Encoder, v reflect.Value) error {
 		return e.encodeStructWith(v, s)
 	}

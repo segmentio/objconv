@@ -2,28 +2,28 @@ package objconv
 
 import "strings"
 
-// Tag represents the result of parsing the tag of a struct field.
-type Tag struct {
+// tag represents the result of parsing the tag of a struct field.
+type tag struct {
 	// Name is the field name that should be used when serializing.
-	Name string
+	name string
 
 	// Omitempty is true if the tag had `omitempty` set.
-	Omitempty bool
+	omitempty bool
 
 	// Omitzero is true if the tag had `omitzero` set.
-	Omitzero bool
+	omitzero bool
 }
 
-// ParseTag parses a raw tag obtained from a struct field, returning the results
-// as a Tag value.
-func ParseTag(tag string) Tag {
+// parseTag parses a raw tag obtained from a struct field, returning the results
+// as a tag value.
+func parseTag(s string) tag {
 	var tokens [2]string
 	var omitzero bool
 	var omitempty bool
 
-	name, tag := parseNextTagToken(tag)
-	tokens[0], tag = parseNextTagToken(tag)
-	tokens[1], _ = parseNextTagToken(tag)
+	name, s := parseNextTagToken(s)
+	tokens[0], s = parseNextTagToken(s)
+	tokens[1], _ = parseNextTagToken(s)
 
 	for _, t := range tokens {
 		switch t {
@@ -34,18 +34,18 @@ func ParseTag(tag string) Tag {
 		}
 	}
 
-	return Tag{
-		Name:      name,
-		Omitempty: omitempty,
-		Omitzero:  omitzero,
+	return tag{
+		name:      name,
+		omitempty: omitempty,
+		omitzero:  omitzero,
 	}
 }
 
-func parseNextTagToken(tag string) (token string, next string) {
-	if split := strings.IndexByte(tag, ','); split < 0 {
-		token = tag
+func parseNextTagToken(s string) (token string, next string) {
+	if split := strings.IndexByte(s, ','); split < 0 {
+		token = s
 	} else {
-		token, next = tag[:split], tag[split+1:]
+		token, next = s[:split], s[split+1:]
 	}
 	return
 }

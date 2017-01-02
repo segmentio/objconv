@@ -134,10 +134,10 @@ func isZeroArray(v reflect.Value) bool {
 }
 
 func isZeroStruct(v reflect.Value) bool {
-	s := LookupStruct(v.Type())
+	s := structCache.lookup(v.Type())
 
-	for _, f := range s.Fields {
-		if !isZeroValue(v.FieldByIndex(f.Index)) {
+	for _, f := range s.fields {
+		if !isZeroValue(v.FieldByIndex(f.index)) {
 			return false
 		}
 	}

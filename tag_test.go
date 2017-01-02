@@ -5,37 +5,37 @@ import "testing"
 func TestParseTag(t *testing.T) {
 	tests := []struct {
 		tag string
-		res Tag
+		res tag
 	}{
 		{
 			tag: "",
-			res: Tag{},
+			res: tag{},
 		},
 		{
 			tag: "hello",
-			res: Tag{Name: "hello"},
+			res: tag{name: "hello"},
 		},
 		{
 			tag: ",omitempty",
-			res: Tag{Omitempty: true},
+			res: tag{omitempty: true},
 		},
 		{
 			tag: "-",
-			res: Tag{Name: "-"},
+			res: tag{name: "-"},
 		},
 		{
 			tag: "hello,omitempty",
-			res: Tag{Name: "hello", Omitempty: true},
+			res: tag{name: "hello", omitempty: true},
 		},
 		{
 			tag: "-,omitempty",
-			res: Tag{Name: "-", Omitempty: true},
+			res: tag{name: "-", omitempty: true},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.tag, func(t *testing.T) {
-			if res := ParseTag(test.tag); res != test.res {
+			if res := parseTag(test.tag); res != test.res {
 				t.Errorf("%s: %#v != %#v", test.tag, test.res, res)
 			}
 		})

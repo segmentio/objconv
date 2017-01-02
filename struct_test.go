@@ -13,44 +13,44 @@ func TestMakeStructField(t *testing.T) {
 
 	tests := []struct {
 		s reflect.StructField
-		f StructField
+		f structField
 	}{
 		{
 			s: reflect.TypeOf(A{}).Field(0),
-			f: StructField{
-				Index: []int{0},
-				Name:  "A",
+			f: structField{
+				index: []int{0},
+				name:  "A",
 			},
 		},
 
 		{
 			s: reflect.TypeOf(a{}).Field(0),
-			f: StructField{
-				Index: []int{0},
-				Name:  "a",
+			f: structField{
+				index: []int{0},
+				name:  "a",
 			},
 		},
 
 		{
 			s: reflect.TypeOf(B{}).Field(0),
-			f: StructField{
-				Index: []int{0},
-				Name:  "A",
+			f: structField{
+				index: []int{0},
+				name:  "A",
 			},
 		},
 
 		{
 			s: reflect.TypeOf(b{}).Field(0),
-			f: StructField{
-				Index: []int{0},
-				Name:  "a",
+			f: structField{
+				index: []int{0},
+				name:  "a",
 			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			f := makeStructField(test.s, map[reflect.Type]*Struct{})
+			f := makeStructField(test.s, map[reflect.Type]*structType{})
 			f.decode = nil // function types are not comparable
 			f.encode = nil
 

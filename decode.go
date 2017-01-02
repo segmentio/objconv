@@ -758,17 +758,17 @@ func (d Decoder) decodeMapStringString(typ Type, to reflect.Value) (err error) {
 }
 
 func (d Decoder) decodeStruct(to reflect.Value) (Type, error) {
-	return d.decodeStructWith(to, LookupStruct(to.Type()))
+	return d.decodeStructWith(to, structCache.lookup(to.Type()))
 }
 
-func (d Decoder) decodeStructWith(to reflect.Value, s *Struct) (t Type, err error) {
+func (d Decoder) decodeStructWith(to reflect.Value, s *structType) (t Type, err error) {
 	if t, err = d.Parser.ParseType(); err == nil {
 		err = d.decodeStructFromTypeWith(t, to, s)
 	}
 	return
 }
 
-func (d Decoder) decodeStructFromTypeWith(typ Type, to reflect.Value, s *Struct) (err error) {
+func (d Decoder) decodeStructFromTypeWith(typ Type, to reflect.Value, s *structType) (err error) {
 	if err = d.decodeMapImpl(typ, func(kd Decoder, vd Decoder) (err error) {
 		var b []byte
 
@@ -780,13 +780,13 @@ func (d Decoder) decodeStructFromTypeWith(typ Type, to reflect.Value, s *Struct)
 			return
 		}
 
-		f := s.FieldsByName[string(b)]
+		f := s.fieldsByName[string(b)]
 		if f == nil {
 			_, err = d.decodeInterface(reflect.Value{}) // discard
 			return
 		}
 
-		_, err = f.decode(d, to.FieldByIndex(f.Index))
+		_, err = f.decode(d, to.FieldByIndex(f.index))
 		return
 	}); err != nil {
 		to.Set(zeroValueOf(to.Type()))
@@ -1183,7 +1183,7 @@ func (f ValueDecoderFunc) DecodeValue(d Decoder) error { return f(d) }
 
 type decodeFuncOpts struct {
 	recurse bool
-	structs map[reflect.Type]*Struct
+	structs map[reflect.Type]*structType
 }
 
 type decodeFunc func(Decoder, reflect.Value) (Type, error)
@@ -1310,7 +1310,7 @@ func makeDecodeStructFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	if !opts.recurse {
 		return Decoder.decodeStruct
 	}
-	s := newStruct(t, opts.structs)
+	s := newStructType(t, opts.structs)
 	return func(d Decoder, v reflect.Value) (Type, error) {
 		return d.decodeStructWith(v, s)
 	}
