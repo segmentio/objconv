@@ -37,20 +37,24 @@ func NewDecoder(p Parser) *Decoder {
 // The method panics if v is neither a pointer type nor implements the
 // ValueDecoder interface, or if v is a nil pointer.
 func (d Decoder) Decode(v interface{}) (err error) {
+	if d.off != 0 {
+		if d.off, err = 0, d.Parser.ParseMapValue(d.off-1); err != nil {
+			return
+		}
+	}
+
 	to := reflect.ValueOf(v)
 
 	switch {
+	case !to.IsValid():
+		_, err = d.decodeInterface(to)
+		return
+
 	case to.Kind() != reflect.Ptr:
 		panic("objconv.Decoder.Decode: v must be a pointer")
 
 	case to.IsNil():
 		panic("objconv.Decoder.Decode: v cannot be a nil pointer")
-	}
-
-	if d.off != 0 {
-		if d.off, err = 0, d.Parser.ParseMapValue(d.off-1); err != nil {
-			return
-		}
 	}
 
 	_, err = d.decode(to.Elem())
@@ -59,25 +63,6 @@ func (d Decoder) Decode(v interface{}) (err error) {
 
 func (d Decoder) decode(to reflect.Value) (Type, error) {
 	return decodeFuncOf(to.Type())(d, to)
-}
-
-func (d Decoder) decodeNil(to reflect.Value) (t Type, err error) {
-	if t, err = d.Parser.ParseType(); err == nil {
-		err = d.decodeNilFromType(t, to)
-	}
-	return
-}
-
-func (d Decoder) decodeNilFromType(t Type, to reflect.Value) (err error) {
-	switch t {
-	case Nil:
-		err = d.Parser.ParseNil()
-	default:
-		err = typeConversionError(t, Nil)
-	}
-
-	to.Set(zeroValueOf(to.Type()))
-	return
 }
 
 func (d Decoder) decodeBool(to reflect.Value) (t Type, err error) {
@@ -105,7 +90,9 @@ func (d Decoder) decodeBoolFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	to.SetBool(v)
+	if to.IsValid() {
+		to.SetBool(v)
+	}
 	return
 }
 
@@ -117,6 +104,7 @@ func (d Decoder) decodeInt(to reflect.Value) (t Type, err error) {
 }
 
 func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
+	var valid = to.IsValid()
 	var i int64
 	var u uint64
 
@@ -129,15 +117,17 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		switch t := to.Type(); t.Kind() {
-		case reflect.Int:
-			err = checkInt64Bounds(i, int64(IntMin), uint64(IntMax), t)
-		case reflect.Int8:
-			err = checkInt64Bounds(i, Int8Min, Int8Max, t)
-		case reflect.Int16:
-			err = checkInt64Bounds(i, Int16Min, Int16Max, t)
-		case reflect.Int32:
-			err = checkInt64Bounds(i, Int32Min, Int32Max, t)
+		if valid {
+			switch t := to.Type(); t.Kind() {
+			case reflect.Int:
+				err = checkInt64Bounds(i, int64(IntMin), uint64(IntMax), t)
+			case reflect.Int8:
+				err = checkInt64Bounds(i, Int8Min, Int8Max, t)
+			case reflect.Int16:
+				err = checkInt64Bounds(i, Int16Min, Int16Max, t)
+			case reflect.Int32:
+				err = checkInt64Bounds(i, Int32Min, Int32Max, t)
+			}
 		}
 
 	case Uint:
@@ -145,17 +135,19 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		switch t := to.Type(); t.Kind() {
-		case reflect.Int:
-			err = checkUint64Bounds(u, uint64(IntMax), t)
-		case reflect.Int8:
-			err = checkUint64Bounds(u, Int8Max, t)
-		case reflect.Int16:
-			err = checkUint64Bounds(u, Int16Max, t)
-		case reflect.Int32:
-			err = checkUint64Bounds(u, Int32Max, t)
-		case reflect.Int64:
-			err = checkUint64Bounds(u, Int64Max, t)
+		if valid {
+			switch t := to.Type(); t.Kind() {
+			case reflect.Int:
+				err = checkUint64Bounds(u, uint64(IntMax), t)
+			case reflect.Int8:
+				err = checkUint64Bounds(u, Int8Max, t)
+			case reflect.Int16:
+				err = checkUint64Bounds(u, Int16Max, t)
+			case reflect.Int32:
+				err = checkUint64Bounds(u, Int32Max, t)
+			case reflect.Int64:
+				err = checkUint64Bounds(u, Int64Max, t)
+			}
 		}
 
 		i = int64(u)
@@ -168,7 +160,9 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	to.SetInt(i)
+	if valid {
+		to.SetInt(i)
+	}
 	return
 }
 
@@ -180,6 +174,7 @@ func (d Decoder) decodeUint(to reflect.Value) (t Type, err error) {
 }
 
 func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
+	var valid = to.IsValid()
 	var i int64
 	var u uint64
 
@@ -192,17 +187,19 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		switch t := to.Type(); t.Kind() {
-		case reflect.Uint:
-			err = checkInt64Bounds(i, 0, uint64(UintMax), t)
-		case reflect.Uint8:
-			err = checkInt64Bounds(i, 0, Uint8Max, t)
-		case reflect.Uint16:
-			err = checkInt64Bounds(i, 0, Uint16Max, t)
-		case reflect.Uint32:
-			err = checkInt64Bounds(i, 0, Uint32Max, t)
-		case reflect.Uint64:
-			err = checkInt64Bounds(i, 0, Uint64Max, t)
+		if valid {
+			switch t := to.Type(); t.Kind() {
+			case reflect.Uint:
+				err = checkInt64Bounds(i, 0, uint64(UintMax), t)
+			case reflect.Uint8:
+				err = checkInt64Bounds(i, 0, Uint8Max, t)
+			case reflect.Uint16:
+				err = checkInt64Bounds(i, 0, Uint16Max, t)
+			case reflect.Uint32:
+				err = checkInt64Bounds(i, 0, Uint32Max, t)
+			case reflect.Uint64:
+				err = checkInt64Bounds(i, 0, Uint64Max, t)
+			}
 		}
 
 		u = uint64(i)
@@ -212,15 +209,17 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		switch t := to.Type(); t.Kind() {
-		case reflect.Uint:
-			err = checkUint64Bounds(u, uint64(UintMax), t)
-		case reflect.Uint8:
-			err = checkUint64Bounds(u, Uint8Max, t)
-		case reflect.Uint16:
-			err = checkUint64Bounds(u, Uint16Max, t)
-		case reflect.Uint32:
-			err = checkUint64Bounds(u, Uint32Max, t)
+		if valid {
+			switch t := to.Type(); t.Kind() {
+			case reflect.Uint:
+				err = checkUint64Bounds(u, uint64(UintMax), t)
+			case reflect.Uint8:
+				err = checkUint64Bounds(u, Uint8Max, t)
+			case reflect.Uint16:
+				err = checkUint64Bounds(u, Uint16Max, t)
+			case reflect.Uint32:
+				err = checkUint64Bounds(u, Uint32Max, t)
+			}
 		}
 
 	default:
@@ -231,7 +230,9 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	to.SetUint(u)
+	if valid {
+		to.SetUint(u)
+	}
 	return
 }
 
@@ -270,7 +271,9 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	to.SetFloat(f)
+	if to.IsValid() {
+		to.SetFloat(f)
+	}
 	return
 }
 
@@ -302,7 +305,9 @@ func (d Decoder) decodeStringFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	to.SetString(string(b))
+	if to.IsValid() {
+		to.SetString(string(b))
+	}
 	return
 }
 
@@ -340,7 +345,9 @@ func (d Decoder) decodeBytesFromType(t Type, to reflect.Value) (err error) {
 		copy(v, b)
 	}
 
-	to.SetBytes(v)
+	if to.IsValid() {
+		to.SetBytes(v)
+	}
 	return
 }
 
@@ -414,7 +421,9 @@ func (d Decoder) decodeDurationFromType(t Type, to reflect.Value) (err error) {
 		v, err = time.ParseDuration(string(s))
 	}
 
-	to.SetInt(int64(v))
+	if to.IsValid() {
+		to.SetInt(int64(v))
+	}
 	return
 }
 
@@ -451,7 +460,9 @@ func (d Decoder) decodeErrorFromType(t Type, to reflect.Value) (err error) {
 		v = errors.New(string(s))
 	}
 
-	to.Set(reflect.ValueOf(v))
+	if to.IsValid() {
+		to.Set(reflect.ValueOf(v))
+	}
 	return
 }
 
@@ -467,17 +478,22 @@ func (d Decoder) decodeSliceWith(to reflect.Value, f decodeFunc) (t Type, err er
 }
 
 func (d Decoder) decodeSliceFromType(typ Type, to reflect.Value) (err error) {
-	return d.decodeSliceFromTypeWith(typ, to, decodeFuncOf(to.Type().Elem()))
+	f := Decoder.decodeInterface
+	if to.IsValid() {
+		f = decodeFuncOf(to.Type().Elem())
+	}
+	return d.decodeSliceFromTypeWith(typ, to, f)
 }
 
 func (d Decoder) decodeSliceFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
-	t := to.Type()
-
-	if typ == Nil {
-		to.Set(zeroValueOf(t))
-		return
+	if !to.IsValid() {
+		return d.decodeArrayImpl(typ, func(d Decoder) (err error) {
+			_, err = f(d, reflect.Value{})
+			return
+		})
 	}
 
+	t := to.Type()
 	s := reflect.MakeSlice(t, 0, 0)
 	i := 0
 	n := 0
@@ -500,11 +516,14 @@ func (d Decoder) decodeSliceFromTypeWith(typ Type, to reflect.Value, f decodeFun
 		return
 	}
 
-	if i != n {
-		s = s.Slice(0, i)
+	if typ == Nil {
+		to.Set(zeroValueOf(t))
+	} else {
+		if i != n {
+			s = s.Slice(0, i)
+		}
+		to.Set(s)
 	}
-
-	to.Set(s)
 	return
 }
 
@@ -517,10 +536,6 @@ func (d Decoder) decodeArrayWith(to reflect.Value, f decodeFunc) (t Type, err er
 		err = d.decodeArrayFromTypeWith(t, to, f)
 	}
 	return
-}
-
-func (d Decoder) decodeArrayFromType(typ Type, to reflect.Value) (err error) {
-	return d.decodeArrayFromTypeWith(typ, to, decodeFuncOf(to.Type().Elem()))
 }
 
 func (d Decoder) decodeArrayFromTypeWith(typ Type, to reflect.Value, f decodeFunc) (err error) {
@@ -547,7 +562,9 @@ func (d Decoder) decodeArrayFromTypeWith(typ Type, to reflect.Value, f decodeFun
 		return
 	}
 
-	if (typ != Nil) && (i != n) {
+	if typ == Nil {
+		to.Set(zeroValueOf(t))
+	} else if i != n {
 		err = fmt.Errorf("objconv: array length mismatch, expected %d but only %d elements were decoded", n, i)
 	}
 
@@ -567,17 +584,31 @@ func (d Decoder) decodeMapWith(to reflect.Value, kf decodeFunc, vf decodeFunc) (
 }
 
 func (d Decoder) decodeMapFromType(typ Type, to reflect.Value) (err error) {
-	t := to.Type()
-	return d.decodeMapFromTypeWith(typ, to, decodeFuncOf(t.Key()), decodeFuncOf(t.Elem()))
+	kf := Decoder.decodeInterface
+	vf := Decoder.decodeInterface
+	if to.IsValid() {
+		t := to.Type()
+		kf = decodeFuncOf(t.Key())
+		vf = decodeFuncOf(t.Elem())
+	}
+	return d.decodeMapFromTypeWith(typ, to, kf, vf)
 }
 
 func (d Decoder) decodeMapFromTypeWith(typ Type, to reflect.Value, kf decodeFunc, vf decodeFunc) (err error) {
-	t := to.Type() // map[K]V
-
-	if typ == Nil {
-		to.Set(zeroValueOf(t))
-		return
+	if !to.IsValid() {
+		return d.decodeMapImpl(typ, func(kd Decoder, vd Decoder) (err error) {
+			if _, err = d.decodeInterface(reflect.Value{}); err != nil {
+				return
+			}
+			if err = d.Parser.ParseMapValue(vd.off - 1); err != nil {
+				return
+			}
+			_, err = d.decodeInterface(reflect.Value{})
+			return
+		})
 	}
+
+	t := to.Type() // map[K]V
 
 	switch t {
 	case mapInterfaceInterfaceType:
@@ -623,7 +654,11 @@ func (d Decoder) decodeMapFromTypeWith(typ Type, to reflect.Value, kf decodeFunc
 		return
 	}
 
-	to.Set(m)
+	if typ == Nil {
+		to.Set(zeroValueOf(t))
+	} else {
+		to.Set(m)
+	}
 	return
 }
 
@@ -733,10 +768,6 @@ func (d Decoder) decodeStructWith(to reflect.Value, s *Struct) (t Type, err erro
 	return
 }
 
-func (d Decoder) decodeStructFromType(typ Type, to reflect.Value) (err error) {
-	return d.decodeStructFromTypeWith(typ, to, LookupStruct(to.Type()))
-}
-
 func (d Decoder) decodeStructFromTypeWith(typ Type, to reflect.Value, s *Struct) (err error) {
 	if err = d.decodeMapImpl(typ, func(kd Decoder, vd Decoder) (err error) {
 		var b []byte
@@ -751,8 +782,8 @@ func (d Decoder) decodeStructFromTypeWith(typ Type, to reflect.Value, s *Struct)
 
 		f := s.FieldsByName[string(b)]
 		if f == nil {
-			var v interface{} // discard
-			return d.Decode(&v)
+			_, err = d.decodeInterface(reflect.Value{}) // discard
+			return
 		}
 
 		_, err = f.decode(d, to.FieldByIndex(f.Index))
@@ -781,14 +812,11 @@ func (d Decoder) decodePointerWith(to reflect.Value, f decodeFunc) (typ Type, er
 		return
 	}
 
-	if to.CanSet() {
-		switch {
-		case typ == Nil:
-			to.Set(zeroValueOf(t))
-
-		case to.IsNil():
-			to.Set(v)
-		}
+	switch {
+	case typ == Nil:
+		to.Set(zeroValueOf(t))
+	case to.IsNil():
+		to.Set(v)
 	}
 
 	return
@@ -851,18 +879,25 @@ func (d Decoder) decodeInterfaceFromType(t Type, to reflect.Value) (err error) {
 
 func (d Decoder) decodeInterfaceFromNil(to reflect.Value) (err error) {
 	if err = d.Parser.ParseNil(); err == nil {
-		to.Set(zeroValueOf(to.Type()))
+		if to.IsValid() {
+			to.Set(zeroValueOf(to.Type()))
+		}
 	}
 	return
 }
 
 func (d Decoder) decodeInterfaceFrom(from reflect.Type, t Type, to reflect.Value, decode func(Decoder, Type, reflect.Value) error) (err error) {
-	v := reflect.New(from).Elem()
-
-	if err = decode(d, t, v); err == nil {
-		to.Set(v)
+	if !to.IsValid() {
+		return decode(d, t, reflect.Value{})
 	}
 
+	v := reflect.New(from).Elem()
+
+	if err = decode(d, t, v); err != nil {
+		return
+	}
+
+	to.Set(v)
 	return
 }
 

@@ -16,6 +16,9 @@ func TestDecoderDecodeType(t *testing.T) {
 		in  interface{}
 		out interface{}
 	}{
+		// nil -> nil
+		{nil, nil},
+
 		// nil -> bool
 		{nil, false},
 
@@ -168,6 +171,15 @@ func TestDecoderDecodeType(t *testing.T) {
 		// map -> struct
 		{map[string]int{}, struct{}{}},
 		{map[string]int{"A": 42}, struct{ A int }{42}},
+		{map[string]interface{}{"A": 1, "B": nil}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": true}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": int(0)}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": uint(0)}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": float64(0)}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": ""}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": []byte(nil)}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": []int{1, 2, 3}}, struct{ A int }{1}},
+		{map[string]interface{}{"A": 1, "B": map[int]int{1: 1, 2: 2, 3: 3}}, struct{ A int }{1}},
 
 		// struct -> map
 		{struct{}{}, map[string]interface{}{}},
@@ -188,15 +200,23 @@ func TestDecoderDecodeType(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%T->%T", test.in, test.out), func(t *testing.T) {
-			dec := NewDecoder(NewValueParser(test.in))
-			val := reflect.New(reflect.TypeOf(test.out))
+			var dec = NewDecoder(NewValueParser(test.in))
+			var val reflect.Value
+			var ptr interface{}
 
-			if err := dec.Decode(val.Interface()); err != nil {
+			if test.out != nil {
+				val = reflect.New(reflect.TypeOf(test.out))
+				ptr = val.Interface()
+			}
+
+			if err := dec.Decode(ptr); err != nil {
 				t.Error(err)
 			}
 
-			if v := val.Elem().Interface(); !reflect.DeepEqual(v, test.out) {
-				t.Errorf("%T => %#v != %v", v, v, test.out)
+			if test.out != nil {
+				if v := val.Elem().Interface(); !reflect.DeepEqual(v, test.out) {
+					t.Errorf("%T => %#v != %v", v, v, test.out)
+				}
 			}
 		})
 	}
