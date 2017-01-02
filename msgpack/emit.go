@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/segmentio/objconv"
 )
@@ -148,13 +148,12 @@ func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
 func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
 	switch bitSize {
 	case 32:
-		f := float32(v)
 		e.b[0] = Float32
-		putUint32(e.b[1:], *((*uint32)(unsafe.Pointer(&f))))
+		putUint32(e.b[1:], math.Float32bits(float32(v)))
 		_, err = e.w.Write(e.b[:5])
 	default:
 		e.b[0] = Float64
-		putUint64(e.b[1:], *((*uint64)(unsafe.Pointer(&v))))
+		putUint64(e.b[1:], math.Float64bits(v))
 		_, err = e.w.Write(e.b[:9])
 	}
 	return

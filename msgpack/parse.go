@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"time"
-	"unsafe"
 
 	"github.com/segmentio/objconv"
 )
@@ -242,12 +242,10 @@ func (p *Parser) ParseFloat() (v float64, err error) {
 
 	switch tag {
 	case Float32:
-		u := getUint32(b[:4])
-		v = float64(*((*float32)(unsafe.Pointer(&u))))
+		v = float64(math.Float32frombits(getUint32(b)))
 		p.i += 4
 	default:
-		u := getUint64(b[:8])
-		v = *((*float64)(unsafe.Pointer(&u)))
+		v = math.Float64frombits(getUint64(b))
 		p.i += 8
 	}
 
