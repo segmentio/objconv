@@ -118,11 +118,11 @@ type Parser interface {
 	ParseMapNext(int) error
 }
 
-// The BytesDecoder interface may optionnaly be implemented by a Parser to
+// The bytesDecoder interface may optionnaly be implemented by a Parser to
 // provide an extra step in decoding a byte slice. This is sometimes necessary
 // if the associated Emitter has transformed bytes slices because the format is
 // not capable of representing binary data.
-type BytesDecoder interface {
+type bytesDecoder interface {
 	// DecodeBytes is called when the destination variable for a string or a
 	// byte slice is a byte slice, allowing the parser to apply a transformation
 	// before the value is stored.

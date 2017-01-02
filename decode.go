@@ -340,7 +340,7 @@ func (d Decoder) decodeBytesFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	if bd, ok := d.Parser.(BytesDecoder); ok {
+	if bd, ok := d.Parser.(bytesDecoder); ok {
 		if b, err = bd.DecodeBytes(b); err != nil {
 			return
 		}
