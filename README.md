@@ -27,8 +27,6 @@ with the `json.Encoder` type would have to be replaced with `objconv.Encoder`.
 However the `encoding.TextMarshaler` and `encoding.TextUnmarshaler` interfaces
 are.
 
-- `[]byte` values are not converted to/from base64.
-
 Encoder
 -------
 

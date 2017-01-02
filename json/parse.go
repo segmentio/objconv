@@ -2,6 +2,7 @@ package json
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"reflect"
@@ -320,6 +321,15 @@ func (p *Parser) ParseMapNext(n int) (err error) {
 		}
 	}
 
+	return
+}
+
+func (p *Parser) DecodeBytes(b []byte) (v []byte, err error) {
+	var n int
+	if n, err = base64.StdEncoding.Decode(b, b); err != nil {
+		return
+	}
+	v = b[:n]
 	return
 }
 

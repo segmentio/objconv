@@ -340,6 +340,12 @@ func (d Decoder) decodeBytesFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
+	if bd, ok := d.Parser.(bytesDecoder); ok {
+		if b, err = bd.DecodeBytes(b); err != nil {
+			return
+		}
+	}
+
 	if b != nil {
 		v = make([]byte, len(b))
 		copy(v, b)
