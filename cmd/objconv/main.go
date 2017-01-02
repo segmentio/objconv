@@ -12,7 +12,6 @@ import (
 	"github.com/segmentio/objconv"
 	_ "github.com/segmentio/objconv/cbor"
 	_ "github.com/segmentio/objconv/json"
-	"github.com/segmentio/objconv/mimetype"
 	_ "github.com/segmentio/objconv/msgpack"
 	_ "github.com/segmentio/objconv/resp"
 )
@@ -72,16 +71,16 @@ func main() {
 }
 
 func conv(w io.Writer, output string, r io.Reader, input string) (err error) {
-	var ic mimetype.Codec
-	var oc mimetype.Codec
+	var ic objconv.Codec
+	var oc objconv.Codec
 	var ok bool
 
-	if ic, ok = mimetype.Lookup(input); !ok {
+	if ic, ok = objconv.Lookup(input); !ok {
 		err = fmt.Errorf("unknown input format: %s", input)
 		return
 	}
 
-	if oc, ok = mimetype.Lookup(output); !ok {
+	if oc, ok = objconv.Lookup(output); !ok {
 		err = fmt.Errorf("unknown output format: %s", output)
 		return
 	}
