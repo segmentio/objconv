@@ -16,8 +16,18 @@ func TestDecoderDecodeType(t *testing.T) {
 		in  interface{}
 		out interface{}
 	}{
-		// nil -> nil
+		// type -> nil (discard)
 		{nil, nil},
+		{true, nil},
+		{int(1), nil},
+		{uint(1), nil},
+		{"A", nil},
+		{[]byte("A"), nil},
+		{date, nil},
+		{time.Second, nil},
+		{[]int{1, 2, 3}, nil},
+		{map[string]int{"answer": 42}, nil},
+		{struct{ A, B, C int }{1, 2, 3}, nil},
 
 		// nil -> bool
 		{nil, false},

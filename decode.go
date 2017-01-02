@@ -380,11 +380,12 @@ func (d Decoder) decodeTimeFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	if t == String || t == Bytes {
-		v, err = time.Parse(time.RFC3339Nano, string(s))
+	if to.IsValid() {
+		if t == String || t == Bytes {
+			v, err = time.Parse(time.RFC3339Nano, string(s))
+		}
+		*(to.Addr().Interface().(*time.Time)) = v
 	}
-
-	*(to.Addr().Interface().(*time.Time)) = v
 	return
 }
 
