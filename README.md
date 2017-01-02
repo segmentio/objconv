@@ -158,19 +158,13 @@ type M []KV
 // Implement the ValueEncoder interface to provide a custom encoding.
 func (m M) EncodeValue(e objconv.Encoder) error {
     i := 0
-    return e.EncodeMap(func(k objconv.Encoder, v objconv.Encoder) (err error) {
-        if i == len(m) {
-            return objconv.End // done
-        }
-
+    return e.EncodeMap(len(m), func(k objconv.Encoder, v objconv.Encoder) (err error) {
         if err = k.Encode(m[i].K); err != nil {
             return
         }
-
         if err = v.Encode(m[i].V); err != nil {
             return
         }
-
         i++
         return
     })
