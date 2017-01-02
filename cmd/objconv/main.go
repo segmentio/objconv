@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/segmentio/objconv"
+	_ "github.com/segmentio/objconv/cbor"
 	_ "github.com/segmentio/objconv/json"
 	"github.com/segmentio/objconv/mimetype"
 	_ "github.com/segmentio/objconv/msgpack"
