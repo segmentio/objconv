@@ -1,6 +1,7 @@
 package json
 
 import (
+	"encoding/base64"
 	"io"
 	"strconv"
 	"time"
@@ -117,7 +118,21 @@ func (e *Emitter) EmitString(v string) (err error) {
 }
 
 func (e *Emitter) EmitBytes(v []byte) (err error) {
-	return e.EmitString(string(v))
+	s := e.s[:0]
+	n := base64.StdEncoding.EncodedLen(len(v)) + 2
+
+	if cap(s) < n {
+		s = make([]byte, 0, align(n, 1024))
+	}
+
+	s = s[:n]
+	s[0] = '"'
+	base64.StdEncoding.Encode(s[1:], v)
+	s[n-1] = '"'
+	e.s = s[:0] // in case the buffer was reallocated
+
+	_, err = e.w.Write(s)
+	return
 }
 
 func (e *Emitter) EmitTime(v time.Time) (err error) {
@@ -181,4 +196,11 @@ func (e *Emitter) EmitMapValue() (err error) {
 func (e *Emitter) EmitMapNext() (err error) {
 	_, err = e.w.Write(comma[:])
 	return
+}
+
+func align(n int, a int) int {
+	if (n % a) == 0 {
+		return n
+	}
+	return ((n / a) + 1) * a
 }

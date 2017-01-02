@@ -34,7 +34,7 @@ var jsonTests = []struct {
 	{"Hello\tWorld!", `"Hello\tWorld!"`},
 
 	{[]byte(""), `""`},
-	{[]byte("Hello World!"), `"Hello World!"`},
+	{[]byte("Hello World!"), `"SGVsbG8gV29ybGQh"`},
 
 	{errors.New("error"), `"error"`},
 
