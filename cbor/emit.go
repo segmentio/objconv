@@ -32,16 +32,16 @@ func (e *Emitter) Reset(w io.Writer) {
 }
 
 func (e *Emitter) EmitNil() (err error) {
-	e.b[0] = majorByte(MajorType7, Null)
+	e.b[0] = majorByte(majorType7, svNull)
 	_, err = e.w.Write(e.b[:1])
 	return
 }
 
 func (e *Emitter) EmitBool(v bool) (err error) {
 	if v {
-		e.b[0] = majorByte(MajorType7, True)
+		e.b[0] = majorByte(majorType7, svTrue)
 	} else {
-		e.b[0] = majorByte(MajorType7, False)
+		e.b[0] = majorByte(majorType7, svFalse)
 	}
 	_, err = e.w.Write(e.b[:1])
 	return
@@ -49,13 +49,13 @@ func (e *Emitter) EmitBool(v bool) (err error) {
 
 func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 	if v >= 0 {
-		return e.emitUint(MajorType0, uint64(v))
+		return e.emitUint(majorType0, uint64(v))
 	}
-	return e.emitUint(MajorType1, uint64(-(v + 1)))
+	return e.emitUint(majorType1, uint64(-(v + 1)))
 }
 
 func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
-	return e.emitUint(MajorType0, v)
+	return e.emitUint(majorType0, v)
 }
 
 func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
@@ -63,11 +63,11 @@ func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
 
 	if bitSize == 32 {
 		n = 5
-		e.b[0] = majorByte(MajorType7, Float32)
+		e.b[0] = majorByte(majorType7, svFloat32)
 		putUint32(e.b[1:], math.Float32bits(float32(v)))
 	} else {
 		n = 9
-		e.b[0] = majorByte(MajorType7, Float64)
+		e.b[0] = majorByte(majorType7, svFloat64)
 		putUint64(e.b[1:], math.Float64bits(v))
 	}
 
@@ -76,7 +76,7 @@ func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
 }
 
 func (e *Emitter) EmitString(v string) (err error) {
-	if err = e.emitUint(MajorType3, uint64(len(v))); err != nil {
+	if err = e.emitUint(majorType3, uint64(len(v))); err != nil {
 		return
 	}
 
@@ -101,7 +101,7 @@ func (e *Emitter) EmitString(v string) (err error) {
 }
 
 func (e *Emitter) EmitBytes(v []byte) (err error) {
-	if err = e.emitUint(MajorType2, uint64(len(v))); err != nil {
+	if err = e.emitUint(majorType2, uint64(len(v))); err != nil {
 		return
 	}
 	_, err = e.w.Write(v)
@@ -109,7 +109,7 @@ func (e *Emitter) EmitBytes(v []byte) (err error) {
 }
 
 func (e *Emitter) EmitTime(v time.Time) (err error) {
-	e.b[0] = majorByte(MajorType6, TagDateTime)
+	e.b[0] = majorByte(majorType6, tagDateTime)
 
 	if _, err = e.w.Write(e.b[:1]); err != nil {
 		return
@@ -118,7 +118,7 @@ func (e *Emitter) EmitTime(v time.Time) (err error) {
 	var a [64]byte
 	var b = v.AppendFormat(a[:0], time.RFC3339Nano)
 
-	if err = e.emitUint(MajorType3, uint64(len(b))); err != nil {
+	if err = e.emitUint(majorType3, uint64(len(b))); err != nil {
 		return
 	}
 
@@ -138,10 +138,10 @@ func (e *Emitter) EmitArrayBegin(n int) (err error) {
 	e.stack = append(e.stack, n)
 
 	if n >= 0 {
-		return e.emitUint(MajorType4, uint64(n))
+		return e.emitUint(majorType4, uint64(n))
 	}
 
-	e.b[0] = majorByte(MajorType4, 31)
+	e.b[0] = majorByte(majorType4, 31)
 	_, err = e.w.Write(e.b[:1])
 	return
 }
@@ -166,10 +166,10 @@ func (e *Emitter) EmitMapBegin(n int) (err error) {
 	e.stack = append(e.stack, n)
 
 	if n >= 0 {
-		return e.emitUint(MajorType5, uint64(n))
+		return e.emitUint(majorType5, uint64(n))
 	}
 
-	e.b[0] = majorByte(MajorType5, 31)
+	e.b[0] = majorByte(majorType5, 31)
 	_, err = e.w.Write(e.b[:1])
 	return
 }
@@ -204,22 +204,22 @@ func (e *Emitter) emitUint(m byte, v uint64) (err error) {
 
 	case v <= objconv.Uint8Max:
 		n = 2
-		e.b[0] = majorByte(m, Uint8)
+		e.b[0] = majorByte(m, iUint8)
 		e.b[1] = uint8(v)
 
 	case v <= objconv.Uint16Max:
 		n = 3
-		e.b[0] = majorByte(m, Uint16)
+		e.b[0] = majorByte(m, iUint16)
 		putUint16(e.b[1:], uint16(v))
 
 	case v <= objconv.Uint32Max:
 		n = 5
-		e.b[0] = majorByte(m, Uint32)
+		e.b[0] = majorByte(m, iUint32)
 		putUint32(e.b[1:], uint32(v))
 
 	default:
 		n = 9
-		e.b[0] = majorByte(m, Uint64)
+		e.b[0] = majorByte(m, iUint64)
 		putUint64(e.b[1:], v)
 	}
 
