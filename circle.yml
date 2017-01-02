@@ -22,3 +22,4 @@ test:
       --workdir /go/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
       segment/golang:latest
       go.bench=true
+      go.test='govendor test -v -cover +local'
