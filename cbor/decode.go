@@ -48,4 +48,6 @@ func newUnmarshaler() *unmarshaler {
 func (u *unmarshaler) reset(b []byte) {
 	v := bytes.NewBuffer(b)
 	u.b = *v
+	u.i = 0
+	u.j = 0
 }
