@@ -16,9 +16,9 @@ type Decoder struct {
 	// Parser to use to load values.
 	Parser Parser
 
-	// DecodeMap can be set to a function used to decode maps when there is no
-	// destination type (like when decoding to an empty interface for example).
-	DecodeMapFunc func(Decoder, Decoder) error
+	// MapType is used to override the type of maps produced by the docoder when
+	// there is not destination type (when decoding to an empty interface).
+	MapType reflect.Type
 
 	off int // offset of the value when decoding a map
 }
@@ -631,26 +631,21 @@ func (d Decoder) decodeMapFromTypeWith(typ Type, to reflect.Value, kf decodeFunc
 	vz := zeroValueOf(vt)        // V{}
 	vv := reflect.New(vt).Elem() // &V{}
 
-	f := d.DecodeMapFunc
-	if f == nil {
-		f = func(kd Decoder, vd Decoder) (err error) {
-			kv.Set(kz) // reset the key to its zero-value
-			vv.Set(vz) // reset the value to its zero-value
-			if _, err = kf(d, kv); err != nil {
-				return
-			}
-			if err = d.Parser.ParseMapValue(vd.off - 1); err != nil {
-				return
-			}
-			if _, err = vf(d, vv); err != nil {
-				return
-			}
-			m.SetMapIndex(kv, vv)
+	if err = d.decodeMapImpl(typ, func(kd Decoder, vd Decoder) (err error) {
+		kv.Set(kz) // reset the key to its zero-value
+		vv.Set(vz) // reset the value to its zero-value
+		if _, err = kf(d, kv); err != nil {
 			return
 		}
-	}
-
-	if err = d.decodeMapImpl(typ, f); err != nil {
+		if err = d.Parser.ParseMapValue(vd.off - 1); err != nil {
+			return
+		}
+		if _, err = vf(d, vv); err != nil {
+			return
+		}
+		m.SetMapIndex(kv, vv)
+		return
+	}); err != nil {
 		return
 	}
 
@@ -822,6 +817,10 @@ func (d Decoder) decodePointerWith(to reflect.Value, f decodeFunc) (typ Type, er
 	return
 }
 
+func (d Decoder) decodeDecoderPointer(to reflect.Value) (Type, error) {
+	return Bool /* just needs to not be Nil */, to.Addr().Interface().(ValueDecoder).DecodeValue(d)
+}
+
 func (d Decoder) decodeDecoder(to reflect.Value) (Type, error) {
 	return Bool /* just needs to not be Nil */, to.Interface().(ValueDecoder).DecodeValue(d)
 }
@@ -870,7 +869,13 @@ func (d Decoder) decodeInterfaceFromType(t Type, to reflect.Value) (err error) {
 	case Array:
 		err = d.decodeInterfaceFrom(sliceInterfaceType, t, to, Decoder.decodeSliceFromType)
 	case Map:
-		err = d.decodeInterfaceFrom(mapInterfaceInterfaceType, t, to, Decoder.decodeMapFromType)
+		if to.IsValid() && d.MapType != nil {
+			v := reflect.New(d.MapType).Elem()
+			_, err = d.decode(v)
+			to.Set(v)
+		} else {
+			err = d.decodeInterfaceFrom(mapInterfaceInterfaceType, t, to, Decoder.decodeMapFromType)
+		}
 	default:
 		panic("objconv: parser returned an unsupported value type: " + t.String())
 	}
@@ -928,10 +933,10 @@ func (d Decoder) decodeTypeAndString() (b []byte, err error) {
 
 // DecodeArray provides the implementation of the algorithm for decoding arrays,
 // where f is called to decode each element of the array.
-//
-// The method returns the underlying type of the value returned by the parser.
-func (d Decoder) DecodeArray(f func(Decoder) error) (t Type, err error) {
-	if t, err = d.Parser.ParseType(); err != nil {
+func (d Decoder) DecodeArray(f func(Decoder) error) (err error) {
+	var typ Type
+
+	if typ, err = d.Parser.ParseType(); err != nil {
 		return
 	}
 
@@ -941,7 +946,7 @@ func (d Decoder) DecodeArray(f func(Decoder) error) (t Type, err error) {
 		}
 	}
 
-	err = d.decodeArrayImpl(t, f)
+	err = d.decodeArrayImpl(typ, f)
 	return
 }
 
@@ -992,10 +997,10 @@ func (d Decoder) decodeArrayImpl(t Type, f func(Decoder) error) (err error) {
 // The function f is expected to decode two values from the map, the first one
 // being the key and the second the associated value. The first decoder must be
 // used to decode the key, the second one for the value.
-//
-// The method returns the underlying type of the value returned by the parser.
-func (d Decoder) DecodeMap(f func(Decoder, Decoder) error) (t Type, err error) {
-	if t, err = d.Parser.ParseType(); err != nil {
+func (d Decoder) DecodeMap(f func(Decoder, Decoder) error) (err error) {
+	var typ Type
+
+	if typ, err = d.Parser.ParseType(); err != nil {
 		return
 	}
 
@@ -1005,7 +1010,7 @@ func (d Decoder) DecodeMap(f func(Decoder, Decoder) error) (t Type, err error) {
 		}
 	}
 
-	err = d.decodeMapImpl(t, f)
+	err = d.decodeMapImpl(typ, f)
 	return
 }
 
@@ -1064,9 +1069,9 @@ type StreamDecoder struct {
 	// Parser to use to load values.
 	Parser Parser
 
-	// DecodeMap can be set to a function used to decode maps when there is no
-	// destination type (like when decoding to an empty interface for example).
-	DecodeMapFunc func(Decoder, Decoder) error
+	// MapType is used to override the type of maps produced by the docoder when
+	// there is not destination type (when decoding to an empty interface).
+	MapType reflect.Type
 
 	err error
 	typ Type
@@ -1104,8 +1109,8 @@ func (d *StreamDecoder) Decode(v interface{}) error {
 	cnt := d.cnt
 	max := d.max
 	dec := Decoder{
-		Parser:        d.Parser,
-		DecodeMapFunc: d.DecodeMapFunc,
+		Parser:  d.Parser,
+		MapType: d.MapType,
 	}
 
 	if d.typ == Unknown {
@@ -1226,6 +1231,9 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	// check if it implements one of the special case interfaces
 	switch p := reflect.PtrTo(t); {
 	case p.Implements(valueDecoderInterface):
+		return Decoder.decodeDecoderPointer
+
+	case t.Implements(valueDecoderInterface):
 		return Decoder.decodeDecoder
 
 	case p.Implements(textUnmarshalerInterface):

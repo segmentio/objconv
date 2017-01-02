@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/segmentio/objconv"
@@ -15,6 +16,42 @@ import (
 	_ "github.com/segmentio/objconv/msgpack"
 	_ "github.com/segmentio/objconv/resp"
 )
+
+// document is used to preserve the order of keys in maps.
+type document []item
+
+type item struct {
+	K interface{}
+	V interface{}
+}
+
+func (doc document) EncodeValue(e objconv.Encoder) error {
+	i := 0
+	return e.EncodeMap(len(doc), func(k objconv.Encoder, v objconv.Encoder) (err error) {
+		if err = k.Encode(doc[i].K); err != nil {
+			return
+		}
+		if err = v.Encode(doc[i].V); err != nil {
+			return
+		}
+		i++
+		return
+	})
+}
+
+func (doc *document) DecodeValue(d objconv.Decoder) error {
+	return d.DecodeMap(func(k objconv.Decoder, v objconv.Decoder) (err error) {
+		var item item
+		if err = k.Decode(&item.K); err != nil {
+			return
+		}
+		if err = v.Decode(&item.V); err != nil {
+			return
+		}
+		*doc = append(*doc, item)
+		return
+	})
+}
 
 func main() {
 	var r = bufio.NewReader(os.Stdin)
@@ -59,6 +96,10 @@ func conv(w io.Writer, output string, r io.Reader, input string) (err error) {
 		}
 		return
 	}
+
+	// Overwrite the type used for decoding maps so we can preserve the order
+	// of the keys.
+	d.MapType = reflect.TypeOf(document(nil))
 
 	for d.Decode(&v) == nil {
 		if err = e.Encode(v); err != nil {
