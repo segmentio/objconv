@@ -457,11 +457,10 @@ func (d Decoder) decodeErrorFromType(t Type, to reflect.Value) (err error) {
 		return
 	}
 
-	if t == String || t == Bytes {
-		v = errors.New(string(s))
-	}
-
 	if to.IsValid() {
+		if t == String || t == Bytes {
+			v = errors.New(string(s))
+		}
 		to.Set(reflect.ValueOf(v))
 	}
 	return

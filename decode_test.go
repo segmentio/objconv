@@ -23,6 +23,7 @@ func TestDecoderDecodeType(t *testing.T) {
 		{uint(1), nil},
 		{"A", nil},
 		{[]byte("A"), nil},
+		{err, nil},
 		{date, nil},
 		{time.Second, nil},
 		{[]int{1, 2, 3}, nil},
