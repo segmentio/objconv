@@ -44,8 +44,8 @@ import (
 )
 
 func main() {
-    enc := json.NewEncoder(os.Stdout)
-    enc.Encode(struct{ Hello string }{"World"})
+    e := json.NewEncoder(os.Stdout)
+    e.Encode(struct{ Hello string }{"World"})
 }
 ```
 ```
@@ -73,8 +73,8 @@ import (
 func main() {
     v := struct{ Message string }{}
 
-    dec := json.NewDecoder(os.Stdin)
-    dec.Decode(&v)
+    d := json.NewDecoder(os.Stdin)
+    d.Decode(&v)
 
     fmt.Println(v.Message)
 }
@@ -111,25 +111,23 @@ func main() {
     go func() {
         defer w.Close()
 
-        enc := json.NewStreamEncoder(w)
+        e := json.NewStreamEncoder(w)
+        defer e.Close()
 
         // Produce values to the JSON stream.
         for i := 0; i != 1000; i++ {
-            enc.Encode(i)
+            e.Encode(i)
         }
-
-        enc.Close()
     }()
 
-    dec := json.NewStreamDecoder(r)
+    d := json.NewStreamDecoder(r)
 
     // Consume values from the JSON stream.
-    var v interface{}
+    var v int
 
-    for dec.Decode(&v) == nil {
+    for d.Decode(&v) == nil {
         // v => {0..999}
         // ...
-        v = nil
     }
 }
 ```
