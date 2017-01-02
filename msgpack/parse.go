@@ -2,7 +2,6 @@ package msgpack
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -95,9 +94,6 @@ func (p *Parser) ParseType() (objconv.Type, error) {
 		case ExtTime:
 			return objconv.Time, nil
 
-		case ExtDuration:
-			return objconv.Duration, nil
-
 		default:
 			return objconv.Unknown, fmt.Errorf("objconv/msgpack: unsupported extension '%d'", tag)
 		}
@@ -123,9 +119,6 @@ func (p *Parser) ParseType() (objconv.Type, error) {
 	switch tag = b[len(b)-1]; int8(tag) {
 	case ExtTime:
 		return objconv.Time, nil
-
-	case ExtError:
-		return objconv.Error, nil
 	}
 
 	return objconv.Unknown, fmt.Errorf("objconv/msgpack: unknown extension '%d'", tag)
@@ -374,81 +367,11 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 }
 
 func (p *Parser) ParseDuration() (v time.Duration, err error) {
-	tag := p.b[p.i]
-	p.i += 2 // skip the extension type as well
-
-	var b []byte
-	var n int
-
-	switch tag {
-	case Fixext1:
-		n = 1
-	case Fixext2:
-		n = 2
-	case Fixext4:
-		n = 4
-	case Fixext8:
-		n = 8
-	default:
-		err = fmt.Errorf("objconv/msgpack: invalid extension tag found while decoding a duration '%d'", tag)
-		return
-	}
-
-	if b, err = p.peek(n); err != nil {
-		return
-	}
-
-	switch n {
-	case 1:
-		v = time.Duration(int8(b[0]))
-	case 2:
-		v = time.Duration(int16(getUint16(b)))
-	case 4:
-		v = time.Duration(int32(getUint32(b)))
-	default:
-		v = time.Duration(getUint64(b))
-	}
-
-	p.i += n
-	return
+	panic("objconv/msgpack: ParseDuration should never be called because MessagePack has no duration type, this is likely a bug in the decoder code")
 }
 
 func (p *Parser) ParseError() (v error, err error) {
-	tag := p.b[p.i]
-	p.i++
-
-	var b []byte
-	var n int
-
-	switch tag {
-	case Ext8:
-		n = 1
-	case Ext16:
-		n = 2
-	default:
-		n = 4
-	}
-
-	if b, err = p.peek(n); err != nil {
-		return
-	}
-	p.i += n + 1 // +1 for the extension type
-
-	switch n {
-	case 1:
-		n = int(b[0])
-	case 2:
-		n = int(getUint16(b))
-	default:
-		n = int(getUint32(b))
-	}
-
-	if b, err = p.read(n); err != nil {
-		return
-	}
-
-	v = errors.New(string(b))
-	return
+	panic("objconv/msgpack: ParseError should never be called because MessagePack has no error type, this is likely a bug in the decoder code")
 }
 
 func (p *Parser) ParseArrayBegin() (n int, err error) {

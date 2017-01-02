@@ -274,72 +274,11 @@ func (e *Emitter) EmitTime(v time.Time) (err error) {
 }
 
 func (e *Emitter) EmitDuration(v time.Duration) (err error) {
-	n := 0
-
-	switch {
-	case v >= objconv.Int8Min && v <= objconv.Int8Max:
-		e.b[0] = Fixext1
-		e.b[1] = byte(ExtDuration)
-		e.b[2] = byte(v)
-		n = 3
-
-	case v >= objconv.Int16Min && v <= objconv.Int16Max:
-		e.b[0] = Fixext2
-		e.b[1] = byte(ExtDuration)
-		putUint16(e.b[2:], uint16(v))
-		n = 4
-
-	case v >= objconv.Int32Min && v <= objconv.Int32Max:
-		e.b[0] = Fixext4
-		e.b[1] = byte(ExtDuration)
-		putUint32(e.b[2:], uint32(v))
-		n = 6
-
-	default:
-		e.b[0] = Fixext8
-		e.b[1] = byte(ExtDuration)
-		putUint64(e.b[2:], uint64(v))
-		n = 10
-	}
-
-	_, err = e.w.Write(e.b[:n])
-	return
+	return e.EmitString(string(objconv.AppendDuration(e.b[:0], v)))
 }
 
 func (e *Emitter) EmitError(v error) (err error) {
-	s := []byte(v.Error())
-	n := len(s)
-
-	switch {
-	case n <= objconv.Uint8Max:
-		e.b[0] = Ext8
-		e.b[1] = byte(n)
-		e.b[2] = byte(ExtError)
-		n = 3
-
-	case n <= objconv.Uint16Max:
-		e.b[0] = Ext16
-		putUint16(e.b[1:], uint16(n))
-		e.b[3] = byte(ExtError)
-		n = 4
-
-	case n <= objconv.Uint32Max:
-		e.b[0] = Ext32
-		putUint32(e.b[1:], uint32(n))
-		e.b[5] = byte(ExtError)
-		n = 6
-
-	default:
-		err = fmt.Errorf("objconv/msgpack: error of length %d is too long to be encoded", n)
-		return
-	}
-
-	if _, err = e.w.Write(e.b[:n]); err != nil {
-		return
-	}
-
-	_, err = e.w.Write(s)
-	return
+	return e.EmitString(v.Error())
 }
 
 func (e *Emitter) EmitArrayBegin(n int) (err error) {
