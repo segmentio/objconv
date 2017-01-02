@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"testing"
 	"time"
 
@@ -60,9 +59,9 @@ var cborTests = []interface{}{
 	time.Hour,
 
 	// time
-	time.Unix(0, 0),
-	time.Unix(1, 42),
-	time.Unix(17179869184, 999999999),
+	time.Unix(0, 0).In(time.UTC),
+	time.Unix(1, 42).In(time.UTC),
+	time.Unix(17179869184, 999999999).In(time.UTC),
 
 	// error
 	errors.New(""),
@@ -80,14 +79,6 @@ var cborTests = []interface{}{
 	struct{}{},
 	struct{ A int }{42},
 	struct{ A, B, C int }{1, 2, 3},
-}
-
-func makeMap(n int) map[string]string {
-	m := make(map[string]string, n)
-	for i := 0; i != n; i++ {
-		m[strconv.Itoa(i)] = "A"
-	}
-	return m
 }
 
 func testName(v interface{}) string {
