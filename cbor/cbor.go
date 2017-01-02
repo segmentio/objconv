@@ -6,39 +6,39 @@ import (
 	"github.com/segmentio/objconv"
 )
 
-const (
-	MajorType0 byte = iota
-	MajorType1
-	MajorType2
-	MajorType3
-	MajorType4
-	MajorType5
-	MajorType6
-	MajorType7
+const ( // major types
+	majorType0 byte = iota
+	majorType1
+	majorType2
+	majorType3
+	majorType4
+	majorType5
+	majorType6
+	majorType7
 )
 
-const (
-	Uint8 = 24 + iota
-	Uint16
-	Uint32
-	Uint64
+const ( // integer sizes
+	iUint8 = 24 + iota
+	iUint16
+	iUint32
+	iUint64
 )
 
-const (
-	False = 20 + iota
-	True
-	Null
-	Undefined
-	Extension
-	Float16
-	Float32
-	Float64
-	Break = 31
+const ( // simple values
+	svFalse = 20 + iota
+	svTrue
+	svNull
+	svUndefined
+	svExtension
+	svFloat16
+	svFloat32
+	svFloat64
+	svBreak = 31
 )
 
-const (
-	TagDateTime  = 0
-	TagTimestamp = 1
+const ( // tags
+	tagDateTime  = 0
+	tagTimestamp = 1
 )
 
 const (

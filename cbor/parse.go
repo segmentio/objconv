@@ -56,25 +56,25 @@ func (p *Parser) ParseType() (typ objconv.Type, err error) {
 
 	for {
 		switch m, b := majorType(s[0]); m {
-		case MajorType0:
+		case majorType0:
 			typ = objconv.Uint
 
-		case MajorType1:
+		case majorType1:
 			typ = objconv.Int
 
-		case MajorType2:
+		case majorType2:
 			typ = objconv.Bytes
 
-		case MajorType3:
+		case majorType3:
 			typ = objconv.String
 
-		case MajorType4:
+		case majorType4:
 			typ = objconv.Array
 
-		case MajorType5:
+		case majorType5:
 			typ = objconv.Map
 
-		case MajorType6:
+		case majorType6:
 			var indef bool
 			if t {
 				err = errors.New("objconv/cbor: multiple tags found for a single item")
@@ -88,7 +88,7 @@ func (p *Parser) ParseType() (typ objconv.Type, err error) {
 				return
 			}
 			switch p.tag {
-			case TagDateTime, TagTimestamp:
+			case tagDateTime, tagTimestamp:
 				typ = objconv.Time
 			default: // unsupported tag, just fallback to use the base type
 				t = true
@@ -97,16 +97,16 @@ func (p *Parser) ParseType() (typ objconv.Type, err error) {
 
 		default:
 			switch b {
-			case Null, Undefined:
+			case svNull, svUndefined:
 				typ = objconv.Nil
 
-			case False, True:
+			case svFalse, svTrue:
 				typ = objconv.Bool
 
-			case Float16, Float32, Float64:
+			case svFloat16, svFloat32, svFloat64:
 				typ = objconv.Float
 
-			case Extension:
+			case svExtension:
 				typ = objconv.Nil // ignore unsupported extensions
 
 			default:
@@ -131,7 +131,7 @@ func (p *Parser) ParseBool() (v bool, err error) {
 		return
 	}
 
-	v = b == True
+	v = b == svTrue
 	p.tag = noTag
 	return
 }
@@ -180,9 +180,9 @@ func (p *Parser) ParseFloat() (v float64, err error) {
 	}
 
 	switch b {
-	case Float16:
+	case svFloat16:
 		n = 2
-	case Float32:
+	case svFloat32:
 		n = 4
 	default:
 		n = 8
@@ -193,9 +193,9 @@ func (p *Parser) ParseFloat() (v float64, err error) {
 	}
 
 	switch b {
-	case Float16:
+	case svFloat16:
 		v = float64(math.Float32frombits(f16tof32bits(getUint16(s))))
-	case Float32:
+	case svFloat32:
 		v = float64(math.Float32frombits(getUint32(s)))
 	default:
 		v = math.Float64frombits(getUint64(s))
@@ -207,7 +207,7 @@ func (p *Parser) ParseFloat() (v float64, err error) {
 }
 
 func (p *Parser) ParseString() (v []byte, err error) {
-	if v, err = p.parseBytes(MajorType3); err != nil {
+	if v, err = p.parseBytes(majorType3); err != nil {
 		return
 	}
 	p.tag = noTag
@@ -215,7 +215,7 @@ func (p *Parser) ParseString() (v []byte, err error) {
 }
 
 func (p *Parser) ParseBytes() (v []byte, err error) {
-	if v, err = p.parseBytes(MajorType2); err != nil {
+	if v, err = p.parseBytes(majorType2); err != nil {
 		return
 	}
 	p.tag = noTag
@@ -225,7 +225,7 @@ func (p *Parser) ParseBytes() (v []byte, err error) {
 func (p *Parser) ParseTime() (v time.Time, err error) {
 	var s []byte
 
-	if p.tag == TagDateTime {
+	if p.tag == tagDateTime {
 		if s, err = p.ParseString(); err != nil {
 			return
 		}
@@ -238,7 +238,7 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 		}
 
 		switch m, _ := majorType(s[0]); m {
-		case MajorType0:
+		case majorType0:
 			var u uint64
 			if u, err = p.ParseUint(); err != nil {
 				return
@@ -249,14 +249,14 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 			}
 			v = time.Unix(int64(u), 0)
 
-		case MajorType1:
+		case majorType1:
 			var i int64
 			if i, err = p.ParseInt(); err != nil {
 				return
 			}
 			v = time.Unix(i, 0)
 
-		case MajorType7:
+		case majorType7:
 			var f float64
 			if f, err = p.ParseFloat(); err != nil {
 				return
@@ -392,11 +392,11 @@ func (p *Parser) parseUint() (v uint64, indef bool, err error) {
 		indef = true
 		p.i++
 		return
-	case b == Uint8:
+	case b == iUint8:
 		n = 2
-	case b == Uint16:
+	case b == iUint16:
 		n = 3
-	case b == Uint32:
+	case b == iUint32:
 		n = 5
 	default:
 		n = 9
@@ -408,11 +408,11 @@ func (p *Parser) parseUint() (v uint64, indef bool, err error) {
 	}
 
 	switch b {
-	case Uint8:
+	case iUint8:
 		v = uint64(s[1])
-	case Uint16:
+	case iUint16:
 		v = uint64(getUint16(s[1:]))
-	case Uint32:
+	case iUint32:
 		v = uint64(getUint32(s[1:]))
 	default:
 		v = getUint64(s[1:])
@@ -470,7 +470,7 @@ func (p *Parser) parseType7() (b byte, err error) {
 		return
 	}
 
-	if _, b = majorType(s[0]); b != Extension {
+	if _, b = majorType(s[0]); b != svExtension {
 		p.i++
 	} else {
 		if s, err = p.peek(2); err != nil {

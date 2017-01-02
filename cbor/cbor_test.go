@@ -133,9 +133,9 @@ func TestCBOR(t *testing.T) {
 }
 
 func TestMajorType(t *testing.T) {
-	m, b := majorType(majorByte(MajorType7, 24))
+	m, b := majorType(majorByte(majorType7, 24))
 
-	if m != MajorType7 {
+	if m != majorType7 {
 		t.Error("bad major type:", m)
 	}
 
