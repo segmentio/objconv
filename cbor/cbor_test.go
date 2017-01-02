@@ -161,8 +161,10 @@ func TestStream(t *testing.T) {
 	}()
 
 	var i int
-	for d.Decode(&i) == nil {
-		i = 0
+	for j := 0; d.Decode(&i) == nil; j++ {
+		if i != j {
+			t.Errorf("%d != %d", i, j)
+		}
 	}
 
 	if err := d.Err(); err != nil {
