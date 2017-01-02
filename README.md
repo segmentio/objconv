@@ -180,23 +180,29 @@ func (m M) EncodeValue(e objconv.Encoder) error {
 Mime Types
 ----------
 
-The `mimetype` sub-package exposes APIs for creating encoders and decoders for
-specific mime types. When an objconv package for a specific format is imported
-it registers itself on the `mimetype` registry to be later referred by name.
+The `objconv` package exposes APIs for registering codecs for specific mime
+types. When an objconv package for a specific format is imported
+it registers itself on the global registry to be later referred by name.
 
 ```go
 import (
-    "github.com/segmentio/objconv/mimetype"
+    "bytes"
+
+    "github.com/segmentio/objconv"
     _ "github.com/segmentio/objconv/json" // registers the JSON codec
 )
 
 func main() {
-    // Creates an encoder for the "application/json" mime type.
-    enc := mimetype.NewEncoder("application/json", os.Stdout)
+    // Lookup the JSON codec.
+    jsonCodec, ok := objconv.Lookup("application/json")
 
-    if enc == nil {
-        // no encoder for the specified mime type exists
+    if !ok {
+        panic("unreachable")
     }
+
+    // Create a new encoder from the codec.
+    b := &bytes.Buffer{}
+    e := jsonCodec.NewEncoder(b)
 
     // ...
 }
