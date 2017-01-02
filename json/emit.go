@@ -123,13 +123,13 @@ func (e *Emitter) EmitBytes(v []byte) (err error) {
 
 	if cap(s) < n {
 		s = make([]byte, 0, align(n, 1024))
+		e.s = s
 	}
 
 	s = s[:n]
 	s[0] = '"'
 	base64.StdEncoding.Encode(s[1:], v)
 	s[n-1] = '"'
-	e.s = s[:0] // in case the buffer was reallocated
 
 	_, err = e.w.Write(s)
 	return
