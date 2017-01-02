@@ -151,28 +151,31 @@ func (e *ValueEmitter) popMark() int {
 	return m
 }
 
-// DiscardEmitter is a special emitter that outputs nothing and simply discards
-// the values.
-//
-// This emitter is mostly useful to benchmark the encoder, but it can also be
-// used to disable an encoder output if necessary.
-type DiscardEmitter struct{}
+type discardEmitter struct{}
 
-func (e DiscardEmitter) EmitNil() error                     { return nil }
-func (e DiscardEmitter) EmitBool(v bool) error              { return nil }
-func (e DiscardEmitter) EmitInt(v int64, _ int) error       { return nil }
-func (e DiscardEmitter) EmitUint(v uint64, _ int) error     { return nil }
-func (e DiscardEmitter) EmitFloat(v float64, _ int) error   { return nil }
-func (e DiscardEmitter) EmitString(v string) error          { return nil }
-func (e DiscardEmitter) EmitBytes(v []byte) error           { return nil }
-func (e DiscardEmitter) EmitTime(v time.Time) error         { return nil }
-func (e DiscardEmitter) EmitDuration(v time.Duration) error { return nil }
-func (e DiscardEmitter) EmitError(v error) error            { return nil }
-func (e DiscardEmitter) EmitArrayBegin(v int) error         { return nil }
-func (e DiscardEmitter) EmitArrayEnd() error                { return nil }
-func (e DiscardEmitter) EmitArrayNext() error               { return nil }
-func (e DiscardEmitter) EmitMapBegin(v int) error           { return nil }
-func (e DiscardEmitter) EmitMapEnd() error                  { return nil }
-func (e DiscardEmitter) EmitMapDiscard() error              { return nil }
-func (e DiscardEmitter) EmitMapNext() error                 { return nil }
-func (e DiscardEmitter) EmitMapValue() error                { return nil }
+func (e discardEmitter) EmitNil() error                     { return nil }
+func (e discardEmitter) EmitBool(v bool) error              { return nil }
+func (e discardEmitter) EmitInt(v int64, _ int) error       { return nil }
+func (e discardEmitter) EmitUint(v uint64, _ int) error     { return nil }
+func (e discardEmitter) EmitFloat(v float64, _ int) error   { return nil }
+func (e discardEmitter) EmitString(v string) error          { return nil }
+func (e discardEmitter) EmitBytes(v []byte) error           { return nil }
+func (e discardEmitter) EmitTime(v time.Time) error         { return nil }
+func (e discardEmitter) EmitDuration(v time.Duration) error { return nil }
+func (e discardEmitter) EmitError(v error) error            { return nil }
+func (e discardEmitter) EmitArrayBegin(v int) error         { return nil }
+func (e discardEmitter) EmitArrayEnd() error                { return nil }
+func (e discardEmitter) EmitArrayNext() error               { return nil }
+func (e discardEmitter) EmitMapBegin(v int) error           { return nil }
+func (e discardEmitter) EmitMapEnd() error                  { return nil }
+func (e discardEmitter) EmitMapNext() error                 { return nil }
+func (e discardEmitter) EmitMapValue() error                { return nil }
+
+var (
+	// Discard is a special emitter that outputs nothing and simply discards
+	// the values.
+	//
+	// This emitter is mostly useful to benchmark the encoder, but it can also be
+	// used to disable an encoder output if necessary.
+	Discard Emitter = discardEmitter{}
+)

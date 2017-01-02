@@ -239,7 +239,7 @@ func BenchmarkEncoder(b *testing.B) {
 		struct{ A int }{},
 	}
 
-	enc := NewEncoder(DiscardEmitter{})
+	enc := NewEncoder(Discard)
 
 	for _, test := range tests {
 		b.Run(fmt.Sprintf("%T", test), func(b *testing.B) {
