@@ -46,7 +46,7 @@ func (reg *Registry) Lookup(mimetype string) (codec Codec, ok bool) {
 
 // NewEncoder returns a new encoder for mimetype that outputs to w.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func (reg *Registry) NewEncoder(mimetype string, w io.Writer) *objconv.Encoder {
 	codec, ok := reg.Lookup(mimetype)
 	if !ok {
@@ -57,7 +57,7 @@ func (reg *Registry) NewEncoder(mimetype string, w io.Writer) *objconv.Encoder {
 
 // NewDecoder returns a new encoder for mimetype that takes input from r.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func (reg *Registry) NewDecoder(mimetype string, r io.Reader) *objconv.Decoder {
 	codec, ok := reg.Lookup(mimetype)
 	if !ok {
@@ -68,7 +68,7 @@ func (reg *Registry) NewDecoder(mimetype string, r io.Reader) *objconv.Decoder {
 
 // NewStreamEncoder returns a new encoder for mimetype that outputs to w.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func (reg *Registry) NewStreamEncoder(mimetype string, w io.Writer) *objconv.StreamEncoder {
 	codec, ok := reg.Lookup(mimetype)
 	if !ok {
@@ -79,7 +79,7 @@ func (reg *Registry) NewStreamEncoder(mimetype string, w io.Writer) *objconv.Str
 
 // NewStreamDecoder returns a new encoder for mimetype that takes input from r.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func (reg *Registry) NewStreamDecoder(mimetype string, r io.Reader) *objconv.StreamDecoder {
 	codec, ok := reg.Lookup(mimetype)
 	if !ok {

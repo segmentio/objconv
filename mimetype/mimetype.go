@@ -27,28 +27,28 @@ func Lookup(mimetype string) (Codec, bool) {
 
 // NewEncoder returns a new encoder for mimetype that outputs to w.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func NewEncoder(mimetype string, w io.Writer) *objconv.Encoder {
 	return registry.NewEncoder(mimetype, w)
 }
 
 // NewDecoder returns a new encoder for mimetype that takes input from r.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func NewDecoder(mimetype string, r io.Reader) *objconv.Decoder {
 	return registry.NewDecoder(mimetype, r)
 }
 
 // NewStreamEncoder returns a new encoder for mimetype that outputs to w.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func NewStreamEncoder(mimetype string, w io.Writer) *objconv.StreamEncoder {
 	return registry.NewStreamEncoder(mimetype, w)
 }
 
 // NewStreamDecoder returns a new encoder for mimetype that takes input from r.
 //
-// The function returns nil if non codec was registered for mimetype.
+// The function returns nil if no codec was registered for mimetype.
 func NewStreamDecoder(mimetype string, r io.Reader) *objconv.StreamDecoder {
 	return registry.NewStreamDecoder(mimetype, r)
 }
