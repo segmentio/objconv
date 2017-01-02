@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/segmentio/objconv"
@@ -57,10 +58,17 @@ func main() {
 	var w = bufio.NewWriter(os.Stdout)
 	var input string
 	var output string
+	var list bool
 
 	flag.StringVar(&input, "i", "json", "The format of the input stream")
 	flag.StringVar(&output, "o", "json", "The format of the output stream")
+	flag.BoolVar(&list, "l", false, "Prints a list of all the formats available")
 	flag.Parse()
+
+	if list {
+		codecs(os.Stdout)
+		return
+	}
 
 	if err := conv(w, output, r, input); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -68,6 +76,18 @@ func main() {
 	}
 
 	w.Flush()
+}
+
+func codecs(w io.Writer) {
+	var names []string
+	for name := range objconv.Codecs() {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(w, "- %s\n", name)
+	}
+	return
 }
 
 func conv(w io.Writer, output string, r io.Reader, input string) (err error) {
