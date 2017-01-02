@@ -3,6 +3,7 @@ package cbor
 import (
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"testing"
@@ -18,7 +19,7 @@ var cborTests = []interface{}{
 	false,
 
 	// positive integer
-	0,
+	uint(0),
 	1,
 	23,
 	24,
@@ -140,5 +141,31 @@ func TestMajorType(t *testing.T) {
 
 	if b != 24 {
 		t.Error("bad info value:", b)
+	}
+}
+
+func TestStream(t *testing.T) {
+	r, w := io.Pipe()
+
+	e := NewStreamEncoder(w)
+	d := NewStreamDecoder(r)
+
+	go func() {
+		defer e.Close()
+
+		for i := 0; i != 100; i++ {
+			if err := e.Encode(i); err != nil {
+				t.Error(err)
+			}
+		}
+	}()
+
+	var i int
+	for d.Decode(&i) == nil {
+		i = 0
+	}
+
+	if err := d.Err(); err != nil {
+		t.Error(err)
 	}
 }
