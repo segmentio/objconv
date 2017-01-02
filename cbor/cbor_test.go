@@ -1,10 +1,12 @@
 package cbor
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/segmentio/objconv"
 )
@@ -27,9 +29,56 @@ var cborTests = []interface{}{
 	objconv.Uint32Max,
 	objconv.Uint32Max + 1,
 
+	// negative integer
+	-1,
+	objconv.Int8Min,
+	objconv.Int8Min - 1,
+	objconv.Int16Min,
+	objconv.Int16Min - 1,
+	objconv.Int32Min,
+	objconv.Int32Min - 1,
+
 	// float
 	float32(0.5),
 	float64(0.5),
+
+	// string
+	"",
+	"Hello World!",
+
+	// bytes
+	[]byte(""),
+	[]byte("Hello World!"),
+
+	// duration
+	time.Nanosecond,
+	time.Microsecond,
+	time.Millisecond,
+	time.Second,
+	time.Minute,
+	time.Hour,
+
+	// time
+	time.Unix(0, 0),
+	time.Unix(1, 42),
+	time.Unix(17179869184, 999999999),
+
+	// error
+	errors.New(""),
+	errors.New("Hello World!"),
+
+	// array
+	[]int{},
+	[]int{1, 2, 3},
+
+	// map
+	map[int]int{},
+	map[int]int{1: 21, 2: 42, 3: 84},
+
+	// struct
+	struct{}{},
+	struct{ A int }{42},
+	struct{ A, B, C int }{1, 2, 3},
 }
 
 func makeMap(n int) map[string]string {
@@ -82,8 +131,8 @@ func TestCBOR(t *testing.T) {
 	}
 }
 
-func TestMajorTypeOf(t *testing.T) {
-	m, b := majorTypeOf(majorByte(MajorType7, 24))
+func TestMajorType(t *testing.T) {
+	m, b := majorType(majorByte(MajorType7, 24))
 
 	if m != MajorType7 {
 		t.Error("bad major type:", m)
