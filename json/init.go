@@ -15,7 +15,6 @@ func init() {
 	for _, name := range [...]string{
 		"application/json",
 		"text/json",
-		"text/javascript",
 		"json",
 	} {
 		objconv.Register(name, codec)
