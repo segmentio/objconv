@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/segmentio/objconv"
@@ -34,11 +35,11 @@ type Emitter struct {
 	// This stack is used to cache arrays that are emitted in streaming mode,
 	// where the length of the array is not known before outputing all the
 	// elements.
-	stack []context
+	stack []*context
 
 	// sback is used as the initial backing array for the stack slice to avoid
 	// dynamic memory allocations for the most common use cases.
-	sback [8]context
+	sback [8]*context
 }
 
 type context struct {
@@ -205,16 +206,19 @@ func (e *Emitter) EmitError(v error) (err error) {
 }
 
 func (e *Emitter) EmitArrayBegin(n int) (err error) {
-	e.stack = append(e.stack, context{n: n})
-	c := &e.stack[len(e.stack)-1]
+	var c *context
 
 	if n < 0 {
+		c = contextPool.Get().(*context)
+		c.b.Truncate(0)
+		c.n = 0
 		c.w = e.w
 		e.w = &c.b
 	} else {
 		err = e.emitArray(n)
 	}
 
+	e.stack = append(e.stack, c)
 	return
 }
 
@@ -223,27 +227,27 @@ func (e *Emitter) EmitArrayEnd() (err error) {
 	c := e.stack[i]
 	e.stack = e.stack[:i]
 
-	if c.n < 0 {
+	if c != nil {
 		e.w = c.w
 
 		if c.b.Len() != 0 {
-			c.i++
+			c.n++
 		}
 
-		if err = e.emitArray(c.i); err != nil {
-			return
+		if err = e.emitArray(c.n); err == nil {
+			_, err = c.b.WriteTo(c.w)
 		}
 
-		if _, err = c.b.WriteTo(c.w); err != nil {
-			return
-		}
+		contextPool.Put(c)
 	}
 
 	return
 }
 
 func (e *Emitter) EmitArrayNext() (err error) {
-	e.stack[len(e.stack)-1].i++
+	if c := e.stack[len(e.stack)-1]; c != nil {
+		c.n++
+	}
 	return
 }
 
@@ -308,4 +312,8 @@ func indexCRLF(s string) int {
 		}
 	}
 	return -1
+}
+
+var contextPool = sync.Pool{
+	New: func() interface{} { return &context{} },
 }
