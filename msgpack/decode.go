@@ -46,6 +46,6 @@ func newUnmarshaler() *unmarshaler {
 }
 
 func (u *unmarshaler) reset(b []byte) {
-	v := bytes.NewBuffer(b)
-	u.b = *v
+	u.b = *bytes.NewBuffer(b)
+	u.Reset(&u.b)
 }
