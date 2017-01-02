@@ -1076,7 +1076,7 @@ type StreamDecoder struct {
 
 // NewStreamDecoder returns a new stream decoder that takes input from p.
 //
-// The funciton panics if p is nil.
+// The function panics if p is nil.
 func NewStreamDecoder(p Parser) *StreamDecoder {
 	if p == nil {
 		panic("objconv: the parser is nil")

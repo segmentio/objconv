@@ -136,7 +136,7 @@ func (cache *StructCache) Lookup(t reflect.Type) (s *Struct) {
 		// There's a race confition here where this value may be generated
 		// multiple times.
 		// The impact in practice is really small as it's unlikely to happen
-		// often, we take the appraoch of keeping the logic simple and avoid
+		// often, we take the approach of keeping the logic simple and avoid
 		// a more complex synchronization logic required to solve this edge
 		// case.
 		s = NewStruct(t)
