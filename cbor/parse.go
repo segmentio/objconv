@@ -2,6 +2,7 @@ package cbor
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -16,16 +17,29 @@ type Parser struct {
 	j int       // offset + 1 of the last unread byte in b
 	s []byte    // string buffer
 	b [240]byte // read buffer
+
+	// Last tag loaded while parsing the type of the next available item.
+	tag uint64
+
+	// This stack is used to keep track of the array map lengths being parsed.
+	// The sback array is the initial backend array for the stack.
+	stack []int
+	sback [16]int
 }
 
 func NewParser(r io.Reader) *Parser {
-	return &Parser{r: r}
+	p := &Parser{r: r}
+	p.tag = noTag
+	p.stack = p.sback[:0]
+	return p
 }
 
 func (p *Parser) Reset(r io.Reader) {
 	p.r = r
 	p.i = 0
 	p.j = 0
+	p.tag = noTag
+	p.stack = p.stack[:0]
 }
 
 func (p *Parser) Buffered() io.Reader {
@@ -33,82 +47,80 @@ func (p *Parser) Buffered() io.Reader {
 }
 
 func (p *Parser) ParseType() (typ objconv.Type, err error) {
+	var t = false
 	var s []byte
 
 	if s, err = p.peek(1); err != nil {
 		return
 	}
 
-	switch m, b := majorTypeOf(s[0]); m {
-	case MajorType0:
-		typ = objconv.Uint
-
-	case MajorType1:
-		typ = objconv.Int
-
-	case MajorType2:
-		typ = objconv.Bytes
-
-	case MajorType3:
-		typ = objconv.String
-
-	case MajorType4:
-		typ = objconv.Array
-
-	case MajorType5:
-		typ = objconv.Map
-
-	case MajorType6:
-		// TODO:
-		err = fmt.Errorf("objconv/cbor: tags are not supported yet")
-
-	default:
-		switch b {
-		case Null, Undefined:
-			typ = objconv.Nil
-
-		case False, True:
-			typ = objconv.Bool
-
-		case Float16, Float32, Float64:
-			typ = objconv.Float
-
-		case Extension:
+	for {
+		switch m, b := majorType(s[0]); m {
+		case MajorType0:
 			typ = objconv.Uint
 
+		case MajorType1:
+			typ = objconv.Int
+
+		case MajorType2:
+			typ = objconv.Bytes
+
+		case MajorType3:
+			typ = objconv.String
+
+		case MajorType4:
+			typ = objconv.Array
+
+		case MajorType5:
+			typ = objconv.Map
+
+		case MajorType6:
+			var indef bool
+			if t {
+				err = errors.New("objconv/cbor: multiple tags found for a single item")
+				return
+			}
+			if p.tag, indef, err = p.parseUint(); err != nil {
+				return
+			}
+			if indef {
+				err = errors.New("objconv/cbor: invalid indefinite length for major type 6")
+				return
+			}
+			switch p.tag {
+			case TagDateTime, TagTimestamp:
+				typ = objconv.Time
+			default: // unsupported tag, just fallback to use the base type
+				t = true
+				continue
+			}
+
 		default:
-			err = fmt.Errorf("objconv/cbor: unexpected value in major type 7: %d", b)
+			switch b {
+			case Null, Undefined:
+				typ = objconv.Nil
+
+			case False, True:
+				typ = objconv.Bool
+
+			case Float16, Float32, Float64:
+				typ = objconv.Float
+
+			case Extension:
+				typ = objconv.Nil // ignore unsupported extensions
+
+			default:
+				err = fmt.Errorf("objconv/cbor: unexpected value in major type 7: %d", b)
+			}
 		}
-	}
 
-	return
-}
-
-func (p *Parser) parseType7() (b byte, err error) {
-	var s []byte
-
-	if s, err = p.peek(1); err != nil {
 		return
 	}
-
-	if _, b = majorTypeOf(s[0]); b != Extension {
-		p.i++
-	} else {
-		if s, err = p.peek(2); err != nil {
-			return
-		}
-		if b = s[1]; b < 32 {
-			err = fmt.Errorf("objconv/cbor: invalid extended simple value in major type 7: %d", b)
-			return
-		}
-		p.i += 2
-	}
-
-	return
 }
 
 func (p *Parser) ParseNil() (err error) {
 	_, err = p.parseType7()
+	p.tag = noTag
 	return
 }
 
@@ -120,63 +132,41 @@ func (p *Parser) ParseBool() (v bool, err error) {
 	}
 
 	v = b == True
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseInt() (v int64, err error) {
+	var u uint64
+	var indef bool
+
+	if u, indef, err = p.parseUint(); err != nil {
+		return
+	}
+
+	if indef {
+		err = errors.New("objconv/cbor: invalid indefinite length for major type 1")
+		return
+	}
+
+	v = -int64(u + 1)
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseUint() (v uint64, err error) {
-	var s []byte
-	var m byte
-	var b byte
-	var n int
+	var indef bool
 
-	if s, err = p.peek(1); err != nil {
+	if v, indef, err = p.parseUint(); err != nil {
 		return
 	}
 
-	if m, b = majorTypeOf(s[0]); m != MajorType0 { // m == MajorType7 && b == Extension
-		if b, err = p.parseType7(); err != nil {
-			return
-		}
-		v = uint64(b)
+	if indef {
+		err = errors.New("objconv/cbor: invalid indefinite length for major type 0")
 		return
 	}
 
-	if b <= 23 {
-		v = uint64(b)
-		return
-	}
-
-	switch b {
-	case Uint8:
-		n = 2
-	case Uint16:
-		n = 3
-	case Uint32:
-		n = 5
-	default:
-		n = 9
-	}
-
-	if s, err = p.peek(n); err != nil {
-		return
-	}
-
-	switch b {
-	case Uint8:
-		v = uint64(s[1])
-	case Uint16:
-		v = uint64(getUint16(s[1:]))
-	case Uint32:
-		v = uint64(getUint32(s[1:]))
-	default:
-		v = getUint64(s[1:])
-	}
-
-	p.i += n
+	p.tag = noTag
 	return
 }
 
@@ -201,7 +191,6 @@ func (p *Parser) ParseFloat() (v float64, err error) {
 	if s, err = p.peek(n); err != nil {
 		return
 	}
-	p.i += n
 
 	switch b {
 	case Float16:
@@ -212,46 +201,156 @@ func (p *Parser) ParseFloat() (v float64, err error) {
 		v = math.Float64frombits(getUint64(s))
 	}
 
+	p.i += n
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseString() (v []byte, err error) {
+	if v, err = p.parseBytes(MajorType3); err != nil {
+		return
+	}
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseBytes() (v []byte, err error) {
+	if v, err = p.parseBytes(MajorType2); err != nil {
+		return
+	}
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseTime() (v time.Time, err error) {
+	var s []byte
+
+	if p.tag == TagDateTime {
+		if s, err = p.ParseString(); err != nil {
+			return
+		}
+		if v, err = time.Parse(time.RFC3339Nano, string(s)); err != nil {
+			return
+		}
+	} else {
+		if s, err = p.peek(1); err != nil {
+			return
+		}
+
+		switch m, _ := majorType(s[0]); m {
+		case MajorType0:
+			var u uint64
+			if u, err = p.ParseUint(); err != nil {
+				return
+			}
+			if u > int64Max {
+				err = fmt.Errorf("objconv/cbor: cannot decode a time value because %d cannot be represented by a signed 64bits integer", u)
+				return
+			}
+			v = time.Unix(int64(u), 0)
+
+		case MajorType1:
+			var i int64
+			if i, err = p.ParseInt(); err != nil {
+				return
+			}
+			v = time.Unix(i, 0)
+
+		case MajorType7:
+			var f float64
+			if f, err = p.ParseFloat(); err != nil {
+				return
+			}
+			s := int64(f)
+			ns := int64((f - float64(s)) * float64(time.Second))
+			v = time.Unix(s, ns)
+
+		default:
+			err = fmt.Errorf("objconv/cbor: cannot decode time value from an item with major type %d", m)
+			return
+		}
+	}
+
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseDuration() (v time.Duration, err error) {
-	return
+	panic("objconv/cbor: ParseDuration should never be called because CBOR has no duration type, this is likely a bug in the decoder code")
 }
 
 func (p *Parser) ParseError() (v error, err error) {
-	return
+	panic("objconv/cbor: ParseError should never be called because CBOR has no error type, this is likely a bug in the decoder code")
 }
 
 func (p *Parser) ParseArrayBegin() (n int, err error) {
+	var u uint64
+	var indef bool
+
+	if u, indef, err = p.parseUint(); err != nil {
+		return
+	}
+
+	if indef {
+		n = -1
+	} else {
+		if u > intMax {
+			err = fmt.Errorf("objconv/cbor: array of length %d is greater than what an int can represent", u)
+			return
+		}
+		n = int(u)
+	}
+
+	p.stack = append(p.stack, n)
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseArrayEnd(n int) (err error) {
+	p.stack = p.stack[:len(p.stack)-1]
 	return
 }
 
 func (p *Parser) ParseArrayNext(n int) (err error) {
+	if p.stack[len(p.stack)-1] < 0 {
+		var s []byte
+
+		if s, err = p.peek(1); err != nil {
+			return
+		}
+
+		if s[0] == 0xFF {
+			err = objconv.End
+		}
+	}
 	return
 }
 
 func (p *Parser) ParseMapBegin() (n int, err error) {
+	var u uint64
+	var indef bool
+
+	if u, indef, err = p.parseUint(); err != nil {
+		return
+	}
+
+	if indef {
+		n = -1
+	} else {
+		if u > intMax {
+			err = fmt.Errorf("objconv/cbor: map of length %d is greater than what an int can represent", u)
+			return
+		}
+		n = int(u)
+	}
+
+	p.stack = append(p.stack, n)
+	p.tag = noTag
 	return
 }
 
 func (p *Parser) ParseMapEnd(n int) (err error) {
+	p.stack = p.stack[:len(p.stack)-1]
 	return
 }
 
@@ -260,37 +359,165 @@ func (p *Parser) ParseMapValue(n int) (err error) {
 }
 
 func (p *Parser) ParseMapNext(n int) (err error) {
+	if p.stack[len(p.stack)-1] < 0 {
+		var s []byte
+
+		if s, err = p.peek(1); err != nil {
+			return
+		}
+
+		if s[0] == 0xFF {
+			err = objconv.End
+		}
+	}
 	return
 }
 
-func (p *Parser) read(n int) (b []byte, err error) {
-	if n <= (p.j - p.i) { // check if the string is already buffered
-		b = p.b[p.i : p.i+n]
-		p.i += n
+func (p *Parser) parseUint() (v uint64, indef bool, err error) {
+	var s []byte
+	var n int
+
+	if s, err = p.peek(1); err != nil {
 		return
 	}
 
-	if n <= len(p.b) { // check if the string can be loaded in the read buffer
-		if b, err = p.peek(n); err != nil {
+	_, b := majorType(s[0])
+
+	switch {
+	case b <= 23:
+		v = uint64(b)
+		p.i++
+		return
+	case b == 31:
+		indef = true
+		p.i++
+		return
+	case b == Uint8:
+		n = 2
+	case b == Uint16:
+		n = 3
+	case b == Uint32:
+		n = 5
+	default:
+		n = 9
+	}
+
+	if s, err = p.peek(n); err != nil {
+		n = 0
+		return
+	}
+
+	switch b {
+	case Uint8:
+		v = uint64(s[1])
+	case Uint16:
+		v = uint64(getUint16(s[1:]))
+	case Uint32:
+		v = uint64(getUint32(s[1:]))
+	default:
+		v = getUint64(s[1:])
+	}
+
+	p.i += n
+	return
+}
+
+func (p *Parser) parseBytes(m byte) (v []byte, err error) {
+	var s []byte
+	var u uint64
+	var indef bool
+
+	p.s = p.s[:0]
+
+	if u, indef, err = p.parseUint(); err != nil {
+		return
+	}
+
+	if !indef {
+		if u > intMax {
+			err = fmt.Errorf("objconv/cbor: byte string of length %d is greater than what an int can represent", u)
 			return
 		}
-		p.i += n
+		return p.load(int(u))
+	}
+
+	for {
+		if u, indef, err = p.parseUint(); err != nil {
+			return
+		}
+
+		if indef {
+			break
+		}
+
+		if n := uint64(len(s)); u > (intMax - n) {
+			err = fmt.Errorf("objconv/cbor: byte string of length %d is greater than what an int can represent", u+n)
+			return
+		}
+
+		if v, err = p.load(int(u)); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (p *Parser) parseType7() (b byte, err error) {
+	var s []byte
+
+	if s, err = p.peek(1); err != nil {
 		return
 	}
 
-	if cap(p.s) < n {
-		p.s = make([]byte, n, align(n, 1024))
+	if _, b = majorType(s[0]); b != Extension {
+		p.i++
 	} else {
-		p.s = p.s[:n]
+		if s, err = p.peek(2); err != nil {
+			return
+		}
+		if b = s[1]; b < 32 {
+			err = fmt.Errorf("objconv/cbor: invalid extended simple value in major type 7: %d", b)
+			return
+		}
+		p.i += 2
 	}
 
-	copy(p.s, p.b[p.i:p.j])
-	n = p.j - p.i
-	p.i = 0
-	p.j = 0
+	return
+}
 
-	if _, err = io.ReadFull(p.r, p.s[n:]); err != nil {
-		return
+func (p *Parser) load(n int) (b []byte, err error) {
+	i := len(p.s)
+	j := i + n
+
+	if cap(p.s) < j {
+		p.s = make([]byte, j, align(j, 1024))
+	} else {
+		p.s = p.s[:j]
+	}
+
+	if p.i != p.j {
+		n1 := n
+		n2 := p.j - p.i
+
+		if n1 > n2 {
+			n1 = n2
+		}
+
+		copy(p.s[i:], p.b[p.i:p.i+n1])
+
+		if p.i += n1; p.i == p.j {
+			p.i = 0
+			p.j = 0
+		}
+
+		i += n1
+	}
+
+	if i != j {
+		if _, err = io.ReadFull(p.r, p.s[i:]); err != nil {
+			return
+		}
 	}
 
 	b = p.s

@@ -1,6 +1,10 @@
 package cbor
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+
+	"github.com/segmentio/objconv"
+)
 
 const (
 	MajorType0 byte = iota
@@ -13,14 +17,14 @@ const (
 	MajorType7
 )
 
-const ( // usigned integer types
+const (
 	Uint8 = 24 + iota
 	Uint16
 	Uint32
 	Uint64
 )
 
-const ( // simple values
+const (
 	False = 20 + iota
 	True
 	Null
@@ -32,11 +36,22 @@ const ( // simple values
 	Break = 31
 )
 
+const (
+	TagDateTime  = 0
+	TagTimestamp = 1
+)
+
+const (
+	intMax   = uint64(objconv.IntMax)
+	int64Max = uint64(objconv.Int64Max)
+	noTag    = uint64(objconv.Uint64Max)
+)
+
 func majorByte(maj byte, val byte) byte {
 	return (maj << 5) | val
 }
 
-func majorTypeOf(b byte) (maj byte, val byte) {
+func majorType(b byte) (maj byte, val byte) {
 	const mask = byte(0xE0)
 	return ((b & mask) >> 5), (b & ^mask)
 }
