@@ -15,6 +15,7 @@ import (
 	_ "github.com/segmentio/objconv/json"
 	_ "github.com/segmentio/objconv/msgpack"
 	_ "github.com/segmentio/objconv/resp"
+	_ "github.com/segmentio/objconv/yaml"
 )
 
 // document is used to preserve the order of keys in maps.

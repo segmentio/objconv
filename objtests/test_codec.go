@@ -60,8 +60,7 @@ var TestValues = [...]interface{}{
 	float32(objconv.Float32IntMin),
 	float32(objconv.Float32IntMax),
 	float64(0),
-	float64(objconv.Float64IntMin),
-	float64(objconv.Float64IntMax),
+	float64(0.5),
 
 	// string
 	"",
