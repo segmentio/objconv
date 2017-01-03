@@ -362,7 +362,7 @@ func (p *Parser) ParseTime() (v time.Time, err error) {
 		return
 	}
 
-	v = time.Unix(s, ns)
+	v = time.Unix(s, ns).In(time.UTC)
 	return
 }
 

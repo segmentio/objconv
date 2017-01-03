@@ -20,6 +20,7 @@ type Parser struct {
 
 	// Last tag loaded while parsing the type of the next available item.
 	tag uint64
+	typ objconv.Type
 
 	// This stack is used to keep track of the array map lengths being parsed.
 	// The sback array is the initial backend array for the stack.
@@ -47,6 +48,11 @@ func (p *Parser) Buffered() io.Reader {
 }
 
 func (p *Parser) ParseType() (typ objconv.Type, err error) {
+	if p.tag != noTag {
+		typ = p.typ
+		return
+	}
+
 	var t = false
 	var s []byte
 
@@ -94,6 +100,7 @@ func (p *Parser) ParseType() (typ objconv.Type, err error) {
 				t = true
 				continue
 			}
+			p.typ = typ
 
 		default:
 			switch b {

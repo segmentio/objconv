@@ -11,6 +11,8 @@ var parseIntTests = []struct {
 	{-1, "-1"},
 	{1234567890, "1234567890"},
 	{-1234567890, "-1234567890"},
+	{9223372036854775807, "9223372036854775807"},
+	{-9223372036854775808, "-9223372036854775808"},
 }
 
 func TestParseInt(t *testing.T) {
@@ -52,6 +54,7 @@ var parseUintHexTests = []struct {
 	{0x10, "10"},
 	{0xABCDEF, "abcdef"},
 	{0xABCDEF, "ABCDEF"},
+	{0xFFFFFFFFFFFFFFFF, "FFFFFFFFFFFFFFFF"},
 }
 
 func TestParseUintHex(t *testing.T) {

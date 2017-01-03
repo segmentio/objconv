@@ -346,7 +346,7 @@ func (d Decoder) decodeBytesFromType(t Type, to reflect.Value) (err error) {
 		}
 	}
 
-	if b != nil {
+	if t != Nil {
 		v = make([]byte, len(b))
 		copy(v, b)
 	}

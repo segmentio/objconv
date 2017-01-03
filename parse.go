@@ -402,37 +402,58 @@ func (p *ValueParser) context() *valueParserContext {
 // Because it only works with base 10 the function is also significantly faster
 // than strconv.ParseInt.
 func ParseInt(b []byte) (int64, error) {
-	var neg bool
 	var val int64
 
 	if len(b) == 0 {
-		return 0, errors.New("objconv: an empty string is not a valid decimal representation of a signed 64 bits integer")
+		return 0, errorInvalidUint64(b)
 	}
 
 	if b[0] == '-' {
-		neg = true
+		const max = Int64Min
+		const lim = max / 10
 
 		if b = b[1:]; len(b) == 0 {
-			return 0, errors.New("objconv: \"-\" is not a valid decimal representation of a signed 64 bits integer")
-		}
-	}
-
-	for _, d := range b {
-		if !(d >= '0' && d <= '9') {
-			return 0, fmt.Errorf("objconv: %#v is not a valid decimal representation of a signed 64 bits integer", string(b))
+			return 0, errorInvalidUint64(b)
 		}
 
-		x := int64(d - '0')
+		for _, d := range b {
+			if !(d >= '0' && d <= '9') {
+				return 0, errorInvalidInt64(b)
+			}
 
-		if val > (Int64Max/10 - x) {
-			return 0, fmt.Errorf("objconv: %#v overflows the maximum values of a signed 64 bits integer", string(b))
+			if val < lim {
+				return 0, errorOverflowInt64(b)
+			}
+
+			val *= 10
+			x := int64(d - '0')
+
+			if val < (max + x) {
+				return 0, errorOverflowInt64(b)
+			}
+
+			val -= x
 		}
+	} else {
+		const max = Int64Max
+		const lim = max / 10
 
-		val = val*10 + x
-	}
+		for _, d := range b {
+			if !(d >= '0' && d <= '9') {
+				return 0, errorInvalidInt64(b)
+			}
+			x := int64(d - '0')
 
-	if neg {
-		val = -val
+			if val > lim {
+				return 0, errorOverflowInt64(b)
+			}
+
+			if val *= 10; val > (max - x) {
+				return 0, errorOverflowInt64(b)
+			}
+
+			val += x
+		}
 	}
 
 	return val, nil
@@ -447,10 +468,12 @@ func ParseInt(b []byte) (int64, error) {
 // Because it only works with base 16 the function is also significantly faster
 // than strconv.ParseUint.
 func ParseUintHex(b []byte) (uint64, error) {
+	const max = Uint64Max
+	const lim = max / 0x10
 	var val uint64
 
 	if len(b) == 0 {
-		return 0, errors.New("objconv: an empty string is not a valid hexadecimal representation of an unsigned 64 bits integer")
+		return 0, errorInvalidUint64(b)
 	}
 
 	for _, d := range b {
@@ -467,15 +490,35 @@ func ParseUintHex(b []byte) (uint64, error) {
 			x = uint64(d-'a') + 0xA
 
 		default:
-			return 0, fmt.Errorf("objconv: %#v is not a valid hexadecimal representation of an unsigned 64 bits integer", string(b))
+			return 0, errorInvalidUint64(b)
 		}
 
-		if val > (Int64Max/0x10 - x) {
-			return 0, fmt.Errorf("objconv: %#v overflows the maximum values of an unsigned 64 bits integer", string(b))
+		if val > lim {
+			return 0, errorOverflowUint64(b)
 		}
 
-		val = val*0x10 + x
+		if val *= 0x10; val > (max - x) {
+			return 0, errorOverflowUint64(b)
+		}
+
+		val += x
 	}
 
 	return val, nil
+}
+
+func errorInvalidInt64(b []byte) error {
+	return fmt.Errorf("objconv: %#v is not a valid decimal representation of a signed 64 bits integer", string(b))
+}
+
+func errorOverflowInt64(b []byte) error {
+	return fmt.Errorf("objconv: %#v overflows the maximum values of a signed 64 bits integer", string(b))
+}
+
+func errorInvalidUint64(b []byte) error {
+	return fmt.Errorf("objconv: %#v is not a valid decimal representation of an unsigned 64 bits integer", string(b))
+}
+
+func errorOverflowUint64(b []byte) error {
+	return fmt.Errorf("objconv: %#v overflows the maximum values of an unsigned 64 bits integer", string(b))
 }

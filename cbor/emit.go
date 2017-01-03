@@ -104,7 +104,9 @@ func (e *Emitter) EmitBytes(v []byte) (err error) {
 	if err = e.emitUint(majorType2, uint64(len(v))); err != nil {
 		return
 	}
-	_, err = e.w.Write(v)
+	if len(v) != 0 {
+		_, err = e.w.Write(v)
+	}
 	return
 }
 

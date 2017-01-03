@@ -87,7 +87,6 @@ func align(n int, a int) int {
 	return ((n / a) + 1) * a
 }
 
-// ported from http://stderr.org/doc/ogre-doc/api/OgreBitwise_8h-source.html
 func f16tof32bits(yy uint16) (d uint32) {
 	y := uint32(yy)
 	s := (y >> 15) & 0x01
@@ -95,7 +94,7 @@ func f16tof32bits(yy uint16) (d uint32) {
 	m := y & 0x03ff
 
 	if e == 0 {
-		if m == 0 { // plus or minus 0
+		if m == 0 { // +/- 0
 			return s << 31
 		} else { // Denormalized number -- renormalize it
 			for (m & 0x00000400) == 0 {
