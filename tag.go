@@ -14,6 +14,13 @@ type tag struct {
 	omitzero bool
 }
 
+// ParseTag parses a struct field tag in s, returning the name of the field and
+// its properties.
+func ParseTag(s string) (name string, omitempty bool, omitzero bool) {
+	t := parseTag(s)
+	return t.name, t.omitempty, t.omitzero
+}
+
 // parseTag parses a raw tag obtained from a struct field, returning the results
 // as a tag value.
 func parseTag(s string) tag {
