@@ -77,7 +77,7 @@ func (e Encoder) EncodeFloat(v float64) (err error) {
 	return e.Emitter.EmitFloat(v, 64)
 }
 
-// EncodeString uses e to encode string value v.
+// EncodeString uses e to encode the string value v.
 func (e Encoder) EncodeString(v string) (err error) {
 	if err = e.encodeMapValueMaybe(); err != nil {
 		return
@@ -91,6 +91,30 @@ func (e Encoder) EncodeBytes(v []byte) (err error) {
 		return
 	}
 	return e.Emitter.EmitBytes(v)
+}
+
+// EncodeTime uses e to encode the time value v.
+func (e Encoder) EncodeTime(v time.Time) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitTime(v)
+}
+
+// EncodeDuration uses e to encode the duration value v.
+func (e Encoder) EncodeDuration(v time.Duration) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitDuration(v)
+}
+
+// EncodeError uses e to encode the error value v.
+func (e Encoder) EncodeError(v error) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitError(v)
 }
 
 func (e *Encoder) encodeMapValueMaybe() (err error) {
@@ -173,7 +197,7 @@ func (e Encoder) encodeTime(v reflect.Value) error {
 }
 
 func (e Encoder) encodeDuration(v reflect.Value) error {
-	return e.Emitter.EmitDuration(v.Interface().(time.Duration))
+	return e.Emitter.EmitDuration(time.Duration(v.Int()))
 }
 
 func (e Encoder) encodeError(v reflect.Value) error {
