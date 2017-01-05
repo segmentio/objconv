@@ -36,17 +36,68 @@ func NewEncoder(e Emitter) *Encoder {
 
 // Encode encodes the generic value v.
 func (e Encoder) Encode(v interface{}) (err error) {
-	if e.key {
-		if e.key, err = false, e.Emitter.EmitMapValue(); err != nil {
-			return
-		}
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
 	}
-
 	if v == nil {
 		return e.Emitter.EmitNil()
 	}
-
 	return e.encode(reflect.ValueOf(v))
+}
+
+// EncodeBool uses e to encode the boolean value v.
+func (e Encoder) EncodeBool(v bool) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitBool(v)
+}
+
+// EncodeInt uses e to encode the signed integer value v.
+func (e Encoder) EncodeInt(v int64) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitInt(v, 64)
+}
+
+// EncodeUint uses e to encode the unsigned integer value v.
+func (e Encoder) EncodeUint(v uint64) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitUint(v, 64)
+}
+
+// EncodeFloat uses e to encode the floating point value v.
+func (e Encoder) EncodeFloat(v float64) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitFloat(v, 64)
+}
+
+// EncodeString uses e to encode string value v.
+func (e Encoder) EncodeString(v string) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitString(v)
+}
+
+// EncodeBytes uses e to encode the byte slice value v.
+func (e Encoder) EncodeBytes(v []byte) (err error) {
+	if err = e.encodeMapValueMaybe(); err != nil {
+		return
+	}
+	return e.Emitter.EmitBytes(v)
+}
+
+func (e *Encoder) encodeMapValueMaybe() (err error) {
+	if e.key {
+		e.key, err = false, e.Emitter.EmitMapValue()
+	}
+	return
 }
 
 func (e Encoder) encode(v reflect.Value) error {
