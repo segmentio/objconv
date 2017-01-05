@@ -82,7 +82,7 @@ func (e *Emitter) EmitString(v string) (err error) {
 		j++
 
 		switch b {
-		case '"', '\\', '/':
+		case '"', '\\':
 			// b = b
 
 		case '\b':
