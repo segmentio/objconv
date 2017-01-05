@@ -188,6 +188,7 @@ var (
 	timeType           = reflect.TypeOf(time.Time{})
 	durationType       = reflect.TypeOf(time.Duration(0))
 	sliceInterfaceType = reflect.TypeOf(([]interface{})(nil))
+	timePtrType        = reflect.PtrTo(timeType)
 
 	// interfaces
 	errorInterface           = reflect.TypeOf((*error)(nil)).Elem()

@@ -193,7 +193,27 @@ func (e Encoder) encodeBytes(v reflect.Value) error {
 }
 
 func (e Encoder) encodeTime(v reflect.Value) error {
-	return e.Emitter.EmitTime(v.Interface().(time.Time))
+	var t time.Time
+
+	// Here we may receive either a pointer or a plain value because there is a
+	// special case for *time.Time in the encoder to avoid having it match the
+	// encoding.TextMarshaler interface and instead treat it the same way than
+	// if we had gotten the plain value right away.
+	//
+	// As a side effect, this also sometimes permit more optimizations because
+	// having a pointer will likely avoid a memory allocation when calling
+	// Interface on the value.
+	if v.Kind() != reflect.Ptr {
+		t = v.Interface().(time.Time)
+	} else {
+		if ptr := v.Interface().(*time.Time); ptr == nil {
+			return e.Emitter.EmitNil()
+		} else {
+			t = *ptr
+		}
+	}
+
+	return e.Emitter.EmitTime(t)
 }
 
 func (e Encoder) encodeDuration(v reflect.Value) error {
@@ -668,7 +688,7 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 	case bytesType:
 		return Encoder.encodeBytes
 
-	case timeType:
+	case timeType, timePtrType:
 		return Encoder.encodeTime
 
 	case durationType:
