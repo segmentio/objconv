@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"sync"
 	"time"
 )
 
@@ -656,12 +655,6 @@ type ValueEncoderFunc func(Encoder) error
 
 // EncodeValue calls f(e).
 func (f ValueEncoderFunc) EncodeValue(e Encoder) error { return f(e) }
-
-var (
-	stringKeysPool = sync.Pool{
-		New: func() interface{} { return make([]string, 0, 20) },
-	}
-)
 
 // encodeFuncOpts is used to configure how the encodeFuncOf behaves.
 type encodeFuncOpts struct {
