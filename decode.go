@@ -285,11 +285,6 @@ func (d Decoder) decodeString(to reflect.Value) (t Type, err error) {
 	return
 }
 
-var (
-	trueBytes  = [...]byte{'t', 'r', 'u', 'e'}
-	falseBytes = [...]byte{'f', 'a', 'l', 's', 'e'}
-)
-
 func (d Decoder) decodeStringFromType(t Type, to reflect.Value) (err error) {
 	var a [64]byte
 	var b []byte
@@ -308,9 +303,9 @@ func (d Decoder) decodeStringFromType(t Type, to reflect.Value) (err error) {
 		var v bool
 		if v, err = d.Parser.ParseBool(); err == nil {
 			if v {
-				b = trueBytes[:]
+				b = append(a[:0], "true"...)
 			} else {
-				b = falseBytes[:]
+				b = append(a[:0], "false"...)
 			}
 		}
 
