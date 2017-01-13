@@ -30,6 +30,16 @@ func TestDecoderDecodeType(t *testing.T) {
 		{map[string]int{"answer": 42}, nil},
 		{struct{ A, B, C int }{1, 2, 3}, nil},
 
+		// type -> string (conversion)
+		{true, "true"},
+		{false, "false"},
+		{int(42), "42"},
+		{uint(42), "42"},
+		{float64(0.5), "0.5"},
+		{date, "2016-12-12T01:01:01Z"},
+		{42 * time.Second, "42s"},
+		{err, "error"},
+
 		// nil -> bool
 		{nil, false},
 

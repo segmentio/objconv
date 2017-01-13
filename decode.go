@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -285,6 +286,7 @@ func (d Decoder) decodeString(to reflect.Value) (t Type, err error) {
 }
 
 func (d Decoder) decodeStringFromType(t Type, to reflect.Value) (err error) {
+	var a [64]byte
 	var b []byte
 
 	switch t {
@@ -296,6 +298,52 @@ func (d Decoder) decodeStringFromType(t Type, to reflect.Value) (err error) {
 
 	case Bytes:
 		b, err = d.Parser.ParseBytes()
+
+	case Bool:
+		var v bool
+		if v, err = d.Parser.ParseBool(); err == nil {
+			if v {
+				b = append(a[:0], "true"...)
+			} else {
+				b = append(a[:0], "false"...)
+			}
+		}
+
+	case Int:
+		var v int64
+		if v, err = d.Parser.ParseInt(); err == nil {
+			b = strconv.AppendInt(a[:0], v, 10)
+		}
+
+	case Uint:
+		var v uint64
+		if v, err = d.Parser.ParseUint(); err == nil {
+			b = strconv.AppendUint(a[:0], v, 10)
+		}
+
+	case Float:
+		var v float64
+		if v, err = d.Parser.ParseFloat(); err == nil {
+			b = strconv.AppendFloat(a[:0], v, 'g', -1, 64)
+		}
+
+	case Time:
+		var v time.Time
+		if v, err = d.Parser.ParseTime(); err == nil {
+			b = v.AppendFormat(a[:0], time.RFC3339Nano)
+		}
+
+	case Duration:
+		var v time.Duration
+		if v, err = d.Parser.ParseDuration(); err == nil {
+			b = AppendDuration(a[:0], v)
+		}
+
+	case Error:
+		var v error
+		if v, err = d.Parser.ParseError(); err == nil {
+			b = append(a[:0], v.Error()...)
+		}
 
 	default:
 		err = typeConversionError(t, String)
