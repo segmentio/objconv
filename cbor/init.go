@@ -6,7 +6,8 @@ import (
 	"github.com/segmentio/objconv"
 )
 
-var codec = objconv.Codec{
+// Codec for the CBOR format.
+var Codec = objconv.Codec{
 	NewEmitter: func(w io.Writer) objconv.Emitter { return NewEmitter(w) },
 	NewParser:  func(r io.Reader) objconv.Parser { return NewParser(r) },
 }
@@ -16,6 +17,6 @@ func init() {
 		"application/cbor",
 		"cbor",
 	} {
-		objconv.Register(name, codec)
+		objconv.Register(name, Codec)
 	}
 }

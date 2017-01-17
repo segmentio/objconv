@@ -7,9 +7,9 @@ import (
 )
 
 func TestCodec(t *testing.T) {
-	objtests.TestCodec(t, codec)
+	objtests.TestCodec(t, Codec)
 }
 
 func BenchmarkCodec(b *testing.B) {
-	objtests.BenchmarkCodec(b, codec)
+	objtests.BenchmarkCodec(b, Codec)
 }

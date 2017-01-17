@@ -6,7 +6,8 @@ import (
 	"github.com/segmentio/objconv"
 )
 
-var codec = objconv.Codec{
+// Codec for the YAML format.
+var Codec = objconv.Codec{
 	NewEmitter: func(w io.Writer) objconv.Emitter { return NewEmitter(w) },
 	NewParser:  func(r io.Reader) objconv.Parser { return NewParser(r) },
 }
@@ -17,6 +18,6 @@ func init() {
 		"text/yaml",
 		"yaml",
 	} {
-		objconv.Register(name, codec)
+		objconv.Register(name, Codec)
 	}
 }
