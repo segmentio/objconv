@@ -3,10 +3,7 @@ package objconv
 import (
 	"errors"
 	"fmt"
-	"net"
 	"reflect"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -508,34 +505,6 @@ func ParseUintHex(b []byte) (uint64, error) {
 	}
 
 	return val, nil
-}
-
-func parseNetAddr(s string) (ip net.IP, port int, zone string, err error) {
-	var h string
-	var p string
-
-	if h, p, err = net.SplitHostPort(s); err != nil {
-		h, p = s, ""
-	}
-
-	if len(h) != 0 {
-		if off := strings.IndexByte(h, '%'); off >= 0 {
-			h, zone = h[:off], h[off+1:]
-		}
-		if ip = net.ParseIP(h); ip == nil {
-			err = errors.New("objconv: bad IP address: " + s)
-			return
-		}
-	}
-
-	if len(p) != 0 {
-		if port, err = strconv.Atoi(p); err != nil || port < 0 || port > 65535 {
-			err = errors.New("objconv: bad port number: " + s)
-			return
-		}
-	}
-
-	return
 }
 
 func errorInvalidInt64(b []byte) error {
