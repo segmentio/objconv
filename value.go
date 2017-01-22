@@ -2,6 +2,9 @@ package objconv
 
 import (
 	"encoding"
+	"net"
+	"net/mail"
+	"net/url"
 	"reflect"
 	"sync"
 	"time"
@@ -189,20 +192,31 @@ var (
 	durationType       = reflect.TypeOf(time.Duration(0))
 	sliceInterfaceType = reflect.TypeOf(([]interface{})(nil))
 	timePtrType        = reflect.PtrTo(timeType)
+	netTCPAddrType     = reflect.TypeOf(net.TCPAddr{})
+	netUDPAddrType     = reflect.TypeOf(net.UDPAddr{})
+	netUnixAddrType    = reflect.TypeOf(net.UnixAddr{})
+	netIPAddrType      = reflect.TypeOf(net.IPAddr{})
+	netIPType          = reflect.TypeOf(net.IP(nil))
+	urlURLType         = reflect.TypeOf(url.URL{})
+	mailAddressType    = reflect.TypeOf(mail.Address{})
 
 	// interfaces
-	errorInterface           = reflect.TypeOf((*error)(nil)).Elem()
-	valueEncoderInterface    = reflect.TypeOf((*ValueEncoder)(nil)).Elem()
-	valueDecoderInterface    = reflect.TypeOf((*ValueDecoder)(nil)).Elem()
-	textMarshalerInterface   = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
-	textUnmarshalerInterface = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
-	emptyInterface           = reflect.TypeOf((*interface{})(nil)).Elem()
+	errorInterface           = elemTypeOf((*error)(nil))
+	valueEncoderInterface    = elemTypeOf((*ValueEncoder)(nil))
+	valueDecoderInterface    = elemTypeOf((*ValueDecoder)(nil))
+	textMarshalerInterface   = elemTypeOf((*encoding.TextMarshaler)(nil))
+	textUnmarshalerInterface = elemTypeOf((*encoding.TextUnmarshaler)(nil))
+	emptyInterface           = elemTypeOf((*interface{})(nil))
 
 	// common map types, used for optimization for map encoding algorithms
 	mapStringStringType       = reflect.TypeOf((map[string]string)(nil))
 	mapStringInterfaceType    = reflect.TypeOf((map[string]interface{})(nil))
 	mapInterfaceInterfaceType = reflect.TypeOf((map[interface{}]interface{})(nil))
 )
+
+func elemTypeOf(v interface{}) reflect.Type {
+	return reflect.TypeOf(v).Elem()
+}
 
 func stringNoCopy(b []byte) string {
 	n := len(b)

@@ -3,6 +3,9 @@ package objconv
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/mail"
+	"net/url"
 	"reflect"
 	"testing"
 	"time"
@@ -29,6 +32,14 @@ type TBytes []byte
 func TestEncoder(t *testing.T) {
 	now := time.Now()
 	err := errors.New("error")
+
+	ip := net.ParseIP("::1")
+	ipAddr := net.IPAddr{IP: ip, Zone: "zone"}
+	tcpAddr := net.TCPAddr{IP: ip, Port: 4242, Zone: "zone"}
+	udpAddr := net.UDPAddr{IP: ip, Port: 4242, Zone: "zone"}
+
+	location, _ := url.Parse("http://localhost:4242/hello/world?answer=42#question")
+	email, _ := mail.ParseAddress("git@github.com")
 
 	tests := [...]struct {
 		in  interface{}
@@ -91,6 +102,18 @@ func TestEncoder(t *testing.T) {
 
 		// error
 		{err, err},
+
+		// net
+		{ip, "::1"},
+		{ipAddr, "::1%zone"},
+		{tcpAddr, "[::1%zone]:4242"},
+		{udpAddr, "[::1%zone]:4242"},
+
+		// url
+		{location, "http://localhost:4242/hello/world?answer=42#question"},
+
+		// email
+		{email, "<git@github.com>"},
 
 		// array
 		{[...]int{1, 2, 3}, []interface{}{int64(1), int64(2), int64(3)}},

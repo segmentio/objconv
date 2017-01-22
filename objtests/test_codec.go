@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/mail"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -124,6 +127,29 @@ var TestValues = [...]interface{}{
 		T time.Time
 		S string
 	}{42, time.Date(2016, 12, 20, 0, 20, 1, 0, time.UTC), "Hello World!"},
+
+	// net
+	net.TCPAddr{
+		IP:   net.ParseIP("::1"),
+		Port: 4242,
+		Zone: "zone",
+	},
+	net.UDPAddr{
+		IP:   net.ParseIP("::1"),
+		Port: 4242,
+		Zone: "zone",
+	},
+	net.IPAddr{
+		IP:   net.ParseIP("::1"),
+		Zone: "zone",
+	},
+	net.IPv4(127, 0, 0, 1),
+
+	// url
+	parseURL("http://localhost:4242/hello/world?answer=42#question"),
+
+	// mail
+	parseEmail("git@github.com"),
 }
 
 func makeMap(n int) map[string]string {
@@ -339,4 +365,14 @@ func benchmarkStreamDecoder(b *testing.B, codec objconv.Codec) {
 
 		a.Reset()
 	}
+}
+
+func parseURL(s string) url.URL {
+	u, _ := url.Parse(s)
+	return *u
+}
+
+func parseEmail(s string) mail.Address {
+	a, _ := mail.ParseAddress(s)
+	return *a
 }

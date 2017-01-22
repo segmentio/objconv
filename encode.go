@@ -4,6 +4,9 @@ import (
 	"encoding"
 	"fmt"
 	"io"
+	"net"
+	"net/mail"
+	"net/url"
 	"reflect"
 	"time"
 )
@@ -221,6 +224,35 @@ func (e Encoder) encodeDuration(v reflect.Value) error {
 
 func (e Encoder) encodeError(v reflect.Value) error {
 	return e.Emitter.EmitError(v.Interface().(error))
+}
+
+func (e Encoder) encodeTCPAddr(v reflect.Value) error {
+	a := v.Interface().(net.TCPAddr)
+	return e.Emitter.EmitString(a.String())
+}
+
+func (e Encoder) encodeUDPAddr(v reflect.Value) error {
+	a := v.Interface().(net.UDPAddr)
+	return e.Emitter.EmitString(a.String())
+}
+
+func (e Encoder) encodeIPAddr(v reflect.Value) error {
+	a := v.Interface().(net.IPAddr)
+	return e.Emitter.EmitString(a.String())
+}
+
+func (e Encoder) encodeIP(v reflect.Value) error {
+	return e.Emitter.EmitString(v.Interface().(net.IP).String())
+}
+
+func (e Encoder) encodeURL(v reflect.Value) error {
+	u := v.Interface().(url.URL)
+	return e.Emitter.EmitString(u.String())
+}
+
+func (e Encoder) encodeEmail(v reflect.Value) error {
+	a := v.Interface().(mail.Address)
+	return e.Emitter.EmitString(a.String())
 }
 
 func (e Encoder) encodeArray(v reflect.Value) error {
@@ -728,6 +760,24 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 
 	case float64Type:
 		return Encoder.encodeFloat64
+
+	case netTCPAddrType:
+		return Encoder.encodeTCPAddr
+
+	case netUDPAddrType:
+		return Encoder.encodeUDPAddr
+
+	case netIPAddrType:
+		return Encoder.encodeIPAddr
+
+	case netIPType:
+		return Encoder.encodeIP
+
+	case urlURLType:
+		return Encoder.encodeURL
+
+	case mailAddressType:
+		return Encoder.encodeEmail
 	}
 
 	switch {
