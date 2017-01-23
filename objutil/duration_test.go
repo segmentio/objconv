@@ -1,4 +1,4 @@
-package objconv
+package objutil
 
 import (
 	"testing"

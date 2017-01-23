@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/objutil"
 )
 
 var (
@@ -88,8 +88,8 @@ func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 }
 
 func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
-	if v > objconv.Int64Max {
-		return fmt.Errorf("objconv/resp: %d overflows the maximum integer value of %d", v, objconv.Int64Max)
+	if v > objutil.Int64Max {
+		return fmt.Errorf("objconv/resp: %d overflows the maximum integer value of %d", v, objutil.Int64Max)
 	}
 
 	s := e.s[:0]
@@ -181,7 +181,7 @@ func (e *Emitter) EmitDuration(v time.Duration) (err error) {
 	s := e.s[:0]
 
 	s = append(s, '+')
-	s = objconv.AppendDuration(s, v)
+	s = objutil.AppendDuration(s, v)
 	s = appendCRLF(s)
 
 	e.s = s[:0]

@@ -3,7 +3,7 @@ package cbor
 import (
 	"encoding/binary"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/objutil"
 )
 
 const ( // major types
@@ -42,9 +42,9 @@ const ( // tags
 )
 
 const (
-	intMax   = uint64(objconv.IntMax)
-	int64Max = uint64(objconv.Int64Max)
-	noTag    = uint64(objconv.Uint64Max)
+	intMax   = uint64(objutil.IntMax)
+	int64Max = uint64(objutil.Int64Max)
+	noTag    = uint64(objutil.Uint64Max)
 )
 
 func majorByte(maj byte, val byte) byte {

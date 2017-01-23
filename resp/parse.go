@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/objutil"
 )
 
 var (
@@ -129,7 +130,7 @@ func (p *Parser) ParseInt() (v int64, err error) {
 		goto failure
 	}
 
-	if v, err = objconv.ParseInt(line[1:]); err != nil {
+	if v, err = objutil.ParseInt(line[1:]); err != nil {
 		goto failure
 	}
 
@@ -189,7 +190,7 @@ func (p *Parser) ParseBytes() (v []byte, err error) {
 		goto failure
 	}
 
-	if size, err = objconv.ParseInt(line[1:]); err != nil || size < 0 || size > int64(objconv.IntMax) {
+	if size, err = objutil.ParseInt(line[1:]); err != nil || size < 0 || size > int64(objutil.IntMax) {
 		goto failure
 	}
 	p.skipLine()
@@ -253,7 +254,7 @@ func (p *Parser) ParseArrayBegin() (n int, err error) {
 		goto failure
 	}
 
-	if size, err = objconv.ParseInt(line[1:]); err != nil || size < 0 || size > int64(objconv.IntMax) {
+	if size, err = objutil.ParseInt(line[1:]); err != nil || size < 0 || size > int64(objutil.IntMax) {
 		goto failure
 	}
 

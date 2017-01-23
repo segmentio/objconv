@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/objutil"
 )
 
 type Parser struct {
@@ -119,7 +120,7 @@ func (p *Parser) ParseBool() (v bool, err error) {
 }
 
 func (p *Parser) ParseInt() (v int64, err error) {
-	if v, err = objconv.ParseInt(p.s); err != nil {
+	if v, err = objutil.ParseInt(p.s); err != nil {
 		return
 	}
 	p.i += len(p.s)
@@ -423,12 +424,12 @@ func (p *Parser) readUnicode() (r rune, err error) {
 		return
 	}
 
-	if code, err = objconv.ParseUintHex(chunk); err != nil {
+	if code, err = objutil.ParseUintHex(chunk); err != nil {
 		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code point but found %#v", string(chunk))
 		return
 	}
 
-	if code > objconv.Uint16Max {
+	if code > objutil.Uint16Max {
 		err = fmt.Errorf("objconv/json: expected an hexadecimal unicode code points but found an overflowing value %X", code)
 		return
 	}

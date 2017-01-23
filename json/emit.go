@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/objutil"
 )
 
 var (
@@ -151,7 +151,7 @@ func (e *Emitter) EmitDuration(v time.Duration) (err error) {
 	s := e.s[:0]
 
 	s = append(s, '"')
-	s = objconv.AppendDuration(s, v)
+	s = objutil.AppendDuration(s, v)
 	s = append(s, '"')
 
 	e.s = s[:0]

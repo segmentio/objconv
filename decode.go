@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/segmentio/objconv/objutil"
 )
 
 // A Decoder implements the algorithms for building data structures from their
@@ -125,13 +127,13 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 		if valid {
 			switch t := to.Type(); t.Kind() {
 			case reflect.Int:
-				err = checkInt64Bounds(i, int64(IntMin), uint64(IntMax), t)
+				err = objutil.CheckInt64Bounds(i, int64(objutil.IntMin), uint64(objutil.IntMax), t)
 			case reflect.Int8:
-				err = checkInt64Bounds(i, Int8Min, Int8Max, t)
+				err = objutil.CheckInt64Bounds(i, objutil.Int8Min, objutil.Int8Max, t)
 			case reflect.Int16:
-				err = checkInt64Bounds(i, Int16Min, Int16Max, t)
+				err = objutil.CheckInt64Bounds(i, objutil.Int16Min, objutil.Int16Max, t)
 			case reflect.Int32:
-				err = checkInt64Bounds(i, Int32Min, Int32Max, t)
+				err = objutil.CheckInt64Bounds(i, objutil.Int32Min, objutil.Int32Max, t)
 			}
 		}
 
@@ -143,15 +145,15 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 		if valid {
 			switch t := to.Type(); t.Kind() {
 			case reflect.Int:
-				err = checkUint64Bounds(u, uint64(IntMax), t)
+				err = objutil.CheckUint64Bounds(u, uint64(objutil.IntMax), t)
 			case reflect.Int8:
-				err = checkUint64Bounds(u, Int8Max, t)
+				err = objutil.CheckUint64Bounds(u, objutil.Int8Max, t)
 			case reflect.Int16:
-				err = checkUint64Bounds(u, Int16Max, t)
+				err = objutil.CheckUint64Bounds(u, objutil.Int16Max, t)
 			case reflect.Int32:
-				err = checkUint64Bounds(u, Int32Max, t)
+				err = objutil.CheckUint64Bounds(u, objutil.Int32Max, t)
 			case reflect.Int64:
-				err = checkUint64Bounds(u, Int64Max, t)
+				err = objutil.CheckUint64Bounds(u, objutil.Int64Max, t)
 			}
 		}
 
@@ -195,15 +197,15 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 		if valid {
 			switch t := to.Type(); t.Kind() {
 			case reflect.Uint:
-				err = checkInt64Bounds(i, 0, uint64(UintMax), t)
+				err = objutil.CheckInt64Bounds(i, 0, uint64(objutil.UintMax), t)
 			case reflect.Uint8:
-				err = checkInt64Bounds(i, 0, Uint8Max, t)
+				err = objutil.CheckInt64Bounds(i, 0, objutil.Uint8Max, t)
 			case reflect.Uint16:
-				err = checkInt64Bounds(i, 0, Uint16Max, t)
+				err = objutil.CheckInt64Bounds(i, 0, objutil.Uint16Max, t)
 			case reflect.Uint32:
-				err = checkInt64Bounds(i, 0, Uint32Max, t)
+				err = objutil.CheckInt64Bounds(i, 0, objutil.Uint32Max, t)
 			case reflect.Uint64:
-				err = checkInt64Bounds(i, 0, Uint64Max, t)
+				err = objutil.CheckInt64Bounds(i, 0, objutil.Uint64Max, t)
 			}
 		}
 
@@ -217,13 +219,13 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 		if valid {
 			switch t := to.Type(); t.Kind() {
 			case reflect.Uint:
-				err = checkUint64Bounds(u, uint64(UintMax), t)
+				err = objutil.CheckUint64Bounds(u, uint64(objutil.UintMax), t)
 			case reflect.Uint8:
-				err = checkUint64Bounds(u, Uint8Max, t)
+				err = objutil.CheckUint64Bounds(u, objutil.Uint8Max, t)
 			case reflect.Uint16:
-				err = checkUint64Bounds(u, Uint16Max, t)
+				err = objutil.CheckUint64Bounds(u, objutil.Uint16Max, t)
 			case reflect.Uint32:
-				err = checkUint64Bounds(u, Uint32Max, t)
+				err = objutil.CheckUint64Bounds(u, objutil.Uint32Max, t)
 			}
 		}
 
@@ -258,12 +260,18 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 		err = d.Parser.ParseNil()
 
 	case Int:
-		i, err = d.Parser.ParseInt()
-		f = float64(i)
+		if i, err = d.Parser.ParseInt(); err == nil {
+			if err = objutil.CheckInt64Bounds(i, objutil.Float64IntMin, objutil.Float64IntMax, int64Type); err == nil {
+				f = float64(i)
+			}
+		}
 
 	case Uint:
-		u, err = d.Parser.ParseUint()
-		f = float64(u)
+		if u, err = d.Parser.ParseUint(); err == nil {
+			if err = objutil.CheckUint64Bounds(u, objutil.Float64IntMax, uint64Type); err == nil {
+				f = float64(u)
+			}
+		}
 
 	case Float:
 		f, err = d.Parser.ParseFloat()
@@ -340,7 +348,7 @@ func (d Decoder) decodeStringFromType(t Type, to reflect.Value) (err error) {
 	case Duration:
 		var v time.Duration
 		if v, err = d.Parser.ParseDuration(); err == nil {
-			b = AppendDuration(a[:0], v)
+			b = objutil.AppendDuration(a[:0], v)
 		}
 
 	case Error:
