@@ -4,12 +4,8 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
-	"net"
-	"net/mail"
-	"net/url"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -42,27 +38,31 @@ func NewDecoder(p Parser) *Decoder {
 // The method panics if v is neither a pointer type nor implements the
 // ValueDecoder interface, or if v is a nil pointer.
 func (d Decoder) Decode(v interface{}) (err error) {
+	to := reflect.ValueOf(v)
+
 	if d.off != 0 {
 		if d.off, err = 0, d.Parser.ParseMapValue(d.off-1); err != nil {
 			return
 		}
 	}
 
-	to := reflect.ValueOf(v)
-
-	switch {
-	case !to.IsValid():
+	if !to.IsValid() {
+		// This speecial case for a nil value is used to make it possible to
+		// discard decoded values.
 		_, err = d.decodeInterface(to)
 		return
-
-	case to.Kind() != reflect.Ptr:
-		panic("objconv.Decoder.Decode: v must be a pointer")
-
-	case to.IsNil():
-		panic("objconv.Decoder.Decode: v cannot be a nil pointer")
 	}
 
-	_, err = d.decode(to.Elem())
+	if to.Kind() == reflect.Ptr {
+		// In most cases the method receives a pointer, but we may also have to
+		// support types that aren't pointers but implement ValueDecoder, or
+		// types that have got adapters set.
+		// If we're not in either of those cases the code will likely panic when
+		// the value is set because it won't be adressable.
+		to = to.Elem()
+	}
+
+	_, err = d.decode(to)
 	return
 }
 
@@ -524,146 +524,6 @@ func (d Decoder) decodeErrorFromType(t Type, to reflect.Value) (err error) {
 	return
 }
 
-func (d Decoder) decodeTCPAddr(to reflect.Value) (t Type, err error) {
-	var a net.TCPAddr
-	var b []byte
-
-	if t, b, err = d.decodeTypeAndString(); err != nil {
-		return
-	}
-
-	if a.IP, a.Port, a.Zone, err = parseNetAddr(string(b)); err != nil {
-		return
-	}
-
-	if to.IsValid() {
-		to.Set(reflect.ValueOf(a))
-	}
-	return
-}
-
-func (d Decoder) decodeUDPAddr(to reflect.Value) (t Type, err error) {
-	var a net.UDPAddr
-	var b []byte
-
-	if t, b, err = d.decodeTypeAndString(); err != nil {
-		return
-	}
-
-	if a.IP, a.Port, a.Zone, err = parseNetAddr(string(b)); err != nil {
-		return
-	}
-
-	if to.IsValid() {
-		to.Set(reflect.ValueOf(a))
-	}
-	return
-}
-
-func (d Decoder) decodeUnixAddr(to reflect.Value) (t Type, err error) {
-	var a net.UnixAddr
-	var b []byte
-
-	if t, b, err = d.decodeTypeAndString(); err != nil {
-		return
-	}
-
-	s := string(b)
-
-	if i := strings.Index(s, "://"); i >= 0 {
-		a.Net, a.Name = s[:i], s[i+3:]
-	} else {
-		a.Net, a.Name = "unix", s
-	}
-
-	if to.IsValid() {
-		to.Set(reflect.ValueOf(a))
-	}
-	return
-}
-
-func (d Decoder) decodeIPAddr(to reflect.Value) (t Type, err error) {
-	var a net.IPAddr
-	var b []byte
-
-	if t, b, err = d.decodeTypeAndString(); err != nil {
-		return
-	}
-
-	s := string(b)
-
-	if i := strings.IndexByte(s, '%'); i >= 0 {
-		s, a.Zone = s[:i], s[i+1:]
-	}
-
-	if a.IP = net.ParseIP(s); a.IP == nil {
-		err = errors.New("objconv: bad IP adress: " + string(b))
-		return
-	}
-
-	if to.IsValid() {
-		to.Set(reflect.ValueOf(a))
-	}
-	return
-}
-
-func (d Decoder) decodeIP(to reflect.Value) (t Type, err error) {
-	var ip net.IP
-	var b []byte
-
-	if t, b, err = d.decodeTypeAndString(); err != nil {
-		return
-	}
-
-	if ip = net.ParseIP(string(b)); ip == nil {
-		err = errors.New("objconv: bad IP address: " + string(b))
-		return
-	}
-
-	if to.IsValid() {
-		to.Set(reflect.ValueOf(ip))
-	}
-	return
-}
-
-func (d Decoder) decodeURL(to reflect.Value) (t Type, err error) {
-	var u *url.URL
-	var b []byte
-
-	if t, b, err = d.decodeTypeAndString(); err != nil {
-		return
-	}
-
-	if u, err = url.Parse(string(b)); err != nil {
-		err = errors.New("objconv: bad URL: " + err.Error())
-		return
-	}
-
-	if to.IsValid() {
-		to.Set(reflect.ValueOf(*u))
-	}
-	return
-}
-
-func (d Decoder) decodeEmail(to reflect.Value) (t Type, err error) {
-	var a *mail.Address
-	var b []byte
-
-	if t, b, err = d.decodeTypeAndString(); err != nil {
-		return
-	}
-
-	if a, err = mail.ParseAddress(string(b)); err != nil {
-		err = errors.New("objconv: bad email address: " + err.Error())
-		return
-	}
-
-	if to.IsValid() {
-		to.Set(reflect.ValueOf(*a))
-	}
-	return
-}
-
 func (d Decoder) decodeSlice(to reflect.Value) (t Type, err error) {
 	return d.decodeSliceWith(to, decodeFuncOf(to.Type().Elem()))
 }
@@ -1016,11 +876,11 @@ func (d Decoder) decodePointerWith(to reflect.Value, f decodeFunc) (typ Type, er
 }
 
 func (d Decoder) decodeDecoderPointer(to reflect.Value) (Type, error) {
-	return Bool /* just needs to not be Nil */, to.Addr().Interface().(ValueDecoder).DecodeValue(d)
+	return Unknown /* just needs to not be Nil */, to.Addr().Interface().(ValueDecoder).DecodeValue(d)
 }
 
 func (d Decoder) decodeDecoder(to reflect.Value) (Type, error) {
-	return Bool /* just needs to not be Nil */, to.Interface().(ValueDecoder).DecodeValue(d)
+	return Unknown /* just needs to not be Nil */, to.Interface().(ValueDecoder).DecodeValue(d)
 }
 
 func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
@@ -1393,6 +1253,14 @@ func decodeFuncOf(t reflect.Type) decodeFunc {
 }
 
 func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
+	if a, ok := AdapterOf(t); ok {
+		decode := a.Decode
+		return func(d Decoder, v reflect.Value) (Type, error) {
+			err := decode(d, v)
+			return Unknown /* just needs to not be Nil */, err
+		}
+	}
+
 	// fast path: check if it's a basic go type
 	switch t {
 	case boolType:
@@ -1421,42 +1289,21 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 
 	case float32Type, float64Type:
 		return Decoder.decodeFloat
-
-	case netTCPAddrType:
-		return Decoder.decodeTCPAddr
-
-	case netUDPAddrType:
-		return Decoder.decodeUDPAddr
-
-	case netUnixAddrType:
-		return Decoder.decodeUnixAddr
-
-	case netIPAddrType:
-		return Decoder.decodeIPAddr
-
-	case netIPType:
-		return Decoder.decodeIP
-
-	case urlURLType:
-		return Decoder.decodeURL
-
-	case mailAddressType:
-		return Decoder.decodeEmail
 	}
 
 	// check if it implements one of the special case interfaces
 	switch p := reflect.PtrTo(t); {
-	case p.Implements(valueDecoderInterface):
-		return Decoder.decodeDecoderPointer
-
 	case t.Implements(valueDecoderInterface):
 		return Decoder.decodeDecoder
 
-	case p.Implements(textUnmarshalerInterface):
-		return Decoder.decodeTextUnmarshaler
+	case p.Implements(valueDecoderInterface):
+		return Decoder.decodeDecoderPointer
 
 	case t.Implements(errorInterface):
 		return Decoder.decodeError
+
+	case p.Implements(textUnmarshalerInterface):
+		return Decoder.decodeTextUnmarshaler
 	}
 
 	// check what kind is the type, potentially generate a decoder

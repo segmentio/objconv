@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/segmentio/objconv"
+	_ "github.com/segmentio/objconv/adapters"
 )
 
 // TestValues is an array of all the values used by the TestCodec suite.
@@ -147,9 +148,11 @@ var TestValues = [...]interface{}{
 
 	// url
 	parseURL("http://localhost:4242/hello/world?answer=42#question"),
+	parseQuery("answer=42&message=Hello+World"),
 
 	// mail
 	parseEmail("git@github.com"),
+	parseEmailList("Alice <alice@example.com>, Bob <bob@example.com>, Eve <eve@example.com>"),
 }
 
 func makeMap(n int) map[string]string {
@@ -372,7 +375,17 @@ func parseURL(s string) url.URL {
 	return *u
 }
 
+func parseQuery(s string) url.Values {
+	v, _ := url.ParseQuery(s)
+	return v
+}
+
 func parseEmail(s string) mail.Address {
 	a, _ := mail.ParseAddress(s)
 	return *a
+}
+
+func parseEmailList(s string) []*mail.Address {
+	l, _ := mail.ParseAddressList(s)
+	return l
 }

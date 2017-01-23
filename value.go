@@ -2,9 +2,6 @@ package objconv
 
 import (
 	"encoding"
-	"net"
-	"net/mail"
-	"net/url"
 	"reflect"
 	"sync"
 	"time"
@@ -192,13 +189,6 @@ var (
 	durationType       = reflect.TypeOf(time.Duration(0))
 	sliceInterfaceType = reflect.TypeOf(([]interface{})(nil))
 	timePtrType        = reflect.PtrTo(timeType)
-	netTCPAddrType     = reflect.TypeOf(net.TCPAddr{})
-	netUDPAddrType     = reflect.TypeOf(net.UDPAddr{})
-	netUnixAddrType    = reflect.TypeOf(net.UnixAddr{})
-	netIPAddrType      = reflect.TypeOf(net.IPAddr{})
-	netIPType          = reflect.TypeOf(net.IP(nil))
-	urlURLType         = reflect.TypeOf(url.URL{})
-	mailAddressType    = reflect.TypeOf(mail.Address{})
 
 	// interfaces
 	errorInterface           = elemTypeOf((*error)(nil))
