@@ -148,6 +148,7 @@ var TestValues = [...]interface{}{
 
 	// url
 	parseURL("http://localhost:4242/hello/world?answer=42#question"),
+	parseQuery("answer=42&message=Hello+World"),
 
 	// mail
 	parseEmail("git@github.com"),
@@ -371,6 +372,11 @@ func benchmarkStreamDecoder(b *testing.B, codec objconv.Codec) {
 func parseURL(s string) url.URL {
 	u, _ := url.Parse(s)
 	return *u
+}
+
+func parseQuery(s string) url.Values {
+	v, _ := url.ParseQuery(s)
+	return v
 }
 
 func parseEmail(s string) mail.Address {

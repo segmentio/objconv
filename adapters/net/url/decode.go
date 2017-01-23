@@ -26,3 +26,22 @@ func decodeURL(d objconv.Decoder, to reflect.Value) (err error) {
 	}
 	return
 }
+
+func decodeQuery(d objconv.Decoder, to reflect.Value) (err error) {
+	var v url.Values
+	var s string
+
+	if err = d.Decode(&s); err != nil {
+
+	}
+
+	if v, err = url.ParseQuery(s); err != nil {
+		err = errors.New("objconv: bad URL values: " + err.Error())
+		return
+	}
+
+	if to.IsValid() {
+		to.Set(reflect.ValueOf(v))
+	}
+	return
+}
