@@ -8,28 +8,49 @@ import (
 )
 
 func init() {
-	objconv.Install(reflect.TypeOf(net.TCPAddr{}), objconv.Adapter{
-		Encode: EncodeTCPAddr,
-		Decode: DecodeTCPAddr,
-	})
+	objconv.Install(reflect.TypeOf(net.TCPAddr{}), TCPAddrAdapter())
+	objconv.Install(reflect.TypeOf(net.UDPAddr{}), UDPAddrAdapter())
+	objconv.Install(reflect.TypeOf(net.UnixAddr{}), UnixAddrAdapter())
+	objconv.Install(reflect.TypeOf(net.IPAddr{}), IPAddrAdapter())
+	objconv.Install(reflect.TypeOf(net.IP(nil)), IPAdapter())
+}
 
-	objconv.Install(reflect.TypeOf(net.UDPAddr{}), objconv.Adapter{
-		Encode: EncodeUDPAddr,
-		Decode: DecodeUDPAddr,
-	})
+// TCPAddrAdapter returns the adapter to encode and decode net.TCPAddr values.
+func TCPAddrAdapter() objconv.Adapter {
+	return objconv.Adapter{
+		Encode: encodeTCPAddr,
+		Decode: decodeTCPAddr,
+	}
+}
 
-	objconv.Install(reflect.TypeOf(net.UnixAddr{}), objconv.Adapter{
-		Encode: EncodeUnixAddr,
-		Decode: DecodeUnixAddr,
-	})
+// UDPAddrAdapter returns the adapter to encode and decode net.UDPAddr values.
+func UDPAddrAdapter() objconv.Adapter {
+	return objconv.Adapter{
+		Encode: encodeUDPAddr,
+		Decode: decodeUDPAddr,
+	}
+}
 
-	objconv.Install(reflect.TypeOf(net.IPAddr{}), objconv.Adapter{
-		Encode: EncodeIPAddr,
-		Decode: DecodeIPAddr,
-	})
+// UnixAddrAdapter returns the adapter to encode and decode net.UnixAddr values.
+func UnixAddrAdapter() objconv.Adapter {
+	return objconv.Adapter{
+		Encode: encodeUnixAddr,
+		Decode: decodeUnixAddr,
+	}
+}
 
-	objconv.Install(reflect.TypeOf(net.IP(nil)), objconv.Adapter{
-		Encode: EncodeIP,
-		Decode: DecodeIP,
-	})
+// IPAddrAdapter returns the adapter to encode and decode net.IPAddr values.
+func IPAddrAdapter() objconv.Adapter {
+	return objconv.Adapter{
+		Encode: encodeIPAddr,
+		Decode: decodeIPAddr,
+	}
+}
+
+// IPAdapter returns the adapter to encode and decode net.IP values.
+func IPAdapter() objconv.Adapter {
+	return objconv.Adapter{
+		Encode: encodeIP,
+		Decode: decodeIP,
+	}
 }

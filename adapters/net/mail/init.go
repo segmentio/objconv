@@ -8,8 +8,13 @@ import (
 )
 
 func init() {
-	objconv.Install(reflect.TypeOf(mail.Address{}), objconv.Adapter{
-		Encode: EncodeAddress,
-		Decode: DecodeAddress,
-	})
+	objconv.Install(reflect.TypeOf(mail.Address{}), AddressAdapter())
+}
+
+// AddressAdapter returns the adapter to encode and decode mail.Address values.
+func AddressAdapter() objconv.Adapter {
+	return objconv.Adapter{
+		Encode: encodeAddress,
+		Decode: decodeAddress,
+	}
 }

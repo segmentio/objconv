@@ -8,9 +8,7 @@ import (
 	"github.com/segmentio/objconv"
 )
 
-// DecodeAddress decodes a mail.Address value into to from a string
-// representation using d.
-func DecodeAddress(d objconv.Decoder, to reflect.Value) (err error) {
+func decodeAddress(d objconv.Decoder, to reflect.Value) (err error) {
 	var a *mail.Address
 	var s string
 

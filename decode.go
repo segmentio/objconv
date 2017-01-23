@@ -38,27 +38,31 @@ func NewDecoder(p Parser) *Decoder {
 // The method panics if v is neither a pointer type nor implements the
 // ValueDecoder interface, or if v is a nil pointer.
 func (d Decoder) Decode(v interface{}) (err error) {
+	to := reflect.ValueOf(v)
+
 	if d.off != 0 {
 		if d.off, err = 0, d.Parser.ParseMapValue(d.off-1); err != nil {
 			return
 		}
 	}
 
-	to := reflect.ValueOf(v)
-
-	switch {
-	case !to.IsValid():
+	if !to.IsValid() {
+		// This speecial case for a nil value is used to make it possible to
+		// discard decoded values.
 		_, err = d.decodeInterface(to)
 		return
-
-	case to.Kind() != reflect.Ptr:
-		panic("objconv.Decoder.Decode: v must be a pointer")
-
-	case to.IsNil():
-		panic("objconv.Decoder.Decode: v cannot be a nil pointer")
 	}
 
-	_, err = d.decode(to.Elem())
+	if to.Kind() == reflect.Ptr {
+		// In most cases the method receives a pointer, but we may also have to
+		// support types that aren't pointers but implement ValueDecoder, or
+		// types that have got adapters set.
+		// If we're not in either of those cases the code will likely panic when
+		// the value is set because it won't be adressable.
+		to = to.Elem()
+	}
+
+	_, err = d.decode(to)
 	return
 }
 
@@ -1289,17 +1293,17 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 
 	// check if it implements one of the special case interfaces
 	switch p := reflect.PtrTo(t); {
-	case p.Implements(valueDecoderInterface):
-		return Decoder.decodeDecoderPointer
-
 	case t.Implements(valueDecoderInterface):
 		return Decoder.decodeDecoder
 
-	case p.Implements(textUnmarshalerInterface):
-		return Decoder.decodeTextUnmarshaler
+	case p.Implements(valueDecoderInterface):
+		return Decoder.decodeDecoderPointer
 
 	case t.Implements(errorInterface):
 		return Decoder.decodeError
+
+	case p.Implements(textUnmarshalerInterface):
+		return Decoder.decodeTextUnmarshaler
 	}
 
 	// check what kind is the type, potentially generate a decoder

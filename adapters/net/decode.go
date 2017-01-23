@@ -10,9 +10,7 @@ import (
 	"github.com/segmentio/objconv"
 )
 
-// DecodeTCPAddr decodes a net.TCPAddr value into to from a string
-// representation using d.
-func DecodeTCPAddr(d objconv.Decoder, to reflect.Value) (err error) {
+func decodeTCPAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	var a net.TCPAddr
 	var s string
 
@@ -30,9 +28,7 @@ func DecodeTCPAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	return
 }
 
-// DecodeUDPAddr decodes a net.UDPAddr value into to from a string
-// representation using d.
-func DecodeUDPAddr(d objconv.Decoder, to reflect.Value) (err error) {
+func decodeUDPAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	var a net.UDPAddr
 	var s string
 
@@ -50,9 +46,7 @@ func DecodeUDPAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	return
 }
 
-// DecodeUNIXAddr decodes a net.UNIXAddr value into to from a string
-// representation using d.
-func DecodeUnixAddr(d objconv.Decoder, to reflect.Value) (err error) {
+func decodeUnixAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	var a net.UnixAddr
 	var s string
 
@@ -72,9 +66,7 @@ func DecodeUnixAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	return
 }
 
-// DecodeIPAddr decodes a net.IPAddr value into to from a string
-// representation using d.
-func DecodeIPAddr(d objconv.Decoder, to reflect.Value) (err error) {
+func decodeIPAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	var a net.IPAddr
 	var s string
 
@@ -97,9 +89,7 @@ func DecodeIPAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	return
 }
 
-// DecodeIP decodes a net.IP value into to from a string representation
-// using d.
-func DecodeIP(d objconv.Decoder, to reflect.Value) (err error) {
+func decodeIP(d objconv.Decoder, to reflect.Value) (err error) {
 	var ip net.IP
 	var s string
 

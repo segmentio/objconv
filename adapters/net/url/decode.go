@@ -8,9 +8,7 @@ import (
 	"github.com/segmentio/objconv"
 )
 
-// DecodeURL decodes a url.URL value into to from a string representation
-// using d.
-func DecodeURL(d objconv.Decoder, to reflect.Value) (err error) {
+func decodeURL(d objconv.Decoder, to reflect.Value) (err error) {
 	var u *url.URL
 	var s string
 
