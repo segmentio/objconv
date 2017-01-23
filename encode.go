@@ -671,7 +671,7 @@ func encodeFuncOf(t reflect.Type) encodeFunc {
 }
 
 func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
-	if adapter, ok := adapterOf(t); ok {
+	if adapter, ok := AdapterOf(t); ok {
 		return adapter.Encode
 	}
 

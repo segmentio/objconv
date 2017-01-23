@@ -40,9 +40,9 @@ func Install(typ reflect.Type, adapter Adapter) {
 	structCache.clear()
 }
 
-// adapterOf returns the adapter for typ, setting ok to true if one was found,
+// AdapterOf returns the adapter for typ, setting ok to true if one was found,
 // false otherwise.
-func adapterOf(typ reflect.Type) (a Adapter, ok bool) {
+func AdapterOf(typ reflect.Type) (a Adapter, ok bool) {
 	adapterMutex.RLock()
 	a, ok = adapterStore[typ]
 	adapterMutex.RUnlock()

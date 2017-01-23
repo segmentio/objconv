@@ -1249,7 +1249,7 @@ func decodeFuncOf(t reflect.Type) decodeFunc {
 }
 
 func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
-	if a, ok := adapterOf(t); ok {
+	if a, ok := AdapterOf(t); ok {
 		decode := a.Decode
 		return func(d Decoder, v reflect.Value) (Type, error) {
 			err := decode(d, v)
