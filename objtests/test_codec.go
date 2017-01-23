@@ -152,6 +152,7 @@ var TestValues = [...]interface{}{
 
 	// mail
 	parseEmail("git@github.com"),
+	parseEmailList("Alice <alice@example.com>, Bob <bob@example.com>, Eve <eve@example.com>"),
 }
 
 func makeMap(n int) map[string]string {
@@ -382,4 +383,9 @@ func parseQuery(s string) url.Values {
 func parseEmail(s string) mail.Address {
 	a, _ := mail.ParseAddress(s)
 	return *a
+}
+
+func parseEmailList(s string) []*mail.Address {
+	l, _ := mail.ParseAddressList(s)
+	return l
 }
