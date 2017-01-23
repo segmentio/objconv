@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/objutil"
 )
 
 // Emitter implements a MessagePack emitter that satisfies the objconv.Emitter
@@ -65,16 +65,16 @@ func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 
 	if v >= 0 {
 		switch {
-		case v <= objconv.Int8Max:
+		case v <= objutil.Int8Max:
 			e.b[0] = byte(v) | PositiveFixintTag
 			n = 1
 
-		case v <= objconv.Int16Max:
+		case v <= objutil.Int16Max:
 			e.b[0] = Int16
 			putUint16(e.b[1:], uint16(v))
 			n = 3
 
-		case v <= objconv.Int32Max:
+		case v <= objutil.Int32Max:
 			e.b[0] = Int32
 			putUint32(e.b[1:], uint32(v))
 			n = 5
@@ -91,17 +91,17 @@ func (e *Emitter) EmitInt(v int64, _ int) (err error) {
 			e.b[0] = byte(v) | NegativeFixintTag
 			n = 1
 
-		case v >= objconv.Int8Min:
+		case v >= objutil.Int8Min:
 			e.b[0] = Int8
 			e.b[1] = byte(v)
 			n = 2
 
-		case v >= objconv.Int16Min:
+		case v >= objutil.Int16Min:
 			e.b[0] = Int16
 			putUint16(e.b[1:], uint16(v))
 			n = 3
 
-		case v >= objconv.Int32Min:
+		case v >= objutil.Int32Min:
 			e.b[0] = Int32
 			putUint32(e.b[1:], uint32(v))
 			n = 5
@@ -121,17 +121,17 @@ func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
 	n := 0
 
 	switch {
-	case v <= objconv.Uint8Max:
+	case v <= objutil.Uint8Max:
 		e.b[0] = Uint8
 		e.b[1] = byte(v)
 		n = 2
 
-	case v <= objconv.Uint16Max:
+	case v <= objutil.Uint16Max:
 		e.b[0] = Uint16
 		putUint16(e.b[1:], uint16(v))
 		n = 3
 
-	case v <= objconv.Uint32Max:
+	case v <= objutil.Uint32Max:
 		e.b[0] = Uint32
 		putUint32(e.b[1:], uint32(v))
 		n = 5
@@ -168,17 +168,17 @@ func (e *Emitter) EmitString(v string) (err error) {
 		e.b[0] = byte(n) | FixstrTag
 		n = 1
 
-	case n <= objconv.Uint8Max:
+	case n <= objutil.Uint8Max:
 		e.b[0] = Str8
 		e.b[1] = byte(n)
 		n = 2
 
-	case n <= objconv.Uint16Max:
+	case n <= objutil.Uint16Max:
 		e.b[0] = Str16
 		putUint16(e.b[1:], uint16(n))
 		n = 3
 
-	case n <= objconv.Uint32Max:
+	case n <= objutil.Uint32Max:
 		e.b[0] = Str32
 		putUint32(e.b[1:], uint32(n))
 		n = 5
@@ -215,17 +215,17 @@ func (e *Emitter) EmitBytes(v []byte) (err error) {
 	n := len(v)
 
 	switch {
-	case n <= objconv.Uint8Max:
+	case n <= objutil.Uint8Max:
 		e.b[0] = Bin8
 		e.b[1] = byte(n)
 		n = 2
 
-	case n <= objconv.Uint16Max:
+	case n <= objutil.Uint16Max:
 		e.b[0] = Bin16
 		putUint16(e.b[1:], uint16(n))
 		n = 3
 
-	case n <= objconv.Uint32Max:
+	case n <= objutil.Uint32Max:
 		e.b[0] = Bin32
 		putUint32(e.b[1:], uint32(n))
 		n = 5
@@ -251,7 +251,7 @@ func (e *Emitter) EmitTime(v time.Time) (err error) {
 	s := v.Unix()
 	ns := v.Nanosecond()
 
-	if ns == 0 && s >= 0 && s <= objconv.Uint32Max {
+	if ns == 0 && s >= 0 && s <= objutil.Uint32Max {
 		e.b[0] = Fixext4
 		e.b[1] = byte(x)
 		putUint32(e.b[2:], uint32(s))
@@ -275,7 +275,7 @@ func (e *Emitter) EmitTime(v time.Time) (err error) {
 }
 
 func (e *Emitter) EmitDuration(v time.Duration) (err error) {
-	return e.EmitString(string(objconv.AppendDuration(e.b[:0], v)))
+	return e.EmitString(string(objutil.AppendDuration(e.b[:0], v)))
 }
 
 func (e *Emitter) EmitError(v error) (err error) {
@@ -339,12 +339,12 @@ func (e *Emitter) EmitMapBegin(n int) (err error) {
 		e.b[0] = byte(n) | FixmapTag
 		n = 1
 
-	case n <= objconv.Uint16Max:
+	case n <= objutil.Uint16Max:
 		e.b[0] = Map16
 		putUint16(e.b[1:], uint16(n))
 		n = 3
 
-	case n <= objconv.Uint32Max:
+	case n <= objutil.Uint32Max:
 		e.b[0] = Map32
 		putUint32(e.b[1:], uint32(n))
 		n = 5
@@ -376,12 +376,12 @@ func (e *Emitter) emitArray(n int) (err error) {
 		e.b[0] = byte(n) | FixarrayTag
 		n = 1
 
-	case n <= objconv.Uint16Max:
+	case n <= objutil.Uint16Max:
 		e.b[0] = Array16
 		putUint16(e.b[1:], uint16(n))
 		n = 3
 
-	case n <= objconv.Uint32Max:
+	case n <= objutil.Uint32Max:
 		e.b[0] = Array32
 		putUint32(e.b[1:], uint32(n))
 		n = 5

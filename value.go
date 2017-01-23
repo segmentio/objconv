@@ -2,6 +2,7 @@ package objconv
 
 import (
 	"encoding"
+	"errors"
 	"reflect"
 	"sync"
 	"time"
@@ -58,91 +59,6 @@ func (t Type) String() string {
 	default:
 		return "<type>"
 	}
-}
-
-// IsEmptyValue returns true if the value given as argument would be considered
-// empty by the standard library packages, and therefore not serialized if
-// `omitempty` is set on a struct field with this value.
-func IsEmptyValue(v interface{}) bool {
-	return isEmptyValue(reflect.ValueOf(v))
-}
-
-// Based on https://golang.org/src/encoding/json/encode.go?h=isEmpty
-func isEmptyValue(v reflect.Value) bool {
-	if !v.IsValid() {
-		return true // nil interface{}
-	}
-	switch v.Kind() {
-	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
-		return v.Len() == 0
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr, reflect.Chan, reflect.Func:
-		return v.IsNil()
-	case reflect.UnsafePointer:
-		return unsafe.Pointer(v.Pointer()) == nil
-	}
-	return false
-}
-
-// IsZeroValue returns true if the value given as argument is the zero-value of
-// the type of v.
-func IsZeroValue(v interface{}) bool {
-	return isZeroValue(reflect.ValueOf(v))
-}
-
-func isZeroValue(v reflect.Value) bool {
-	if !v.IsValid() {
-		return true // nil interface{}
-	}
-	switch v.Kind() {
-	case reflect.Map, reflect.Slice, reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
-		return v.IsNil()
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return v.Float() == 0
-	case reflect.String:
-		return v.Len() == 0
-	case reflect.UnsafePointer:
-		return unsafe.Pointer(v.Pointer()) == nil
-	case reflect.Array:
-		return isZeroArray(v)
-	case reflect.Struct:
-		return isZeroStruct(v)
-	}
-	return false
-}
-
-func isZeroArray(v reflect.Value) bool {
-	for i, n := 0, v.Len(); i != n; i++ {
-		if !isZeroValue(v.Index(i)) {
-			return false
-		}
-	}
-	return true
-}
-
-func isZeroStruct(v reflect.Value) bool {
-	s := structCache.lookup(v.Type())
-
-	for _, f := range s.fields {
-		if !isZeroValue(v.FieldByIndex(f.index)) {
-			return false
-		}
-	}
-
-	return true
 }
 
 var (
@@ -217,4 +133,358 @@ func stringNoCopy(b []byte) string {
 		Data: uintptr(unsafe.Pointer(&b[0])),
 		Len:  n,
 	}))
+}
+
+// ValueParser is parser that uses "natural" in-memory representation of data
+// structures.
+//
+// This is mainly useful for testing the decoder algorithms.
+type ValueParser struct {
+	stack []reflect.Value
+	ctx   []valueParserContext
+}
+
+type valueParserContext struct {
+	value  reflect.Value
+	keys   []reflect.Value
+	fields []structField
+}
+
+// NewValueParser creates a new parser that exposes the value v.
+func NewValueParser(v interface{}) *ValueParser {
+	return &ValueParser{
+		stack: []reflect.Value{reflect.ValueOf(v)},
+	}
+}
+
+func (p *ValueParser) ParseType() (Type, error) {
+	v := p.value()
+
+	if !v.IsValid() {
+		return Nil, nil
+	}
+
+	switch v.Interface().(type) {
+	case time.Time:
+		return Time, nil
+
+	case time.Duration:
+		return Duration, nil
+
+	case error:
+		return Error, nil
+	}
+
+	switch v.Kind() {
+	case reflect.Bool:
+		return Bool, nil
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return Int, nil
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return Uint, nil
+
+	case reflect.Float32, reflect.Float64:
+		return Float, nil
+
+	case reflect.String:
+		return String, nil
+
+	case reflect.Slice:
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			return Bytes, nil
+		}
+		return Array, nil
+
+	case reflect.Array:
+		return Array, nil
+
+	case reflect.Map:
+		return Map, nil
+
+	case reflect.Struct:
+		return Map, nil
+
+	case reflect.Interface:
+		if v.IsNil() {
+			return Nil, nil
+		}
+	}
+
+	return Nil, errors.New("objconv: unsupported type found in value parser: " + v.Type().String())
+}
+
+func (p *ValueParser) ParseNil() (err error) {
+	return
+}
+
+func (p *ValueParser) ParseBool() (v bool, err error) {
+	v = p.value().Bool()
+	return
+}
+
+func (p *ValueParser) ParseInt() (v int64, err error) {
+	v = p.value().Int()
+	return
+}
+
+func (p *ValueParser) ParseUint() (v uint64, err error) {
+	v = p.value().Uint()
+	return
+}
+
+func (p *ValueParser) ParseFloat() (v float64, err error) {
+	v = p.value().Float()
+	return
+}
+
+func (p *ValueParser) ParseString() (v []byte, err error) {
+	v = []byte(p.value().String())
+	return
+}
+
+func (p *ValueParser) ParseBytes() (v []byte, err error) {
+	v = p.value().Bytes()
+	return
+}
+
+func (p *ValueParser) ParseTime() (v time.Time, err error) {
+	v = p.value().Interface().(time.Time)
+	return
+}
+
+func (p *ValueParser) ParseDuration() (v time.Duration, err error) {
+	v = p.value().Interface().(time.Duration)
+	return
+}
+
+func (p *ValueParser) ParseError() (v error, err error) {
+	v = p.value().Interface().(error)
+	return
+}
+
+func (p *ValueParser) ParseArrayBegin() (n int, err error) {
+	v := p.value()
+	n = v.Len()
+	p.pushContext(valueParserContext{value: v})
+
+	if n != 0 {
+		p.push(v.Index(0))
+	}
+
+	return
+}
+
+func (p *ValueParser) ParseArrayEnd(n int) (err error) {
+	if n != 0 {
+		p.pop()
+	}
+	p.popContext()
+	return
+}
+
+func (p *ValueParser) ParseArrayNext(n int) (err error) {
+	ctx := p.context()
+	p.pop()
+	p.push(ctx.value.Index(n))
+	return
+}
+
+func (p *ValueParser) ParseMapBegin() (n int, err error) {
+	v := p.value()
+
+	if v.Kind() == reflect.Map {
+		n = v.Len()
+		k := v.MapKeys()
+		p.pushContext(valueParserContext{value: v, keys: k})
+		if n != 0 {
+			p.push(k[0])
+		}
+	} else {
+		c := valueParserContext{value: v}
+		s := structCache.lookup(v.Type())
+
+		for _, f := range s.fields {
+			if !f.omit(v.FieldByIndex(f.index)) {
+				c.fields = append(c.fields, f)
+				n++
+			}
+		}
+
+		p.pushContext(c)
+		if n != 0 {
+			p.push(reflect.ValueOf(c.fields[0].name))
+		}
+	}
+
+	return
+}
+
+func (p *ValueParser) ParseMapEnd(n int) (err error) {
+	if n != 0 {
+		p.pop()
+	}
+	p.popContext()
+	return
+}
+
+func (p *ValueParser) ParseMapValue(n int) (err error) {
+	ctx := p.context()
+	p.pop()
+
+	if ctx.keys != nil {
+		p.push(ctx.value.MapIndex(ctx.keys[n]))
+	} else {
+		p.push(ctx.value.FieldByIndex(ctx.fields[n].index))
+	}
+
+	return
+}
+
+func (p *ValueParser) ParseMapNext(n int) (err error) {
+	ctx := p.context()
+	p.pop()
+
+	if ctx.keys != nil {
+		p.push(ctx.keys[n])
+	} else {
+		p.push(reflect.ValueOf(ctx.fields[n].name))
+	}
+
+	return
+}
+
+func (p *ValueParser) value() reflect.Value {
+	v := p.stack[len(p.stack)-1]
+
+	if !v.IsValid() {
+		return v
+	}
+
+	switch v.Interface().(type) {
+	case error:
+		return v
+	}
+
+dereference:
+	switch v.Kind() {
+	case reflect.Interface, reflect.Ptr:
+		if !v.IsNil() {
+			v = v.Elem()
+			goto dereference
+		}
+	}
+
+	return v
+}
+
+func (p *ValueParser) push(v reflect.Value) {
+	p.stack = append(p.stack, v)
+}
+
+func (p *ValueParser) pop() {
+	p.stack = p.stack[:len(p.stack)-1]
+}
+
+func (p *ValueParser) pushContext(ctx valueParserContext) {
+	p.ctx = append(p.ctx, ctx)
+}
+
+func (p *ValueParser) popContext() {
+	p.ctx = p.ctx[:len(p.ctx)-1]
+}
+
+func (p *ValueParser) context() *valueParserContext {
+	return &p.ctx[len(p.ctx)-1]
+}
+
+// ValueEmitter is a special kind of emitter, instead of serializing the values
+// it receives it builds an in-memory representation of the data.
+//
+// This is useful for testing the high-level API of the package without actually
+// having to generate a serialized representation.
+type ValueEmitter struct {
+	stack []interface{}
+	marks []int
+}
+
+// NewValueEmitter returns a pointer to a new ValueEmitter object.
+func NewValueEmitter() *ValueEmitter {
+	return &ValueEmitter{}
+}
+
+// Value returns the value built in the emitter.
+func (e *ValueEmitter) Value() interface{} { return e.stack[0] }
+
+func (e *ValueEmitter) EmitNil() error { return e.push(nil) }
+
+func (e *ValueEmitter) EmitBool(v bool) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitInt(v int64, _ int) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitUint(v uint64, _ int) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitFloat(v float64, _ int) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitString(v string) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitBytes(v []byte) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitTime(v time.Time) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitDuration(v time.Duration) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitError(v error) error { return e.push(v) }
+
+func (e *ValueEmitter) EmitArrayBegin(v int) error { return e.pushMark() }
+
+func (e *ValueEmitter) EmitArrayEnd() error {
+	v := e.pop(e.popMark())
+	a := make([]interface{}, len(v))
+	copy(a, v)
+	return e.push(a)
+}
+
+func (e *ValueEmitter) EmitArrayNext() error { return nil }
+
+func (e *ValueEmitter) EmitMapBegin(v int) error { return e.pushMark() }
+
+func (e *ValueEmitter) EmitMapEnd() error {
+	v := e.pop(e.popMark())
+	n := len(v)
+	m := make(map[interface{}]interface{}, n/2)
+
+	for i := 0; i != n; i += 2 {
+		m[v[i]] = v[i+1]
+	}
+
+	return e.push(m)
+}
+
+func (e *ValueEmitter) EmitMapValue() error { return nil }
+
+func (e *ValueEmitter) EmitMapNext() error { return nil }
+
+func (e *ValueEmitter) push(v interface{}) error {
+	e.stack = append(e.stack, v)
+	return nil
+}
+
+func (e *ValueEmitter) pop(n int) []interface{} {
+	v := e.stack[n:]
+	e.stack = e.stack[:n]
+	return v
+}
+
+func (e *ValueEmitter) pushMark() error {
+	e.marks = append(e.marks, len(e.stack))
+	return nil
+}
+
+func (e *ValueEmitter) popMark() int {
+	n := len(e.marks) - 1
+	m := e.marks[n]
+	e.marks = e.marks[:n]
+	return m
 }

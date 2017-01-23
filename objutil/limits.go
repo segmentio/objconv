@@ -1,4 +1,4 @@
-package objconv
+package objutil
 
 import (
 	"fmt"
@@ -85,14 +85,18 @@ const (
 	Float64IntMin = -9007199254740992
 )
 
-func checkUint64Bounds(v uint64, max uint64, t reflect.Type) (err error) {
+// CheckUint64Bounds verifies that v is smaller than max, t represents the
+// original type of v.
+func CheckUint64Bounds(v uint64, max uint64, t reflect.Type) (err error) {
 	if v > max {
 		err = fmt.Errorf("objconv: %d overflows the maximum value of %d for %s", v, max, t)
 	}
 	return
 }
 
-func checkInt64Bounds(v int64, min int64, max uint64, t reflect.Type) (err error) {
+// CheckInt64Bounds verifies that v is within min and max, t represents the
+// original type of v.
+func CheckInt64Bounds(v int64, min int64, max uint64, t reflect.Type) (err error) {
 	if v < min {
 		err = fmt.Errorf("objconv: %d overflows the minimum value of %d for %s", v, min, t)
 	}

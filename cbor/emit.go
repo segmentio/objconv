@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/segmentio/objconv"
+	"github.com/segmentio/objconv/objutil"
 )
 
 // Emitter implements a MessagePack emitter that satisfies the objconv.Emitter
@@ -129,7 +129,7 @@ func (e *Emitter) EmitTime(v time.Time) (err error) {
 }
 
 func (e *Emitter) EmitDuration(v time.Duration) (err error) {
-	return e.EmitString(string(objconv.AppendDuration(e.b[:0], v)))
+	return e.EmitString(string(objutil.AppendDuration(e.b[:0], v)))
 }
 
 func (e *Emitter) EmitError(v error) (err error) {
@@ -204,17 +204,17 @@ func (e *Emitter) emitUint(m byte, v uint64) (err error) {
 		n = 1
 		e.b[0] = majorByte(m, byte(v))
 
-	case v <= objconv.Uint8Max:
+	case v <= objutil.Uint8Max:
 		n = 2
 		e.b[0] = majorByte(m, iUint8)
 		e.b[1] = uint8(v)
 
-	case v <= objconv.Uint16Max:
+	case v <= objutil.Uint16Max:
 		n = 3
 		e.b[0] = majorByte(m, iUint16)
 		putUint16(e.b[1:], uint16(v))
 
-	case v <= objconv.Uint32Max:
+	case v <= objutil.Uint32Max:
 		n = 5
 		e.b[0] = majorByte(m, iUint32)
 		putUint32(e.b[1:], uint32(v))

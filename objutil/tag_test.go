@@ -1,41 +1,41 @@
-package objconv
+package objutil
 
 import "testing"
 
 func TestParseTag(t *testing.T) {
 	tests := []struct {
 		tag string
-		res tag
+		res Tag
 	}{
 		{
 			tag: "",
-			res: tag{},
+			res: Tag{},
 		},
 		{
 			tag: "hello",
-			res: tag{name: "hello"},
+			res: Tag{Name: "hello"},
 		},
 		{
 			tag: ",omitempty",
-			res: tag{omitempty: true},
+			res: Tag{Omitempty: true},
 		},
 		{
 			tag: "-",
-			res: tag{name: "-"},
+			res: Tag{Name: "-"},
 		},
 		{
 			tag: "hello,omitempty",
-			res: tag{name: "hello", omitempty: true},
+			res: Tag{Name: "hello", Omitempty: true},
 		},
 		{
 			tag: "-,omitempty",
-			res: tag{name: "-", omitempty: true},
+			res: Tag{Name: "-", Omitempty: true},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.tag, func(t *testing.T) {
-			if res := parseTag(test.tag); res != test.res {
+			if res := ParseTag(test.tag); res != test.res {
 				t.Errorf("%s: %#v != %#v", test.tag, test.res, res)
 			}
 		})

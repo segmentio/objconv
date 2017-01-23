@@ -16,6 +16,7 @@ import (
 
 	"github.com/segmentio/objconv"
 	_ "github.com/segmentio/objconv/adapters"
+	"github.com/segmentio/objconv/objutil"
 )
 
 // TestValues is an array of all the values used by the TestCodec suite.
@@ -35,34 +36,34 @@ var TestValues = [...]interface{}{
 	-10,
 	-31,
 	-32,
-	objconv.Int8Min,
-	objconv.Int8Max + 1,
-	objconv.Int8Min - 1,
-	objconv.Int16Max,
-	objconv.Int16Min,
-	objconv.Int16Max + 1,
-	objconv.Int16Min - 1,
-	objconv.Int32Max,
-	objconv.Int32Min,
-	objconv.Int32Max + 1,
-	objconv.Int32Min - 1,
-	int64(objconv.Int64Max),
-	int64(objconv.Int64Min),
+	objutil.Int8Min,
+	objutil.Int8Max + 1,
+	objutil.Int8Min - 1,
+	objutil.Int16Max,
+	objutil.Int16Min,
+	objutil.Int16Max + 1,
+	objutil.Int16Min - 1,
+	objutil.Int32Max,
+	objutil.Int32Min,
+	objutil.Int32Max + 1,
+	objutil.Int32Min - 1,
+	int64(objutil.Int64Max),
+	int64(objutil.Int64Min),
 
 	// uint
 	uint(0),
 	uint(1),
-	uint8(objconv.Uint8Max),
-	uint16(objconv.Uint8Max) + 1,
-	uint16(objconv.Uint16Max),
-	uint32(objconv.Uint16Max) + 1,
-	uint32(objconv.Uint32Max),
-	uint64(objconv.Uint32Max) + 1,
+	uint8(objutil.Uint8Max),
+	uint16(objutil.Uint8Max) + 1,
+	uint16(objutil.Uint16Max),
+	uint32(objutil.Uint16Max) + 1,
+	uint32(objutil.Uint32Max),
+	uint64(objutil.Uint32Max) + 1,
 
 	// float
 	float32(0),
-	float32(objconv.Float32IntMin),
-	float32(objconv.Float32IntMax),
+	float32(objutil.Float32IntMin),
+	float32(objutil.Float32IntMax),
 	float64(0),
 	float64(0.5),
 
@@ -78,14 +79,14 @@ var TestValues = [...]interface{}{
 	"Hello\fWorld!",
 	"你好",
 	strings.Repeat("A", 32),
-	strings.Repeat("A", objconv.Uint8Max+1),
-	strings.Repeat("A", objconv.Uint16Max+1),
+	strings.Repeat("A", objutil.Uint8Max+1),
+	strings.Repeat("A", objutil.Uint16Max+1),
 
 	// bytes
 	[]byte(""),
 	[]byte("Hello World!"),
-	bytes.Repeat([]byte("A"), objconv.Uint8Max+1),
-	bytes.Repeat([]byte("A"), objconv.Uint16Max+1),
+	bytes.Repeat([]byte("A"), objutil.Uint8Max+1),
+	bytes.Repeat([]byte("A"), objutil.Uint16Max+1),
 
 	// duration
 	time.Nanosecond,
@@ -104,20 +105,20 @@ var TestValues = [...]interface{}{
 	// error
 	errors.New(""),
 	errors.New("Hello World!"),
-	errors.New(strings.Repeat("A", objconv.Uint8Max+1)),
-	errors.New(strings.Repeat("A", objconv.Uint16Max+1)),
+	errors.New(strings.Repeat("A", objutil.Uint8Max+1)),
+	errors.New(strings.Repeat("A", objutil.Uint16Max+1)),
 
 	// array
 	[]int{},
 	[]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-	make([]int, objconv.Uint8Max+1),
-	make([]int, objconv.Uint16Max+1),
+	make([]int, objutil.Uint8Max+1),
+	make([]int, objutil.Uint16Max+1),
 
 	// map
 	makeMap(0),
 	makeMap(15),
-	makeMap(objconv.Uint8Max + 1),
-	makeMap(objconv.Uint16Max + 1),
+	makeMap(objutil.Uint8Max + 1),
+	makeMap(objutil.Uint16Max + 1),
 
 	// struct
 	struct{}{},

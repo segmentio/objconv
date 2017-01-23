@@ -3,6 +3,8 @@ package objconv
 import (
 	"reflect"
 	"sync"
+
+	"github.com/segmentio/objconv/objutil"
 )
 
 // structField represents a single field of a struct and carries information
@@ -28,12 +30,12 @@ type structField struct {
 }
 
 func makeStructField(f reflect.StructField, c map[reflect.Type]*structType) structField {
-	t := parseTag(f.Tag.Get("objconv"))
+	t := objutil.ParseTag(f.Tag.Get("objconv"))
 	s := structField{
 		index:     f.Index,
 		name:      f.Name,
-		omitempty: t.omitempty,
-		omitzero:  t.omitzero,
+		omitempty: t.Omitempty,
+		omitzero:  t.Omitzero,
 
 		encode: makeEncodeFunc(f.Type, encodeFuncOpts{
 			recurse: true,
@@ -46,15 +48,15 @@ func makeStructField(f reflect.StructField, c map[reflect.Type]*structType) stru
 		}),
 	}
 
-	if len(t.name) != 0 {
-		s.name = t.name
+	if len(t.Name) != 0 {
+		s.name = t.Name
 	}
 
 	return s
 }
 
 func (f *structField) omit(v reflect.Value) bool {
-	return (f.omitempty && isEmptyValue(v)) || (f.omitzero && isZeroValue(v))
+	return (f.omitempty && objutil.IsEmptyValue(v)) || (f.omitzero && objutil.IsZeroValue(v))
 }
 
 // structType is used to represent a Go structure in internal data structures
