@@ -999,14 +999,14 @@ func (d Decoder) decodeTypeAndString() (t Type, b []byte, err error) {
 func (d Decoder) DecodeArray(f func(Decoder) error) (err error) {
 	var typ Type
 
-	if typ, err = d.Parser.ParseType(); err != nil {
-		return
-	}
-
 	if d.off != 0 {
 		if d.off, err = 0, d.Parser.ParseMapValue(d.off-1); err != nil {
 			return
 		}
+	}
+
+	if typ, err = d.Parser.ParseType(); err != nil {
+		return
 	}
 
 	err = d.decodeArrayImpl(typ, f)
@@ -1063,14 +1063,14 @@ func (d Decoder) decodeArrayImpl(t Type, f func(Decoder) error) (err error) {
 func (d Decoder) DecodeMap(f func(Decoder, Decoder) error) (err error) {
 	var typ Type
 
-	if typ, err = d.Parser.ParseType(); err != nil {
-		return
-	}
-
 	if d.off != 0 {
 		if d.off, err = 0, d.Parser.ParseMapValue(d.off-1); err != nil {
 			return
 		}
+	}
+
+	if typ, err = d.Parser.ParseType(); err != nil {
+		return
 	}
 
 	err = d.decodeMapImpl(typ, f)
