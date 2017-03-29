@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/segmentio/objconv"
 	"github.com/segmentio/objconv/objutil"
 )
 
@@ -22,6 +23,9 @@ var (
 
 	comma  = [...]byte{','}
 	column = [...]byte{':'}
+
+	newline = [...]byte{'\n'}
+	spaces  = [...]byte{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}
 )
 
 // Emitter implements a JSON emitter that satisfies the objconv.Emitter
@@ -198,9 +202,135 @@ func (e *Emitter) EmitMapNext() (err error) {
 	return
 }
 
+func (e *Emitter) PrettyEmitter() objconv.Emitter {
+	return NewPrettyEmitter(e.w)
+}
+
 func align(n int, a int) int {
 	if (n % a) == 0 {
 		return n
 	}
 	return ((n / a) + 1) * a
+}
+
+type PrettyEmitter struct {
+	Emitter
+	i int
+	s []int
+	a [8]int
+}
+
+func NewPrettyEmitter(w io.Writer) *PrettyEmitter {
+	e := &PrettyEmitter{
+		Emitter: *NewEmitter(w),
+	}
+	e.s = e.a[:0]
+	return e
+}
+
+func (e *PrettyEmitter) Reset(w io.Writer) {
+	e.Emitter.Reset(w)
+	e.i = 0
+	e.s = e.s[:0]
+}
+
+func (e *PrettyEmitter) EmitArrayBegin(n int) (err error) {
+	if err = e.Emitter.EmitArrayBegin(n); err != nil {
+		return
+	}
+	if e.push(n) != 0 {
+		err = e.indent()
+	}
+	return
+}
+
+func (e *PrettyEmitter) EmitArrayEnd() (err error) {
+	if e.pop() != 0 {
+		if err = e.indent(); err != nil {
+			return
+		}
+	}
+	return e.Emitter.EmitArrayEnd()
+}
+
+func (e *PrettyEmitter) EmitArrayNext() (err error) {
+	if err = e.Emitter.EmitArrayNext(); err != nil {
+		return
+	}
+	return e.indent()
+}
+
+func (e *PrettyEmitter) EmitMapBegin(n int) (err error) {
+	if err = e.Emitter.EmitMapBegin(n); err != nil {
+		return
+	}
+	if e.push(n) != 0 {
+		err = e.indent()
+	}
+	return
+}
+
+func (e *PrettyEmitter) EmitMapEnd() (err error) {
+	if e.pop() != 0 {
+		if err = e.indent(); err != nil {
+			return
+		}
+	}
+	return e.Emitter.EmitMapEnd()
+}
+
+func (e *PrettyEmitter) EmitMapValue() (err error) {
+	if err = e.Emitter.EmitMapValue(); err != nil {
+		return
+	}
+	_, err = e.w.Write(spaces[:1])
+	return
+}
+
+func (e *PrettyEmitter) EmitMapNext() (err error) {
+	if err = e.Emitter.EmitMapNext(); err != nil {
+		return
+	}
+	return e.indent()
+}
+
+func (e *PrettyEmitter) indent() (err error) {
+	if _, err = e.w.Write(newline[:]); err != nil {
+		return
+	}
+
+	for n := 2 * e.i; n != 0; {
+		n1 := n
+		n2 := len(spaces)
+
+		if n1 > n2 {
+			n1 = n2
+		}
+
+		if _, err = e.w.Write(spaces[:n1]); err != nil {
+			return
+		}
+
+		n -= n1
+	}
+
+	return
+}
+
+func (e *PrettyEmitter) push(n int) int {
+	if n != 0 {
+		e.i++
+	}
+	e.s = append(e.s, n)
+	return n
+}
+
+func (e *PrettyEmitter) pop() int {
+	i := len(e.s) - 1
+	n := e.s[i]
+	e.s = e.s[:i]
+	if n != 0 {
+		e.i--
+	}
+	return n
 }

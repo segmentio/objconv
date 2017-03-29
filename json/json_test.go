@@ -14,6 +14,14 @@ func BenchmarkCodec(b *testing.B) {
 	objtests.BenchmarkCodec(b, Codec)
 }
 
+func TestPrettyCodec(t *testing.T) {
+	objtests.TestCodec(t, PrettyCodec)
+}
+
+func BenchmarkPrettyCodec(b *testing.B) {
+	objtests.BenchmarkCodec(b, PrettyCodec)
+}
+
 func TestUnicode(t *testing.T) {
 	tests := []struct {
 		in  string

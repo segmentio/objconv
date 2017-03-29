@@ -60,10 +60,12 @@ func main() {
 	var input string
 	var output string
 	var list bool
+	var pretty bool
 
 	flag.StringVar(&input, "i", "json", "The format of the input stream")
 	flag.StringVar(&output, "o", "json", "The format of the output stream")
 	flag.BoolVar(&list, "l", false, "Prints a list of all the formats available")
+	flag.BoolVar(&pretty, "p", false, "Prints in pretty format when available")
 	flag.Parse()
 
 	if list {
@@ -71,7 +73,7 @@ func main() {
 		return
 	}
 
-	if err := conv(w, output, r, input); err != nil {
+	if err := conv(w, output, r, input, pretty); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
@@ -91,7 +93,7 @@ func codecs(w io.Writer) {
 	return
 }
 
-func conv(w io.Writer, output string, r io.Reader, input string) (err error) {
+func conv(w io.Writer, output string, r io.Reader, input string, pretty bool) (err error) {
 	var ic objconv.Codec
 	var oc objconv.Codec
 	var ok bool
@@ -109,8 +111,15 @@ func conv(w io.Writer, output string, r io.Reader, input string) (err error) {
 	var d = objconv.NewStreamDecoder(ic.NewParser(r))
 	var e *objconv.StreamEncoder
 	var v interface{}
+	var m = oc.NewEmitter(w)
 
-	if e, err = d.Encoder(oc.NewEmitter(w)); err != nil {
+	if pretty {
+		if p, ok := m.(objconv.PrettyEmitter); ok {
+			m = p.PrettyEmitter()
+		}
+	}
+
+	if e, err = d.Encoder(m); err != nil {
 		if err == io.EOF { // empty input
 			err = nil
 		}

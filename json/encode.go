@@ -18,6 +18,16 @@ func NewStreamEncoder(w io.Writer) *objconv.StreamEncoder {
 	return objconv.NewStreamEncoder(NewEmitter(w))
 }
 
+// NewPrettyEncoder returns a new JSON encoder that writes to w.
+func NewPrettyEncoder(w io.Writer) *objconv.Encoder {
+	return objconv.NewEncoder(NewPrettyEmitter(w))
+}
+
+// NewPrettyStreamEncoder returns a new JSON stream encoder that writes to w.
+func NewPrettyStreamEncoder(w io.Writer) *objconv.StreamEncoder {
+	return objconv.NewStreamEncoder(NewPrettyEmitter(w))
+}
+
 // Marshal writes the JSON representation of v to a byte slice returned in b.
 func Marshal(v interface{}) (b []byte, err error) {
 	m := marshalerPool.Get().(*marshaler)

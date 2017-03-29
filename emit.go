@@ -61,6 +61,14 @@ type Emitter interface {
 	EmitMapNext() error
 }
 
+// The PrettyEmitter interface may be implemented by emitters supporting a more
+// human-friendlly format.
+type PrettyEmitter interface {
+	// PrettyEmitter returns a new emitter that outputs to the same writer in a
+	// pretty format.
+	PrettyEmitter() Emitter
+}
+
 type discardEmitter struct{}
 
 func (e discardEmitter) EmitNil() error                     { return nil }
