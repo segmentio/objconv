@@ -69,6 +69,14 @@ type PrettyEmitter interface {
 	PrettyEmitter() Emitter
 }
 
+// The marshaler interface may be implemented by emitters that may provide a
+// special marshaling implementation for certain types.
+//
+// A good example of this is the json emitter which uses
+type marshaler interface {
+	Marshal(interface{}) (bool, error)
+}
+
 type discardEmitter struct{}
 
 func (e discardEmitter) EmitNil() error                     { return nil }

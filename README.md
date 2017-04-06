@@ -16,9 +16,6 @@ that mirror those of the standard library to make it easy to integrate with the
 objconv package. However there are a couple of differences that need to be taken
 in consideration:
 
-- When struct tags are used to define the behavior of marshaling or unmarshaling
-structs, the tag name needs to be `objconv` (instead of `json` for example).
-
 - Encoder and Decoder types are not exposed in the objconv sub-packages, instead
 the types from the top-level package are used. For example, variables declared
 with the `json.Encoder` type would have to be replaced with `objconv.Encoder`.
