@@ -122,6 +122,19 @@ func TestEncoder(t *testing.T) {
 			},
 		},
 
+		// struct tags (json)
+		{
+			in: &struct {
+				A bool `json:"a"`
+				B bool `json:"b,omitempty"`
+				C bool `json:"c,omitzero"`
+			}{true, false, false},
+			out: map[interface{}]interface{}{
+				"a": true,
+				"c": false,
+			},
+		},
+
 		// list of complex data structures
 		{
 			in: []map[string]string{
