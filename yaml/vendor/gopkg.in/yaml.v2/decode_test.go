@@ -2,13 +2,14 @@ package yaml_test
 
 import (
 	"errors"
-	. "gopkg.in/check.v1"
-	"gopkg.in/yaml.v2"
 	"math"
 	"net"
 	"reflect"
 	"strings"
 	"time"
+
+	. "gopkg.in/check.v1"
+	"gopkg.in/yaml.v2"
 )
 
 var unmarshalIntTest = 123
@@ -551,7 +552,7 @@ var unmarshalTests = []struct {
 	},
 	{
 		"a: 2015-02-24T18:19:39Z\n",
-		map[string]time.Time{"a": time.Unix(1424801979, 0)},
+		map[string]time.Time{"a": time.Unix(1424801979, 0).UTC()},
 	},
 
 	// Encode empty lists as zero-length slices.

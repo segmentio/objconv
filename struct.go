@@ -30,7 +30,21 @@ type structField struct {
 }
 
 func makeStructField(f reflect.StructField, c map[reflect.Type]*structType) structField {
-	t := objutil.ParseTag(f.Tag.Get("objconv"))
+	var t objutil.Tag
+
+	if tag := f.Tag.Get("objconv"); len(tag) != 0 {
+		t = objutil.ParseTag(tag)
+	} else {
+		// To maximize compatibility with existing code we fallback to checking
+		// if the field has a `json` tag.
+		//
+		// This tag doesn't support any of the extra features that are supported
+		// by the `objconv` tag, and it should stay this way. It has to match
+		// the behavior of the standard encoding/json package to avoid any
+		// implicit changes in what would be intuitively expected.
+		t = objutil.ParseTagJSON(f.Tag.Get("json"))
+	}
+
 	s := structField{
 		index:     f.Index,
 		name:      f.Name,

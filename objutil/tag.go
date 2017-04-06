@@ -40,6 +40,28 @@ func ParseTag(s string) Tag {
 	}
 }
 
+// ParseTagJSON is similar to ParseTag but only supports features supported by
+// the standard encoding/json package.
+func ParseTagJSON(s string) Tag {
+	var name string
+	var omitempty bool
+
+	name, s = parseNextTagToken(s)
+
+	for len(s) != 0 {
+		var token string
+		switch token, s = parseNextTagToken(s); token {
+		case "omitempty":
+			omitempty = true
+		}
+	}
+
+	return Tag{
+		Name:      name,
+		Omitempty: omitempty,
+	}
+}
+
 func parseNextTagToken(s string) (token string, next string) {
 	if split := strings.IndexByte(s, ','); split < 0 {
 		token = s
