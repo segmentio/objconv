@@ -202,6 +202,10 @@ func (e *Emitter) EmitMapNext() (err error) {
 	return
 }
 
+func (e *Emitter) TextEmitter() bool {
+	return true
+}
+
 func (e *Emitter) PrettyEmitter() objconv.Emitter {
 	return NewPrettyEmitter(e.w)
 }
@@ -292,6 +296,10 @@ func (e *PrettyEmitter) EmitMapNext() (err error) {
 		return
 	}
 	return e.indent()
+}
+
+func (e *PrettyEmitter) TextEmitter() bool {
+	return true
 }
 
 func (e *PrettyEmitter) indent() (err error) {

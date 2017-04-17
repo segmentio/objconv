@@ -69,6 +69,20 @@ type PrettyEmitter interface {
 	PrettyEmitter() Emitter
 }
 
+// The TextEmitter interface may be implemented by emitters of human-readable
+// formats. Such emitters instruct the encoder to prefer using
+// encoding.TextMarshaler over encoding.BinaryMarshaler for example.
+type TextEmitter interface {
+	// EmitsText returns true if the emitter produces a human-readable format.
+	TextEmitter() bool
+}
+
+// IsTextEmitter returns true if the emitter produces a human-readable format.
+func IsTextEmitter(emitter Emitter) bool {
+	e, _ := emitter.(TextEmitter)
+	return e != nil && e.TextEmitter()
+}
+
 type discardEmitter struct{}
 
 func (e discardEmitter) EmitNil() error                     { return nil }

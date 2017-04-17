@@ -441,6 +441,21 @@ func (e Encoder) encodeEncoder(v reflect.Value) error {
 	return v.Interface().(ValueEncoder).EncodeValue(e)
 }
 
+func (e Encoder) encodeMarshaler(v reflect.Value) error {
+	if IsTextEmitter(e.Emitter) {
+		return e.encodeTextMarshaler(v)
+	}
+	return e.encodeBinaryMarshaler(v)
+}
+
+func (e Encoder) encodeBinaryMarshaler(v reflect.Value) error {
+	b, err := v.Interface().(encoding.TextMarshaler).MarshalText()
+	if err == nil {
+		err = e.Emitter.EmitBytes(b)
+	}
+	return err
+}
+
 func (e Encoder) encodeTextMarshaler(v reflect.Value) error {
 	b, err := v.Interface().(encoding.TextMarshaler).MarshalText()
 	if err == nil {
@@ -734,11 +749,19 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 		return Encoder.encodeFloat64
 	}
 
+	binaryMarshaler := t.Implements(binaryMarshalerInterface)
+	textMarshaler := t.Implements(textMarshalerInterface)
 	switch {
 	case t.Implements(valueEncoderInterface):
 		return Encoder.encodeEncoder
 
-	case t.Implements(textMarshalerInterface):
+	case binaryMarshaler && textMarshaler:
+		return Encoder.encodeMarshaler
+
+	case binaryMarshaler:
+		return Encoder.encodeBinaryMarshaler
+
+	case textMarshaler:
 		return Encoder.encodeTextMarshaler
 
 	case t.Implements(errorInterface):
