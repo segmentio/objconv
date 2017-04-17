@@ -2,6 +2,7 @@ package objtests
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -154,6 +155,10 @@ var TestValues = [...]interface{}{
 	// mail
 	parseEmail("git@github.com"),
 	parseEmailList("Alice <alice@example.com>, Bob <bob@example.com>, Eve <eve@example.com>"),
+
+	// encoding.BinaryMarshaler / encoding.TextMarshaler
+	&point{},
+	&point{1, 2},
 }
 
 func makeMap(n int) map[string]string {
@@ -389,4 +394,32 @@ func parseEmail(s string) mail.Address {
 func parseEmailList(s string) []*mail.Address {
 	l, _ := mail.ParseAddressList(s)
 	return l
+}
+
+type point struct {
+	x int32
+	y int32
+}
+
+func (p point) MarshalBinary() ([]byte, error) {
+	b := &bytes.Buffer{}
+	binary.Write(b, binary.BigEndian, p.x)
+	binary.Write(b, binary.BigEndian, p.y)
+	return b.Bytes(), nil
+}
+
+func (p point) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("(%d,%d)", p.x, p.y)), nil
+}
+
+func (p *point) UnmarshalBinary(b []byte) error {
+	r := bytes.NewReader(b)
+	binary.Read(r, binary.BigEndian, &p.x)
+	binary.Read(r, binary.BigEndian, &p.y)
+	return nil
+}
+
+func (p *point) UnmarshalText(b []byte) error {
+	fmt.Sscanf(string(b), "(%d,%d)", &p.x, &p.y)
+	return nil
 }

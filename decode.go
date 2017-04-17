@@ -891,7 +891,14 @@ func (d Decoder) decodeDecoder(to reflect.Value) (Type, error) {
 	return Unknown /* just needs to not be Nil */, to.Interface().(ValueDecoder).DecodeValue(d)
 }
 
-func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
+func (d Decoder) decodeUnmarshaler(to reflect.Value) (Type, error) {
+	if isTextParser(d.Parser) {
+		return d.decodeTextUnmarshaler(to)
+	}
+	return d.decodeBinaryUnmarshaler(to)
+}
+
+func (d Decoder) decodeBinaryUnmarshaler(to reflect.Value) (t Type, err error) {
 	var b []byte
 	var v = reflect.ValueOf(&b).Elem()
 
@@ -899,7 +906,27 @@ func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
 		return
 	}
 
-	err = to.Interface().(encoding.TextUnmarshaler).UnmarshalText(b)
+	if to.Kind() == reflect.Ptr && to.IsNil() {
+		to.Set(reflect.New(to.Type().Elem()))
+	}
+
+	err = to.Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary(b)
+	return
+}
+
+func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
+	var s string
+	var v = reflect.ValueOf(&s).Elem()
+
+	if t, err = d.decodeString(v); err != nil {
+		return
+	}
+
+	if to.Kind() == reflect.Ptr && to.IsNil() {
+		to.Set(reflect.New(to.Type().Elem()))
+	}
+
+	err = to.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(s))
 	return
 }
 
@@ -1300,6 +1327,8 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	}
 
 	// check if it implements one of the special case interfaces
+	binaryUnmarshaler := t.Implements(binaryUnmarshalerInterface)
+	textUnmarshaler := t.Implements(textUnmarshalerInterface)
 	switch p := reflect.PtrTo(t); {
 	case t.Implements(valueDecoderInterface):
 		return Decoder.decodeDecoder
@@ -1310,7 +1339,13 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	case t.Implements(errorInterface):
 		return Decoder.decodeError
 
-	case p.Implements(textUnmarshalerInterface):
+	case binaryUnmarshaler && textUnmarshaler:
+		return Decoder.decodeUnmarshaler
+
+	case binaryUnmarshaler:
+		return Decoder.decodeBinaryUnmarshaler
+
+	case textUnmarshaler:
 		return Decoder.decodeTextUnmarshaler
 	}
 

@@ -442,14 +442,14 @@ func (e Encoder) encodeEncoder(v reflect.Value) error {
 }
 
 func (e Encoder) encodeMarshaler(v reflect.Value) error {
-	if IsTextEmitter(e.Emitter) {
+	if isTextEmitter(e.Emitter) {
 		return e.encodeTextMarshaler(v)
 	}
 	return e.encodeBinaryMarshaler(v)
 }
 
 func (e Encoder) encodeBinaryMarshaler(v reflect.Value) error {
-	b, err := v.Interface().(encoding.TextMarshaler).MarshalText()
+	b, err := v.Interface().(encoding.BinaryMarshaler).MarshalBinary()
 	if err == nil {
 		err = e.Emitter.EmitBytes(b)
 	}
