@@ -396,6 +396,9 @@ func parseEmailList(s string) []*mail.Address {
 	return l
 }
 
+// This type implements the encoding.BinaryMarshaler, encoding.TextMarshaler,
+// encoding.BinaryUnmarshaler, and encoding.TextUnmarshaler. It's used to verify
+// the support for those interfaces is working as expected for all codecs.
 type point struct {
 	x int32
 	y int32
