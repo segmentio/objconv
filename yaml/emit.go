@@ -98,6 +98,10 @@ func (e *Emitter) EmitMapNext() (err error) {
 	return
 }
 
+func (e *Emitter) TextEmitter() bool {
+	return true
+}
+
 func (e *Emitter) emit(v interface{}) (err error) {
 	var b []byte
 

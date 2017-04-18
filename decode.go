@@ -891,7 +891,14 @@ func (d Decoder) decodeDecoder(to reflect.Value) (Type, error) {
 	return Unknown /* just needs to not be Nil */, to.Interface().(ValueDecoder).DecodeValue(d)
 }
 
-func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
+func (d Decoder) decodeUnmarshaler(to reflect.Value) (Type, error) {
+	if isTextParser(d.Parser) {
+		return d.decodeTextUnmarshaler(to)
+	}
+	return d.decodeBinaryUnmarshaler(to)
+}
+
+func (d Decoder) decodeBinaryUnmarshaler(to reflect.Value) (t Type, err error) {
 	var b []byte
 	var v = reflect.ValueOf(&b).Elem()
 
@@ -899,7 +906,27 @@ func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
 		return
 	}
 
-	err = to.Interface().(encoding.TextUnmarshaler).UnmarshalText(b)
+	if to.Kind() == reflect.Ptr && to.IsNil() {
+		to.Set(reflect.New(to.Type().Elem()))
+	}
+
+	err = to.Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary(b)
+	return
+}
+
+func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
+	var s string
+	var v = reflect.ValueOf(&s).Elem()
+
+	if t, err = d.decodeString(v); err != nil {
+		return
+	}
+
+	if to.Kind() == reflect.Ptr && to.IsNil() {
+		to.Set(reflect.New(to.Type().Elem()))
+	}
+
+	err = to.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(s))
 	return
 }
 
@@ -1310,7 +1337,13 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	case t.Implements(errorInterface):
 		return Decoder.decodeError
 
-	case p.Implements(textUnmarshalerInterface):
+	case t.Implements(binaryUnmarshalerInterface) && t.Implements(textUnmarshalerInterface):
+		return Decoder.decodeUnmarshaler
+
+	case t.Implements(binaryUnmarshalerInterface):
+		return Decoder.decodeBinaryUnmarshaler
+
+	case t.Implements(textUnmarshalerInterface):
 		return Decoder.decodeTextUnmarshaler
 	}
 

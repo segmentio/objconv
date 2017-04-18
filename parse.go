@@ -123,3 +123,16 @@ type bytesDecoder interface {
 	// before the value is stored.
 	DecodeBytes([]byte) ([]byte, error)
 }
+
+// The textParser interface may be implemented by parsers of human-readable
+// formats. Such parsers instruct the encoder to prefer using
+// encoding.TextUnmarshaler over encoding.BinaryUnmarshaler for example.
+type textParser interface {
+	// EmitsText returns true if the parser produces a human-readable format.
+	TextParser() bool
+}
+
+func isTextParser(parser Parser) bool {
+	p, _ := parser.(textParser)
+	return p != nil && p.TextParser()
+}

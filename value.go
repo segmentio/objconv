@@ -107,12 +107,14 @@ var (
 	timePtrType        = reflect.PtrTo(timeType)
 
 	// interfaces
-	errorInterface           = elemTypeOf((*error)(nil))
-	valueEncoderInterface    = elemTypeOf((*ValueEncoder)(nil))
-	valueDecoderInterface    = elemTypeOf((*ValueDecoder)(nil))
-	textMarshalerInterface   = elemTypeOf((*encoding.TextMarshaler)(nil))
-	textUnmarshalerInterface = elemTypeOf((*encoding.TextUnmarshaler)(nil))
-	emptyInterface           = elemTypeOf((*interface{})(nil))
+	errorInterface             = elemTypeOf((*error)(nil))
+	valueEncoderInterface      = elemTypeOf((*ValueEncoder)(nil))
+	valueDecoderInterface      = elemTypeOf((*ValueDecoder)(nil))
+	binaryMarshalerInterface   = elemTypeOf((*encoding.BinaryMarshaler)(nil))
+	binaryUnmarshalerInterface = elemTypeOf((*encoding.BinaryUnmarshaler)(nil))
+	textMarshalerInterface     = elemTypeOf((*encoding.TextMarshaler)(nil))
+	textUnmarshalerInterface   = elemTypeOf((*encoding.TextUnmarshaler)(nil))
+	emptyInterface             = elemTypeOf((*interface{})(nil))
 
 	// common map types, used for optimization for map encoding algorithms
 	mapStringStringType       = reflect.TypeOf((map[string]string)(nil))
