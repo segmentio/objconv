@@ -749,19 +749,17 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 		return Encoder.encodeFloat64
 	}
 
-	binaryMarshaler := t.Implements(binaryMarshalerInterface)
-	textMarshaler := t.Implements(textMarshalerInterface)
 	switch {
 	case t.Implements(valueEncoderInterface):
 		return Encoder.encodeEncoder
 
-	case binaryMarshaler && textMarshaler:
+	case t.Implements(binaryMarshalerInterface) && t.Implements(textMarshalerInterface):
 		return Encoder.encodeMarshaler
 
-	case binaryMarshaler:
+	case t.Implements(binaryMarshalerInterface):
 		return Encoder.encodeBinaryMarshaler
 
-	case textMarshaler:
+	case t.Implements(textMarshalerInterface):
 		return Encoder.encodeTextMarshaler
 
 	case t.Implements(errorInterface):

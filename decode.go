@@ -1327,8 +1327,6 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	}
 
 	// check if it implements one of the special case interfaces
-	binaryUnmarshaler := t.Implements(binaryUnmarshalerInterface)
-	textUnmarshaler := t.Implements(textUnmarshalerInterface)
 	switch p := reflect.PtrTo(t); {
 	case t.Implements(valueDecoderInterface):
 		return Decoder.decodeDecoder
@@ -1339,13 +1337,13 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	case t.Implements(errorInterface):
 		return Decoder.decodeError
 
-	case binaryUnmarshaler && textUnmarshaler:
+	case t.Implements(binaryUnmarshalerInterface) && t.Implements(textUnmarshalerInterface):
 		return Decoder.decodeUnmarshaler
 
-	case binaryUnmarshaler:
+	case t.Implements(binaryUnmarshalerInterface):
 		return Decoder.decodeBinaryUnmarshaler
 
-	case textUnmarshaler:
+	case t.Implements(textUnmarshalerInterface):
 		return Decoder.decodeTextUnmarshaler
 	}
 
