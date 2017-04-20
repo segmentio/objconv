@@ -40,6 +40,11 @@ type Emitter struct {
 	// sback is used as the initial backing array for the stack slice to avoid
 	// dynamic memory allocations for the most common use cases.
 	sback [8]*context
+
+	// Set to true when the emitter is intended to be used to encode requests
+	// from a redis client. In that case all strings are serialized as byte
+	// arrays.
+	client bool
 }
 
 type context struct {
@@ -53,6 +58,12 @@ func NewEmitter(w io.Writer) *Emitter {
 	e := &Emitter{w: w}
 	e.s = e.a[:0]
 	e.stack = e.sback[:0]
+	return e
+}
+
+func NewClientEmitter(w io.Writer) *Emitter {
+	e := NewEmitter(w)
+	e.client = true
 	return e
 }
 
@@ -118,7 +129,7 @@ func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
 func (e *Emitter) EmitString(v string) (err error) {
 	s := e.s[:0]
 
-	if indexCRLF(v) < 0 {
+	if !e.client && indexCRLF(v) < 0 {
 		s = append(s, '+')
 		s = append(s, v...)
 		s = appendCRLF(s)

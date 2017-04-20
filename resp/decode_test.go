@@ -1,7 +1,6 @@
 package resp
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,9 +27,9 @@ var respDecodeTests = []struct {
 	{[]byte{}, "$0\r\n\r\n"},
 	{[]byte("Hello World!"), "$12\r\nHello World!\r\n"},
 
-	{errors.New(""), "-\r\n"},
-	{errors.New("oops"), "-oops\r\n"},
-	{errors.New("A"), "-A\r\n"},
+	{NewError(""), "-\r\n"},
+	{NewError("oops"), "-oops\r\n"},
+	{NewError("ERR A"), "-ERR A\r\n"},
 
 	{[]int{}, "*0\r\n"},
 	{[]int{1, 2, 3}, "*3\r\n:1\r\n:2\r\n:3\r\n"},

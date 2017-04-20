@@ -229,7 +229,7 @@ func (p *Parser) ParseError() (v error, err error) {
 		goto failure
 	}
 
-	v = errors.New(string(line[1:]))
+	v = NewError(string(line[1:]))
 	p.skipLine()
 	return
 failure:
