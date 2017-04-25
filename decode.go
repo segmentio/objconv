@@ -1179,6 +1179,24 @@ func NewStreamDecoder(p Parser) *StreamDecoder {
 	return &StreamDecoder{Parser: p}
 }
 
+// Len returns the number of values remaining to be read from the stream, which
+// may be -1 if the underlying format doesn't provide this information. If an
+// error occured while decoding the steram the method returns zero because no
+// more values can be read.
+func (d *StreamDecoder) Len() int {
+	if d.err != nil {
+		return 0
+	}
+
+	if d.typ == Unknown {
+		if d.init() != nil {
+			return 0
+		}
+	}
+
+	return d.max - d.cnt
+}
+
 // Err returns the last error returned by the Decode method.
 //
 // The method returns nil if the stream reached its natural end.
@@ -1203,21 +1221,11 @@ func (d *StreamDecoder) Decode(v interface{}) error {
 		MapType: d.MapType,
 	}
 
-	if d.typ == Unknown {
-		if d.typ, d.err = d.Parser.ParseType(); err != nil {
-			return d.err
-		}
-	}
-
 	switch d.typ {
-	default:
-		if max = 1; cnt == max {
-			err = End
-		}
+	case Unknown:
+		err = d.init()
+		max = d.max
 	case Array:
-		if cnt == 0 {
-			max, err = dec.Parser.ParseArrayBegin()
-		}
 		if cnt == max {
 			err = dec.Parser.ParseArrayEnd(cnt)
 		} else if cnt != 0 {
@@ -1258,6 +1266,26 @@ func (d *StreamDecoder) Encoder(e Emitter) (enc *StreamEncoder, err error) {
 	}
 
 	return
+}
+
+func (d *StreamDecoder) init() error {
+	err := error(nil)
+	typ := Unknown
+	max := 0
+
+	if typ, err = d.Parser.ParseType(); err == nil {
+		switch typ {
+		default:
+			max = 1
+		case Array:
+			max, err = d.Parser.ParseArrayBegin()
+		}
+	}
+
+	d.err = err
+	d.typ = typ
+	d.max = max
+	return err
 }
 
 // ValueDecoder is the interface that can be implemented by types that wish to

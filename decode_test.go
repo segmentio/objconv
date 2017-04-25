@@ -313,12 +313,16 @@ func TestStreamDecoder(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run("", func(t *testing.T) {
+		t.Run(fmt.Sprint(test), func(t *testing.T) {
 			val := NewValueParser(test)
 			dec := NewStreamDecoder(val)
 
 			var v interface{}
 			var i = int64(0)
+
+			if n := dec.Len(); n != len(test) {
+				t.Error("invalid length returned by the stream decoder:", n)
+			}
 
 			for dec.Decode(&v) == nil {
 				if !reflect.DeepEqual(v, i) {
@@ -363,7 +367,7 @@ func TestStreamRencode(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run("", func(t *testing.T) {
+		t.Run(fmt.Sprint(test), func(t *testing.T) {
 			in := NewValueParser(test)
 			out := NewValueEmitter()
 
