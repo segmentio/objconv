@@ -19,7 +19,7 @@ type Decoder struct {
 	// Parser to use to load values.
 	Parser Parser
 
-	// MapType is used to override the type of maps produced by the docoder when
+	// MapType is used to override the type of maps produced by the decoder when
 	// there is not destination type (when decoding to an empty interface).
 	MapType reflect.Type
 
@@ -49,7 +49,7 @@ func (d Decoder) Decode(v interface{}) (err error) {
 	}
 
 	if !to.IsValid() {
-		// This speecial case for a nil value is used to make it possible to
+		// This special case for a nil value is used to make it possible to
 		// discard decoded values.
 		_, err = d.decodeInterface(to)
 		return
@@ -60,7 +60,7 @@ func (d Decoder) Decode(v interface{}) (err error) {
 		// support types that aren't pointers but implement ValueDecoder, or
 		// types that have got adapters set.
 		// If we're not in either of those cases the code will likely panic when
-		// the value is set because it won't be adressable.
+		// the value is set because it won't be addressable.
 		to = to.Elem()
 	}
 
@@ -1163,7 +1163,7 @@ type StreamDecoder struct {
 	// Parser to use to load values.
 	Parser Parser
 
-	// MapType is used to override the type of maps produced by the docoder when
+	// MapType is used to override the type of maps produced by the decoder when
 	// there is not destination type (when decoding to an empty interface).
 	MapType reflect.Type
 
@@ -1185,7 +1185,7 @@ func NewStreamDecoder(p Parser) *StreamDecoder {
 
 // Len returns the number of values remaining to be read from the stream, which
 // may be -1 if the underlying format doesn't provide this information. If an
-// error occured while decoding the steram the method returns zero because no
+// error occurred while decoding the stream the method returns zero because no
 // more values can be read.
 func (d *StreamDecoder) Len() int {
 	if d.err != nil {
@@ -1301,7 +1301,7 @@ type ValueDecoder interface {
 	DecodeValue(Decoder) error
 }
 
-// ValueDecoderFunc allos the use of regular functions or methods as value
+// ValueDecoderFunc allows the use of regular functions or methods as value
 // decoders.
 type ValueDecoderFunc func(Decoder) error
 

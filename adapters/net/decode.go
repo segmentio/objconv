@@ -79,7 +79,7 @@ func decodeIPAddr(d objconv.Decoder, to reflect.Value) (err error) {
 	}
 
 	if a.IP = net.ParseIP(s); a.IP == nil {
-		err = errors.New("objconv: bad IP adress: " + s)
+		err = errors.New("objconv: bad IP address: " + s)
 		return
 	}
 
