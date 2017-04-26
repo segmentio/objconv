@@ -611,11 +611,11 @@ func (e *StreamEncoder) Open(n int) error {
 
 // Close terminates the stream encoder.
 func (e *StreamEncoder) Close() error {
-	if err := e.Open(-1); err != nil {
-		return err
-	}
-
 	if !e.closed {
+		if err := e.Open(-1); err != nil {
+			return err
+		}
+
 		e.closed = true
 
 		if !e.oneshot {
