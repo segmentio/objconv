@@ -380,7 +380,6 @@ func (d Decoder) decodeBytes(to reflect.Value) (t Type, err error) {
 
 func (d Decoder) decodeBytesFromType(t Type, to reflect.Value) (err error) {
 	var b []byte
-	var v []byte
 
 	switch t {
 	case Nil:
@@ -406,13 +405,18 @@ func (d Decoder) decodeBytesFromType(t Type, to reflect.Value) (err error) {
 		}
 	}
 
-	if t != Nil {
-		v = make([]byte, len(b))
-		copy(v, b)
-	}
-
 	if to.IsValid() {
-		to.SetBytes(v)
+		if t == Nil {
+			to.SetBytes(nil)
+		} else {
+			v := to.Bytes()[:0]
+
+			if v == nil {
+				v = make([]byte, 0, len(b))
+			}
+
+			to.SetBytes(append(v, b...))
+		}
 	}
 	return
 }
