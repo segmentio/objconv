@@ -561,7 +561,7 @@ encodeMap:
 //
 // Instances of StreamEncoder are not safe for use by multiple goroutines.
 type StreamEncoder struct {
-	Emitter     Emitter // the emiiter used by this encoder
+	Emitter     Emitter // the emitter used by this encoder
 	SortMapKeys bool    // whether map keys should be sorted
 
 	err     error
