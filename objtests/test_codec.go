@@ -226,6 +226,11 @@ func testCodecValues(t *testing.T, codec objconv.Codec) {
 }
 
 func testCodecStream(t *testing.T, codec objconv.Codec) {
+	t.Run("Values", func(t *testing.T) { testCodecStreamValues(t, codec) })
+	t.Run("Empty", func(t *testing.T) { testCodecStreamEmpty(t, codec) })
+}
+
+func testCodecStreamValues(t *testing.T, codec objconv.Codec) {
 	r, w := io.Pipe()
 	defer r.Close()
 
@@ -264,6 +269,28 @@ func testCodecStream(t *testing.T, codec objconv.Codec) {
 	var v interface{}
 	if err := d.Decode(&v); err == nil {
 		t.Error("too many values decoded from the stream")
+	}
+
+	if err := d.Err(); err != nil {
+		t.Error(err)
+	}
+}
+
+func testCodecStreamEmpty(t *testing.T, codec objconv.Codec) {
+	r, w := io.Pipe()
+	defer r.Close()
+
+	e := objconv.NewStreamEncoder(codec.NewEmitter(w))
+	d := objconv.NewStreamDecoder(codec.NewParser(r))
+
+	go func() {
+		e.Close()
+		w.Close()
+	}()
+
+	var v interface{}
+	if err := d.Decode(&v); err == nil {
+		t.Error("no values should have been produed on the stream")
 	}
 
 	if err := d.Err(); err != nil {

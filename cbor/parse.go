@@ -116,6 +116,9 @@ func (p *Parser) ParseType() (typ objconv.Type, err error) {
 			case svExtension:
 				typ = objconv.Nil // ignore unsupported extensions
 
+			case 0xFF:
+				err = objconv.End
+
 			default:
 				err = fmt.Errorf("objconv/cbor: unexpected value in major type 7: %d", b)
 			}

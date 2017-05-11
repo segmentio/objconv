@@ -1259,6 +1259,10 @@ func (d *StreamDecoder) Decode(v interface{}) error {
 			case End:
 				cnt++
 				max = cnt
+			default:
+				if max < 0 && dec.Parser.ParseArrayEnd(cnt) == nil {
+					err = End
+				}
 			}
 		}
 	}
