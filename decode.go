@@ -895,11 +895,19 @@ func (d Decoder) decodeDecoder(to reflect.Value) (Type, error) {
 	return Unknown /* just needs to not be Nil */, to.Interface().(ValueDecoder).DecodeValue(d)
 }
 
+func (d Decoder) decodeUnmarshalerPointer(to reflect.Value) (Type, error) {
+	return d.decodeUnmarshaler(to.Addr())
+}
+
 func (d Decoder) decodeUnmarshaler(to reflect.Value) (Type, error) {
 	if isTextParser(d.Parser) {
 		return d.decodeTextUnmarshaler(to)
 	}
 	return d.decodeBinaryUnmarshaler(to)
+}
+
+func (d Decoder) decodeBinaryUnmarshalerPointer(to reflect.Value) (Type, error) {
+	return d.decodeBinaryUnmarshaler(to.Addr())
 }
 
 func (d Decoder) decodeBinaryUnmarshaler(to reflect.Value) (t Type, err error) {
@@ -916,6 +924,10 @@ func (d Decoder) decodeBinaryUnmarshaler(to reflect.Value) (t Type, err error) {
 
 	err = to.Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary(b)
 	return
+}
+
+func (d Decoder) decodeTextUnmarshalerPointer(to reflect.Value) (Type, error) {
+	return d.decodeTextUnmarshaler(to.Addr())
 }
 
 func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
@@ -1358,13 +1370,11 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 		return Decoder.decodeFloat
 	}
 
-	// check if it implements one of the special case interfaces
-	switch p := reflect.PtrTo(t); {
+	// check if it implements one of the special case interfaces, first on the
+	// plain type, then on the pointer type
+	switch {
 	case t.Implements(valueDecoderInterface):
 		return Decoder.decodeDecoder
-
-	case p.Implements(valueDecoderInterface):
-		return Decoder.decodeDecoderPointer
 
 	case t.Implements(errorInterface):
 		return Decoder.decodeError
@@ -1377,6 +1387,20 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 
 	case t.Implements(textUnmarshalerInterface):
 		return Decoder.decodeTextUnmarshaler
+	}
+
+	switch p := reflect.PtrTo(t); {
+	case p.Implements(valueDecoderInterface):
+		return Decoder.decodeDecoderPointer
+
+	case p.Implements(binaryUnmarshalerInterface) && p.Implements(textUnmarshalerInterface):
+		return Decoder.decodeUnmarshalerPointer
+
+	case p.Implements(binaryUnmarshalerInterface):
+		return Decoder.decodeBinaryUnmarshalerPointer
+
+	case p.Implements(textUnmarshalerInterface):
+		return Decoder.decodeTextUnmarshalerPointer
 	}
 
 	// check what kind is the type, potentially generate a decoder

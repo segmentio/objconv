@@ -1,18 +1,15 @@
 package resp
 
 // The Error type represents redis errors.
-type Error struct {
-	raw string
-}
+type Error string
 
 // NewError returns a new redis error.
 func NewError(s string) *Error {
-	return &Error{
-		raw: s,
-	}
+	e := Error(s)
+	return &e
 }
 
 // Error satsifies the error interface.
 func (e *Error) Error() string {
-	return e.raw
+	return string(*e)
 }
