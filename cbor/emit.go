@@ -3,7 +3,9 @@ package cbor
 import (
 	"io"
 	"math"
+	"reflect"
 	"time"
+	"unsafe"
 
 	"github.com/segmentio/objconv/objutil"
 )
@@ -12,7 +14,7 @@ import (
 // interface.
 type Emitter struct {
 	w io.Writer
-	b [240]byte
+	b [16]byte
 
 	// This stack is used to keep track of the array map lengths being parsed.
 	// The sback array is the initial backend array for the stack.
@@ -79,24 +81,13 @@ func (e *Emitter) EmitString(v string) (err error) {
 	if err = e.emitUint(majorType3, uint64(len(v))); err != nil {
 		return
 	}
-
-	for len(v) != 0 {
-		n1 := len(v)
-		n2 := len(e.b)
-
-		if n1 > n2 {
-			n1 = n2
-		}
-
-		copy(e.b[:], v[:n1])
-
-		if _, err = e.w.Write(e.b[:n1]); err != nil {
-			return
-		}
-
-		v = v[n1:]
+	s := *(*reflect.StringHeader)(unsafe.Pointer(&v))
+	b := reflect.SliceHeader{
+		Data: s.Data,
+		Len:  s.Len,
+		Cap:  s.Len,
 	}
-
+	_, err = e.w.Write(*((*[]byte)(unsafe.Pointer(&b))))
 	return
 }
 
