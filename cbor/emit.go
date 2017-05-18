@@ -14,7 +14,7 @@ import (
 // interface.
 type Emitter struct {
 	w io.Writer
-	b [10]byte
+	b [16]byte
 
 	// This stack is used to keep track of the array map lengths being parsed.
 	// The sback array is the initial backend array for the stack.
