@@ -110,6 +110,7 @@ var (
 	// interfaces
 	errorInterface             = elemTypeOf((*error)(nil))
 	jsonDecoderInterface       = elemTypeOf((*json.Unmarshaler)(nil))
+	jsonEncoderInterface       = elemTypeOf((*json.Marshaler)(nil))
 	valueEncoderInterface      = elemTypeOf((*ValueEncoder)(nil))
 	valueDecoderInterface      = elemTypeOf((*ValueDecoder)(nil))
 	binaryMarshalerInterface   = elemTypeOf((*encoding.BinaryMarshaler)(nil))

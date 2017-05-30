@@ -2,6 +2,7 @@ package objconv
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -464,6 +465,14 @@ func (e Encoder) encodeTextMarshaler(v reflect.Value) error {
 	return err
 }
 
+func (e Encoder) encodeJSONMarshaler(v reflect.Value) error {
+	b, err := v.Interface().(json.Marshaler).MarshalJSON()
+	if err == nil {
+		err = e.Emitter.EmitString(stringNoCopy(b))
+	}
+	return err
+}
+
 func (e Encoder) encodeUnsupported(v reflect.Value) error {
 	return fmt.Errorf("objconv: the encoder doesn't support values of type %s", v.Type())
 }
@@ -764,6 +773,9 @@ func makeEncodeFunc(t reflect.Type, opts encodeFuncOpts) encodeFunc {
 
 	case t.Implements(errorInterface):
 		return Encoder.encodeError
+
+	case t.Implements(jsonEncoderInterface):
+		return Encoder.encodeJSONMarshaler
 	}
 
 	switch t.Kind() {
