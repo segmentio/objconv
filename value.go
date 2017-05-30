@@ -2,6 +2,7 @@ package objconv
 
 import (
 	"encoding"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"sync"
@@ -108,6 +109,7 @@ var (
 
 	// interfaces
 	errorInterface             = elemTypeOf((*error)(nil))
+	jsonDecoderInterface       = elemTypeOf((*json.Unmarshaler)(nil))
 	valueEncoderInterface      = elemTypeOf((*ValueEncoder)(nil))
 	valueDecoderInterface      = elemTypeOf((*ValueDecoder)(nil))
 	binaryMarshalerInterface   = elemTypeOf((*encoding.BinaryMarshaler)(nil))

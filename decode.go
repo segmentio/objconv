@@ -2,6 +2,7 @@ package objconv
 
 import (
 	"encoding"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -946,6 +947,22 @@ func (d Decoder) decodeTextUnmarshaler(to reflect.Value) (t Type, err error) {
 	return
 }
 
+func (d Decoder) decodeJSONUnmarshaler(to reflect.Value) (t Type, err error) {
+	var s string
+	var v = reflect.ValueOf(&s).Elem()
+
+	if t, err = d.decodeString(v); err != nil {
+		return
+	}
+
+	if to.Kind() == reflect.Ptr && to.IsNil() {
+		to.Set(reflect.New(to.Type().Elem()))
+	}
+
+	err = to.Interface().(json.Unmarshaler).UnmarshalJSON([]byte(s))
+	return
+}
+
 func (d Decoder) decodeInterface(to reflect.Value) (t Type, err error) {
 	if t, err = d.Parser.ParseType(); err == nil {
 		err = d.decodeInterfaceFromType(t, to)
@@ -1391,6 +1408,9 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 
 	case t.Implements(textUnmarshalerInterface):
 		return Decoder.decodeTextUnmarshaler
+
+	case t.Implements(jsonDecoderInterface):
+		return Decoder.decodeJSONUnmarshaler
 	}
 
 	switch p := reflect.PtrTo(t); {
@@ -1405,6 +1425,9 @@ func makeDecodeFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 
 	case p.Implements(textUnmarshalerInterface):
 		return Decoder.decodeTextUnmarshalerPointer
+
+	case p.Implements(jsonDecoderInterface):
+		return Decoder.decodeJSONUnmarshaler
 	}
 
 	// check what kind is the type, potentially generate a decoder
