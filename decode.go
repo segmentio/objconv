@@ -840,12 +840,12 @@ func (d Decoder) decodeStructFromTypeWith(typ Type, to reflect.Value, s *structT
 		if _, b, err = d.decodeTypeAndString(); err != nil {
 			return
 		}
+		f := s.fieldsByName[string(b)]
 
 		if err = d.Parser.ParseMapValue(vd.off - 1); err != nil {
 			return
 		}
 
-		f := s.fieldsByName[string(b)]
 		if f == nil {
 			_, err = d.decodeInterface(reflect.Value{}) // discard
 			return
