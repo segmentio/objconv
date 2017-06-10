@@ -89,9 +89,6 @@ func (e Encoder) Encode(v interface{}) (err error) {
 	case time.Duration:
 		return e.Emitter.EmitDuration(x)
 
-	case error:
-		return e.Emitter.EmitError(x)
-
 	case []string:
 		return e.encodeSliceOfString(x)
 
@@ -151,9 +148,6 @@ func (e Encoder) Encode(v interface{}) (err error) {
 
 	case *time.Duration:
 		return e.Emitter.EmitDuration(*x)
-
-	case *error:
-		return e.Emitter.EmitError(*x)
 
 	case *[]string:
 		return e.encodeSliceOfString(*x)
