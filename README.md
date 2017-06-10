@@ -8,6 +8,12 @@ The top-level package exposes the generic types and algorithms for encoding and
 decoding values, while each sub-package implements the parser and emitters for
 specific types.
 
+### Breaking changes introduced in [#18](https://github.com/segmentio/objconv/pull/18)
+
+The `Encoder` type used to have methods exposed to encode specific types for
+optimization purposes. The generic `Encode` method has been optimized to make
+those other methods obsolete and they were therefore removed.
+
 Compatibility with the standard library
 ---------------------------------------
 
