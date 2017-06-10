@@ -6,6 +6,7 @@ import (
 	"io"
 	"reflect"
 	"time"
+	"unsafe"
 )
 
 // An Encoder implements the high-level encoding algorithm that inspect encoded
@@ -38,82 +39,140 @@ func (e Encoder) Encode(v interface{}) (err error) {
 	if err = e.encodeMapValueMaybe(); err != nil {
 		return
 	}
-	if v == nil {
+
+	// This type switch optimizes encoding of common value types, it prevents
+	// the use of reflection to identify the type of the value, which saves a
+	// dynamic memory allocation.
+	switch x := v.(type) {
+	case nil:
 		return e.Emitter.EmitNil()
-	}
-	return e.encode(reflect.ValueOf(v))
-}
 
-// EncodeBool uses e to encode the boolean value v.
-func (e Encoder) EncodeBool(v bool) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitBool(v)
-}
+	case bool:
+		return e.Emitter.EmitBool(x)
 
-// EncodeInt uses e to encode the signed integer value v.
-func (e Encoder) EncodeInt(v int64) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitInt(v, 64)
-}
+	case int:
+		return e.Emitter.EmitInt(int64(x), int(8*unsafe.Sizeof(0)))
 
-// EncodeUint uses e to encode the unsigned integer value v.
-func (e Encoder) EncodeUint(v uint64) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitUint(v, 64)
-}
+	case int8:
+		return e.Emitter.EmitInt(int64(x), 8)
 
-// EncodeFloat uses e to encode the floating point value v.
-func (e Encoder) EncodeFloat(v float64) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitFloat(v, 64)
-}
+	case int16:
+		return e.Emitter.EmitInt(int64(x), 16)
 
-// EncodeString uses e to encode the string value v.
-func (e Encoder) EncodeString(v string) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitString(v)
-}
+	case int32:
+		return e.Emitter.EmitInt(int64(x), 32)
 
-// EncodeBytes uses e to encode the byte slice value v.
-func (e Encoder) EncodeBytes(v []byte) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitBytes(v)
-}
+	case int64:
+		return e.Emitter.EmitInt(x, 64)
 
-// EncodeTime uses e to encode the time value v.
-func (e Encoder) EncodeTime(v time.Time) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitTime(v)
-}
+	case uint8:
+		return e.Emitter.EmitUint(uint64(x), 8)
 
-// EncodeDuration uses e to encode the duration value v.
-func (e Encoder) EncodeDuration(v time.Duration) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
-	}
-	return e.Emitter.EmitDuration(v)
-}
+	case uint16:
+		return e.Emitter.EmitUint(uint64(x), 16)
 
-// EncodeError uses e to encode the error value v.
-func (e Encoder) EncodeError(v error) (err error) {
-	if err = e.encodeMapValueMaybe(); err != nil {
-		return
+	case uint32:
+		return e.Emitter.EmitUint(uint64(x), 32)
+
+	case uint64:
+		return e.Emitter.EmitUint(x, 64)
+
+	case string:
+		return e.Emitter.EmitString(x)
+
+	case []byte:
+		return e.Emitter.EmitBytes(x)
+
+	case time.Time:
+		return e.Emitter.EmitTime(x)
+
+	case time.Duration:
+		return e.Emitter.EmitDuration(x)
+
+	case error:
+		return e.Emitter.EmitError(x)
+
+	case []string:
+		return e.encodeSliceOfString(x)
+
+	case []interface{}:
+		return e.encodeSliceOfInterface(x)
+
+	case map[string]string:
+		return e.encodeMapStringString(x)
+
+	case map[string]interface{}:
+		return e.encodeMapStringInterface(x)
+
+	case map[interface{}]interface{}:
+		return e.encodeMapInterfaceInterface(x)
+
+		// Also checks for pointer types so the program can use this as a way
+		// to avoid the dynamic memory allocation done by runtime.convT2E for
+		// converting non-pointer types to empty interfaces.
+	case *bool:
+		return e.Emitter.EmitBool(*x)
+
+	case *int:
+		return e.Emitter.EmitInt(int64(*x), int(8*unsafe.Sizeof(0)))
+
+	case *int8:
+		return e.Emitter.EmitInt(int64(*x), 8)
+
+	case *int16:
+		return e.Emitter.EmitInt(int64(*x), 16)
+
+	case *int32:
+		return e.Emitter.EmitInt(int64(*x), 32)
+
+	case *int64:
+		return e.Emitter.EmitInt(*x, 64)
+
+	case *uint8:
+		return e.Emitter.EmitUint(uint64(*x), 8)
+
+	case *uint16:
+		return e.Emitter.EmitUint(uint64(*x), 16)
+
+	case *uint32:
+		return e.Emitter.EmitUint(uint64(*x), 32)
+
+	case *uint64:
+		return e.Emitter.EmitUint(*x, 64)
+
+	case *string:
+		return e.Emitter.EmitString(*x)
+
+	case *[]byte:
+		return e.Emitter.EmitBytes(*x)
+
+	case *time.Time:
+		return e.Emitter.EmitTime(*x)
+
+	case *time.Duration:
+		return e.Emitter.EmitDuration(*x)
+
+	case *error:
+		return e.Emitter.EmitError(*x)
+
+	case *[]string:
+		return e.encodeSliceOfString(*x)
+
+	case *[]interface{}:
+		return e.encodeSliceOfInterface(*x)
+
+	case *map[string]string:
+		return e.encodeMapStringString(*x)
+
+	case *map[string]interface{}:
+		return e.encodeMapStringInterface(*x)
+
+	case *map[interface{}]interface{}:
+		return e.encodeMapInterfaceInterface(*x)
+
+	default:
+		return e.encode(reflect.ValueOf(v))
 	}
-	return e.Emitter.EmitError(v)
 }
 
 func (e *Encoder) encodeMapValueMaybe() (err error) {
@@ -236,6 +295,24 @@ func (e Encoder) encodeArrayWith(v reflect.Value, f encodeFunc) error {
 	})
 }
 
+func (e Encoder) encodeSliceOfString(a []string) error {
+	i := 0
+	return e.EncodeArray(len(a), func(e Encoder) (err error) {
+		err = e.Emitter.EmitString(a[i])
+		i++
+		return
+	})
+}
+
+func (e Encoder) encodeSliceOfInterface(a []interface{}) error {
+	i := 0
+	return e.EncodeArray(len(a), func(e Encoder) (err error) {
+		err = e.Encode(a[i])
+		i++
+		return
+	})
+}
+
 func (e Encoder) encodeMap(v reflect.Value) error {
 	t := v.Type()
 	kf := encodeFuncOf(t.Key())
@@ -249,13 +326,13 @@ func (e Encoder) encodeMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) er
 	if !e.SortMapKeys {
 		switch {
 		case t.ConvertibleTo(mapInterfaceInterfaceType):
-			return e.encodeMapInterfaceInterface(v.Convert(mapInterfaceInterfaceType))
+			return e.encodeMapInterfaceInterfaceValue(v.Convert(mapInterfaceInterfaceType))
 
 		case t.ConvertibleTo(mapStringInterfaceType):
-			return e.encodeMapStringInterface(v.Convert(mapStringInterfaceType))
+			return e.encodeMapStringInterfaceValue(v.Convert(mapStringInterfaceType))
 
 		case t.ConvertibleTo(mapStringStringType):
-			return e.encodeMapStringString(v.Convert(mapStringStringType))
+			return e.encodeMapStringStringValue(v.Convert(mapStringStringType))
 		}
 	}
 
@@ -286,8 +363,11 @@ func (e Encoder) encodeMapWith(v reflect.Value, kf encodeFunc, vf encodeFunc) er
 	})
 }
 
-func (e Encoder) encodeMapInterfaceInterface(v reflect.Value) (err error) {
-	m := v.Interface().(map[interface{}]interface{})
+func (e Encoder) encodeMapInterfaceInterfaceValue(v reflect.Value) error {
+	return e.encodeMapInterfaceInterface(v.Interface().(map[interface{}]interface{}))
+}
+
+func (e Encoder) encodeMapInterfaceInterface(m map[interface{}]interface{}) (err error) {
 	n := len(m)
 	i := 0
 
@@ -316,8 +396,11 @@ func (e Encoder) encodeMapInterfaceInterface(v reflect.Value) (err error) {
 	return e.Emitter.EmitMapEnd()
 }
 
-func (e Encoder) encodeMapStringInterface(v reflect.Value) (err error) {
-	m := v.Interface().(map[string]interface{})
+func (e Encoder) encodeMapStringInterfaceValue(v reflect.Value) error {
+	return e.encodeMapStringInterface(v.Interface().(map[string]interface{}))
+}
+
+func (e Encoder) encodeMapStringInterface(m map[string]interface{}) (err error) {
 	n := len(m)
 	i := 0
 
@@ -346,8 +429,11 @@ func (e Encoder) encodeMapStringInterface(v reflect.Value) (err error) {
 	return e.Emitter.EmitMapEnd()
 }
 
-func (e Encoder) encodeMapStringString(v reflect.Value) (err error) {
-	m := v.Interface().(map[string]string)
+func (e Encoder) encodeMapStringStringValue(v reflect.Value) error {
+	return e.encodeMapStringString(v.Interface().(map[string]string))
+}
+
+func (e Encoder) encodeMapStringString(m map[string]string) (err error) {
 	n := len(m)
 	i := 0
 

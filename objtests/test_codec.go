@@ -114,6 +114,8 @@ var TestValues = [...]interface{}{
 	[]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 	make([]int, objutil.Uint8Max+1),
 	make([]int, objutil.Uint16Max+1),
+	[]string{"A", "B", "C"},
+	[]interface{}{nil, true, false, 0.5, "Hello World!"},
 
 	// map
 	makeMap(0),

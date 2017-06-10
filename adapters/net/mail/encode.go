@@ -10,7 +10,7 @@ import (
 
 func encodeAddress(e objconv.Encoder, v reflect.Value) error {
 	a := v.Interface().(mail.Address)
-	return e.Emitter.EmitString(a.String())
+	return e.Encode(a.String())
 }
 
 func encodeAddressList(e objconv.Encoder, v reflect.Value) error {
@@ -27,5 +27,5 @@ func encodeAddressList(e objconv.Encoder, v reflect.Value) error {
 		b.WriteString(a.String())
 	}
 
-	return e.EncodeString(b.String())
+	return e.Encode(b.String())
 }

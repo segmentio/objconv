@@ -9,10 +9,10 @@ import (
 
 func encodeURL(e objconv.Encoder, v reflect.Value) error {
 	u := v.Interface().(url.URL)
-	return e.Emitter.EmitString(u.String())
+	return e.Encode(u.String())
 }
 
 func encodeQuery(e objconv.Encoder, v reflect.Value) error {
 	q := v.Interface().(url.Values)
-	return e.Emitter.EmitString(q.Encode())
+	return e.Encode(q.Encode())
 }
