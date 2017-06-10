@@ -51,7 +51,7 @@ func (e Encoder) Encode(v interface{}) (err error) {
 		return e.Emitter.EmitBool(x)
 
 	case int:
-		return e.Emitter.EmitInt(int64(x), int(8*unsafe.Sizeof(0)))
+		return e.Emitter.EmitInt(int64(x), 0)
 
 	case int8:
 		return e.Emitter.EmitInt(int64(x), 8)
