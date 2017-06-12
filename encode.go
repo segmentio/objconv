@@ -108,60 +108,117 @@ func (e Encoder) Encode(v interface{}) (err error) {
 		// to avoid the dynamic memory allocation done by runtime.convT2E for
 		// converting non-pointer types to empty interfaces.
 	case *bool:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitBool(*x)
 
 	case *int:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitInt(int64(*x), int(8*unsafe.Sizeof(0)))
 
 	case *int8:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitInt(int64(*x), 8)
 
 	case *int16:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitInt(int64(*x), 16)
 
 	case *int32:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitInt(int64(*x), 32)
 
 	case *int64:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitInt(*x, 64)
 
 	case *uint8:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitUint(uint64(*x), 8)
 
 	case *uint16:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitUint(uint64(*x), 16)
 
 	case *uint32:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitUint(uint64(*x), 32)
 
 	case *uint64:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitUint(*x, 64)
 
 	case *string:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitString(*x)
 
 	case *[]byte:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitBytes(*x)
 
 	case *time.Time:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitTime(*x)
 
 	case *time.Duration:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.Emitter.EmitDuration(*x)
 
 	case *[]string:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.encodeSliceOfString(*x)
 
 	case *[]interface{}:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.encodeSliceOfInterface(*x)
 
 	case *map[string]string:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.encodeMapStringString(*x)
 
 	case *map[string]interface{}:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.encodeMapStringInterface(*x)
 
 	case *map[interface{}]interface{}:
+		if x == nil {
+			return e.Emitter.EmitNil()
+		}
 		return e.encodeMapInterfaceInterface(*x)
 
 	default:
