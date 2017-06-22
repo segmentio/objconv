@@ -2,7 +2,9 @@ package json
 
 import (
 	"encoding/base64"
+	"errors"
 	"io"
+	"math"
 	"strconv"
 	"time"
 
@@ -71,7 +73,19 @@ func (e *Emitter) EmitUint(v uint64, _ int) (err error) {
 }
 
 func (e *Emitter) EmitFloat(v float64, bitSize int) (err error) {
-	_, err = e.w.Write(strconv.AppendFloat(e.s[:0], v, 'g', -1, bitSize))
+	switch {
+	case math.IsNaN(v):
+		err = errors.New("NaN has no json representation")
+
+	case math.IsInf(v, +1):
+		err = errors.New("+Inf has no json representation")
+
+	case math.IsInf(v, -1):
+		err = errors.New("-Inf has no json representation")
+
+	default:
+		_, err = e.w.Write(strconv.AppendFloat(e.s[:0], v, 'g', -1, bitSize))
+	}
 	return
 }
 

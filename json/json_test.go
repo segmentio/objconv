@@ -2,6 +2,7 @@ package json
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -64,5 +65,23 @@ func TestMapValueOverflow(t *testing.T) {
 
 	if val.A != "good" {
 		t.Error(val.A)
+	}
+}
+
+func TestEmitImpossibleFloats(t *testing.T) {
+	values := []float64{
+		math.NaN(),
+		math.Inf(+1),
+		math.Inf(-1),
+	}
+
+	for _, v := range values {
+		t.Run(fmt.Sprintf("emitting %v must return an error", v), func(t *testing.T) {
+			e := Emitter{}
+
+			if err := e.EmitFloat(v, 64); err == nil {
+				t.Error("no error was returned")
+			}
+		})
 	}
 }
