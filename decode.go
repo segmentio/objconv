@@ -39,20 +39,28 @@ func NewDecoder(p Parser) *Decoder {
 //
 // The method panics if v is neither a pointer type nor implements the
 // ValueDecoder interface, or if v is a nil pointer.
-func (d Decoder) Decode(v interface{}) (err error) {
+func (d Decoder) Decode(v interface{}) error {
 	to := reflect.ValueOf(v)
 
 	if d.off != 0 {
+		var err error
 		if d.off, err = 0, d.Parser.ParseMapValue(d.off-1); err != nil {
-			return
+			return err
 		}
 	}
 
 	if !to.IsValid() {
 		// This special case for a nil value is used to make it possible to
 		// discard decoded values.
-		_, err = d.decodeInterface(to)
-		return
+		_, err := d.decodeInterface(to)
+		return err
+	}
+
+	// Optimization for ValueDecoder, in practice tho it's also handled in the
+	// methods that are based on reflection.
+	switch x := v.(type) {
+	case ValueDecoder:
+		return x.DecodeValue(d)
 	}
 
 	if to.Kind() == reflect.Ptr {
@@ -64,8 +72,8 @@ func (d Decoder) Decode(v interface{}) (err error) {
 		to = to.Elem()
 	}
 
-	_, err = d.decode(to)
-	return
+	_, err := d.decode(to)
+	return err
 }
 
 func (d Decoder) decode(to reflect.Value) (Type, error) {

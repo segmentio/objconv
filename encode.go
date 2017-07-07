@@ -221,6 +221,9 @@ func (e Encoder) Encode(v interface{}) (err error) {
 		}
 		return e.encodeMapInterfaceInterface(*x)
 
+	case ValueEncoder:
+		return x.EncodeValue(e)
+
 	default:
 		return e.encode(reflect.ValueOf(v))
 	}
