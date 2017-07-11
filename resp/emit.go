@@ -58,7 +58,18 @@ func NewEmitter(w io.Writer) *Emitter {
 
 func (e *Emitter) Reset(w io.Writer) {
 	e.w = w
-	e.stack = e.stack[:0]
+
+	if e.stack == nil {
+		e.stack = e.stack[:0]
+	} else {
+		e.stack = e.stack[:0]
+	}
+
+	if e.s == nil {
+		e.s = e.a[:0]
+	} else {
+		e.s = e.s[:0]
+	}
 }
 
 func (e *Emitter) EmitNil() (err error) {
