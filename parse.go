@@ -23,30 +23,30 @@ type Parser interface {
 	// ParseInt parses an integer value.
 	ParseInt() (int64, error)
 
-	// ParseBool parses an unsigned integer value.
+	// ParseUint parses an unsigned integer value.
 	ParseUint() (uint64, error)
 
-	// ParseBool parses a floating point value.
+	// ParseFloat parses a floating point value.
 	ParseFloat() (float64, error)
 
-	// ParseBool parses a string value.
+	// ParseString parses a string value.
 	//
 	// The string is returned as a byte slice because it is expected to be
 	// pointing at an internal memory buffer, the decoder will make a copy of
 	// the value. This design allows more memory allocation optimizations.
 	ParseString() ([]byte, error)
 
-	// ParseBool parses a byte array value.
+	// ParseBytes parses a byte array value.
 	//
 	// The returned byte slice is expected to be pointing at an internal memory
 	// buffer, the decoder will make a copy of the value. This design allows more
 	// memory allocation optimizations.
 	ParseBytes() ([]byte, error)
 
-	// ParseBool parses a time value.
+	// ParseTime parses a time value.
 	ParseTime() (time.Time, error)
 
-	// ParseBool parses a duration value.
+	// ParseDuration parses a duration value.
 	ParseDuration() (time.Duration, error)
 
 	// ParseError parses an error value.
