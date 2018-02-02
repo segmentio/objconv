@@ -167,6 +167,24 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 
 		i = int64(u)
 
+	case String:
+		var b []byte
+
+		if b, err = d.Parser.ParseString(); err != nil {
+			return
+		}
+
+		i, err = strconv.ParseInt(string(b), 10, 64)
+
+	case Bytes:
+		var b []byte
+
+		if b, err = d.Parser.ParseBytes(); err != nil {
+			return
+		}
+
+		i, err = strconv.ParseInt(string(b), 10, 64)
+
 	default:
 		err = typeConversionError(t, Int)
 	}
@@ -237,6 +255,24 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 			}
 		}
 
+	case String:
+		var b []byte
+
+		if b, err = d.Parser.ParseString(); err != nil {
+			return
+		}
+
+		u, err = strconv.ParseUint(string(b), 10, 64)
+
+	case Bytes:
+		var b []byte
+
+		if b, err = d.Parser.ParseBytes(); err != nil {
+			return
+		}
+
+		u, err = strconv.ParseUint(string(b), 10, 64)
+
 	default:
 		err = typeConversionError(t, Uint)
 	}
@@ -283,6 +319,24 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 
 	case Float:
 		f, err = d.Parser.ParseFloat()
+
+	case String:
+		var b []byte
+
+		if b, err = d.Parser.ParseString(); err != nil {
+			return
+		}
+
+		f, err = strconv.ParseFloat(string(b), 64)
+
+	case Bytes:
+		var b []byte
+
+		if b, err = d.Parser.ParseBytes(); err != nil {
+			return
+		}
+
+		f, err = strconv.ParseFloat(string(b), 64)
 
 	default:
 		err = typeConversionError(t, Float)
