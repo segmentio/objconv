@@ -142,6 +142,15 @@ func TestDecoderDecodeType(t *testing.T) {
 		// string -> bytes
 		{"Hello World!", []byte("Hello World!")},
 
+		// string -> int
+		{"-42", -42},
+
+		// string -> uint
+		{"42", uint(42)},
+
+		// string -> float
+		{"42.2", 42.2},
+
 		// string -> time
 		{"2016-12-12T01:01:01.000Z", date},
 
@@ -156,6 +165,15 @@ func TestDecoderDecodeType(t *testing.T) {
 
 		// bytes -> string
 		{[]byte("Hello World!"), "Hello World!"},
+
+		// bytes -> int
+		{[]byte("-42"), -42},
+
+		// bytes -> uint
+		{[]byte("42"), uint(42)},
+
+		// bytes -> float
+		{[]byte("42.42"), 42.42},
 
 		// bytes -> time
 		{[]byte("2016-12-12T01:01:01.000Z"), date},
