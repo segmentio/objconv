@@ -174,7 +174,7 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		i, err = strconv.ParseInt(string(b), 10, 64)
+		i, err = strconv.ParseInt(objutil.UnsafeString(b), 10, 64)
 
 	case Bytes:
 		var b []byte
@@ -183,7 +183,7 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		i, err = strconv.ParseInt(string(b), 10, 64)
+		i, err = strconv.ParseInt(objutil.UnsafeString(b), 10, 64)
 
 	default:
 		err = typeConversionError(t, Int)
@@ -262,7 +262,7 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		u, err = strconv.ParseUint(string(b), 10, 64)
+		u, err = strconv.ParseUint(objutil.UnsafeString(b), 10, 64)
 
 	case Bytes:
 		var b []byte
@@ -271,7 +271,7 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		u, err = strconv.ParseUint(string(b), 10, 64)
+		u, err = strconv.ParseUint(objutil.UnsafeString(b), 10, 64)
 
 	default:
 		err = typeConversionError(t, Uint)
@@ -327,7 +327,7 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		f, err = strconv.ParseFloat(string(b), 64)
+		f, err = strconv.ParseFloat(objutil.UnsafeString(b), 64)
 
 	case Bytes:
 		var b []byte
@@ -336,7 +336,7 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		f, err = strconv.ParseFloat(string(b), 64)
+		f, err = strconv.ParseFloat(objutil.UnsafeString(b), 64)
 
 	default:
 		err = typeConversionError(t, Float)
@@ -510,7 +510,7 @@ func (d Decoder) decodeTimeFromType(t Type, to reflect.Value) (err error) {
 
 	if to.IsValid() {
 		if t == String || t == Bytes {
-			v, err = time.Parse(time.RFC3339Nano, string(s))
+			v, err = time.Parse(time.RFC3339Nano, objutil.UnsafeString(s))
 		}
 		*(to.Addr().Interface().(*time.Time)) = v
 	}
@@ -547,7 +547,7 @@ func (d Decoder) decodeDurationFromType(t Type, to reflect.Value) (err error) {
 	}
 
 	if t == String || t == Bytes {
-		v, err = time.ParseDuration(string(s))
+		v, err = time.ParseDuration(objutil.UnsafeString(s))
 	}
 
 	if to.IsValid() {
