@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"unsafe"
 
 	"github.com/segmentio/objconv/objutil"
 )
@@ -174,7 +175,11 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		i, err = strconv.ParseInt(string(b), 10, 64)
+		i, err = strconv.ParseInt(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
+		if err != nil {
+			_, err = strconv.ParseInt(string(b), 10, 64)
+		}
 
 	case Bytes:
 		var b []byte
@@ -183,7 +188,11 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		i, err = strconv.ParseInt(string(b), 10, 64)
+		i, err = strconv.ParseInt(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
+		if err != nil {
+			_, err = strconv.ParseInt(string(b), 10, 64)
+		}
 
 	default:
 		err = typeConversionError(t, Int)
@@ -262,7 +271,11 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		u, err = strconv.ParseUint(string(b), 10, 64)
+		u, err = strconv.ParseUint(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
+		if err != nil {
+			_, err = strconv.ParseUint(string(b), 10, 64)
+		}
 
 	case Bytes:
 		var b []byte
@@ -271,7 +284,11 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		u, err = strconv.ParseUint(string(b), 10, 64)
+		u, err = strconv.ParseUint(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
+		if err != nil {
+			_, err = strconv.ParseUint(string(b), 10, 64)
+		}
 
 	default:
 		err = typeConversionError(t, Uint)
@@ -327,7 +344,11 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		f, err = strconv.ParseFloat(string(b), 64)
+		f, err = strconv.ParseFloat(unsafeString(b), 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
+		if err != nil {
+			_, err = strconv.ParseFloat(string(b), 64)
+		}
 
 	case Bytes:
 		var b []byte
@@ -336,7 +357,11 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 			return
 		}
 
-		f, err = strconv.ParseFloat(string(b), 64)
+		f, err = strconv.ParseFloat(unsafeString(b), 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
+		if err != nil {
+			_, err = strconv.ParseFloat(string(b), 64)
+		}
 
 	default:
 		err = typeConversionError(t, Float)
@@ -510,7 +535,11 @@ func (d Decoder) decodeTimeFromType(t Type, to reflect.Value) (err error) {
 
 	if to.IsValid() {
 		if t == String || t == Bytes {
-			v, err = time.Parse(time.RFC3339Nano, string(s))
+			v, err = time.Parse(time.RFC3339Nano, unsafeString(s))
+			// if an error is received, reparse with a "safe" string in case it is retained in the error
+			if err != nil {
+				_, err = time.Parse(time.RFC3339Nano, string(t))
+			}
 		}
 		*(to.Addr().Interface().(*time.Time)) = v
 	}
@@ -547,7 +576,11 @@ func (d Decoder) decodeDurationFromType(t Type, to reflect.Value) (err error) {
 	}
 
 	if t == String || t == Bytes {
-		v, err = time.ParseDuration(string(s))
+		v, err = time.ParseDuration(unsafeString(s))
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
+		if err != nil {
+			_, err = time.ParseDuration(string(s))
+		}
 	}
 
 	if to.IsValid() {
@@ -1554,4 +1587,16 @@ func makeDecodePtrFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 	return func(d Decoder, v reflect.Value) (Type, error) {
 		return d.decodePointerWith(v, f)
 	}
+}
+
+// unsafeString returns a string that is only safe to use under the following conditions:
+// - b points to data on the heap
+// - the bytes pointed to by b will not be modified while the returned string exists
+// - the returned string will not be stored past the lifetime of b
+// if the method being called with an unsafe returns an error, that error may
+// contain a reference to unsafe string. if the method produces consistent results,
+// calling it again with a safe string should return an error that can be safely
+// returned to the caller.
+func unsafeString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }
