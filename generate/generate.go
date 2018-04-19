@@ -416,13 +416,7 @@ func generateStructFunc(basePkg string, g *generatorType) string {
 		if err != nil {
 			return res, err
 		}
-		var k string
-		if len(kb) > 0 {
-			k = *(*string)(unsafe.Pointer(&reflect.StringHeader{
-				Data: uintptr(unsafe.Pointer(&kb[0])),
-				Len: len(kb),
-			}))
-		}
+		k := *(*string)(unsafe.Pointer(&kb))
 		switch k {`, g.typeName(basePkg))
 	for f, ftyp := range g.structFields {
 		res += fmt.Sprintf(`
@@ -467,13 +461,7 @@ func generateTimeFunc() string {
 		if err != nil {
 			return time.Time{}, err
 		}
-		var tstr string
-		if len(b) > 0 {
-			tstr = *(*string)(unsafe.Pointer(&reflect.StringHeader{
-				Data: uintptr(unsafe.Pointer(&b[0])),
-				Len: len(b),
-			}))
-		}
+		tstr := *(*string)(unsafe.Pointer(&b))
 		return time.Parse(time.RFC3339Nano, tstr)
 	default:
 		return time.Time{}, fmt.Errorf("Cannot parse Time from type %s", typ.String())
