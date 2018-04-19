@@ -176,6 +176,7 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 		}
 
 		i, err = strconv.ParseInt(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
 		if err != nil {
 			_, err = strconv.ParseInt(string(b), 10, 64)
 		}
@@ -188,6 +189,7 @@ func (d Decoder) decodeIntFromType(t Type, to reflect.Value) (err error) {
 		}
 
 		i, err = strconv.ParseInt(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
 		if err != nil {
 			_, err = strconv.ParseInt(string(b), 10, 64)
 		}
@@ -270,6 +272,7 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 		}
 
 		u, err = strconv.ParseUint(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
 		if err != nil {
 			_, err = strconv.ParseUint(string(b), 10, 64)
 		}
@@ -282,6 +285,7 @@ func (d Decoder) decodeUintFromType(t Type, to reflect.Value) (err error) {
 		}
 
 		u, err = strconv.ParseUint(unsafeString(b), 10, 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
 		if err != nil {
 			_, err = strconv.ParseUint(string(b), 10, 64)
 		}
@@ -341,6 +345,7 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 		}
 
 		f, err = strconv.ParseFloat(unsafeString(b), 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
 		if err != nil {
 			_, err = strconv.ParseFloat(string(b), 64)
 		}
@@ -353,6 +358,7 @@ func (d Decoder) decodeFloatFromType(t Type, to reflect.Value) (err error) {
 		}
 
 		f, err = strconv.ParseFloat(unsafeString(b), 64)
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
 		if err != nil {
 			_, err = strconv.ParseFloat(string(b), 64)
 		}
@@ -530,6 +536,7 @@ func (d Decoder) decodeTimeFromType(t Type, to reflect.Value) (err error) {
 	if to.IsValid() {
 		if t == String || t == Bytes {
 			v, err = time.Parse(time.RFC3339Nano, unsafeString(s))
+			// if an error is received, reparse with a "safe" string in case it is retained in the error
 			if err != nil {
 				_, err = time.Parse(time.RFC3339Nano, string(t))
 			}
@@ -570,6 +577,7 @@ func (d Decoder) decodeDurationFromType(t Type, to reflect.Value) (err error) {
 
 	if t == String || t == Bytes {
 		v, err = time.ParseDuration(unsafeString(s))
+		// if an error is received, reparse with a "safe" string in case it is retained in the error
 		if err != nil {
 			_, err = time.ParseDuration(string(s))
 		}
@@ -1590,11 +1598,5 @@ func makeDecodePtrFunc(t reflect.Type, opts decodeFuncOpts) decodeFunc {
 // calling it again with a safe string should return an error that can be safely
 // returned to the caller.
 func unsafeString(b []byte) string {
-	if len(b) == 0 {
-		return ""
-	}
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
-		Data: uintptr(unsafe.Pointer(&b[0])),
-		Len:  len(b),
-	}))
+	return *(*string)(unsafe.Pointer(&b))
 }
