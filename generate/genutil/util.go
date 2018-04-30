@@ -1,4 +1,4 @@
-package util
+package genutil
 
 import (
 	"fmt"
@@ -116,7 +116,8 @@ func ParseInt(p objconv.Parser) (int64, error) {
 	case objconv.Float:
 		var fv float64
 		fv, err = p.ParseFloat()
-		if float64(int64(fv)) != fv {
+		v = int64(fv)
+		if float64(fv) != fv {
 			err = fmt.Errorf("objconv: %f does not fit in int64", fv)
 		}
 	default:

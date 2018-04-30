@@ -42,13 +42,13 @@ type generatorType struct {
 func (g *generatorType) funcName() string {
 	switch g.kind {
 	case typArray:
-		return g.subType.funcName() + "_" + strconv.FormatInt(g.arrayLength, 10)
+		return g.subType.funcName() + strconv.FormatInt(g.arrayLength, 10)
 	case typStruct:
-		return g.pkgName + "_" + g.name
+		return g.pkgName + g.name
 	case typAlias:
-		return g.pkgName + "_" + g.name
+		return g.pkgName + g.name
 	case typTime:
-		return "time_Time"
+		return "timeTime"
 	case typBasic:
 		return g.name
 	}
@@ -211,7 +211,7 @@ import (
 	%[2]s
 
 	"github.com/segmentio/objconv"
-	"github.com/segmentio/objconv/generate/util"
+	"github.com/segmentio/objconv/generate/genutil"
 )
 
 type %[3]s struct {
@@ -219,7 +219,7 @@ type %[3]s struct {
 }
 
 func (d *%[3]s) Decode() (%[4]s, error) {
-	return d.decode_%[5]s()
+	return d.decode%[5]s()
 }`, gtyp.pkgName, strings.Join(pkgNames, "\n"), decoderName, gtyp.name, gtyp.funcName())
 
 	for _, t := range typs {
@@ -230,7 +230,7 @@ func (d *%[3]s) Decode() (%[4]s, error) {
 }
 
 func generateDecodeFunc(decoderName string, basePkg string, g *generatorType) string {
-	res := fmt.Sprintf("func (d *%[1]s) decode_%[2]s() (%[3]s, error) {", decoderName, g.funcName(), g.typeName(basePkg))
+	res := fmt.Sprintf("func (d *%[1]s) decode%[2]s() (%[3]s, error) {", decoderName, g.funcName(), g.typeName(basePkg))
 
 	switch g.kind {
 	case typBasic:
@@ -254,16 +254,16 @@ func generateBasicFunc(g *generatorType) string {
 	switch g.basicKind {
 	case types.Bool:
 		return `
-	return util.ParseBool(d.Parser)`
+	return genutil.ParseBool(d.Parser)`
 
 	case types.Int:
 		return `
-	v, err := util.ParseInt(d.Parser)
+	v, err := genutil.ParseInt(d.Parser)
 	return int(v), err`
 
 	case types.Int8:
 		return fmt.Sprintf(`
-	v, err := util.ParseInt(d.Parser)
+	v, err := genutil.ParseInt(d.Parser)
 	if v > %d || v < %d {
 		err = fmt.Errorf("%%d does not fit in int8", v)
 	}
@@ -271,7 +271,7 @@ func generateBasicFunc(g *generatorType) string {
 
 	case types.Int16:
 		return fmt.Sprintf(`
-	v, err := util.ParseInt(d.Parser)
+	v, err := genutil.ParseInt(d.Parser)
 	if v > %d || v < %d {
 		err = fmt.Errorf("%%d does not fit in int16", v)
 	}
@@ -279,7 +279,7 @@ func generateBasicFunc(g *generatorType) string {
 
 	case types.Int32:
 		return fmt.Sprintf(`
-	v, err := util.ParseInt(d.Parser)
+	v, err := genutil.ParseInt(d.Parser)
 	if v > %d || v < %d {
 		err = fmt.Errorf("%%d does not fit in int32", v)
 	}
@@ -287,16 +287,16 @@ func generateBasicFunc(g *generatorType) string {
 
 	case types.Int64:
 		return `
-	return util.ParseInt(d.Parser)`
+	return genutil.ParseInt(d.Parser)`
 
 	case types.Uint:
 		return `
-	v, err := util.ParseUint(d.Parser)
+	v, err := genutil.ParseUint(d.Parser)
 	return uint(v), err`
 
 	case types.Uint8:
 		return fmt.Sprintf(`
-	v, err := util.ParseUint(d.Parser)
+	v, err := genutil.ParseUint(d.Parser)
 	if v > %d {
 		err = fmt.Errorf("%%d does not fit in uint8", v)
 	}
@@ -304,7 +304,7 @@ func generateBasicFunc(g *generatorType) string {
 
 	case types.Uint16:
 		return fmt.Sprintf(`
-	v, err := util.ParseUint(d.Parser)
+	v, err := genutil.ParseUint(d.Parser)
 	if v > %d {
 		err = fmt.Errorf("%%d does not fit in uint16", v)
 	}
@@ -312,7 +312,7 @@ func generateBasicFunc(g *generatorType) string {
 
 	case types.Uint32:
 		return fmt.Sprintf(`
-	v, err := util.ParseUint(d.Parser)
+	v, err := genutil.ParseUint(d.Parser)
 	if v > %d {
 		err = fmt.Errorf("%%d does not fit in uint32", v)
 	}
@@ -320,20 +320,20 @@ func generateBasicFunc(g *generatorType) string {
 
 	case types.Uint64:
 		return `
-	return util.ParseUint(d.Parser)`
+	return genutil.ParseUint(d.Parser)`
 
 	case types.Float32:
 		return `
-	v, err := util.ParseFloat(d.Parser)
+	v, err := genutil.ParseFloat(d.Parser)
 	return float32(v), err`
 
 	case types.Float64:
 		return `
-	return util.ParseFloat(d.Parser)`
+	return genutil.ParseFloat(d.Parser)`
 
 	case types.String:
 		return `
-	v, err := util.ParseString(d.Parser)
+	v, err := genutil.ParseString(d.Parser)
 	return string(v), err`
 
 	default:
@@ -365,7 +365,7 @@ func generateArrayFunc(basePkg string, g *generatorType) string {
 	}`, g.typeName(basePkg), g.arrayLength)
 	for i := 0; i < int(g.arrayLength); i++ {
 		res += fmt.Sprintf(`
-	res[%[1]d], err = d.decode_%[2]s()
+	res[%[1]d], err = d.decode%[2]s()
 	if err != nil {
 		return res, err
 	}`, i, g.subType.funcName())
@@ -424,14 +424,14 @@ func generateStructFunc(basePkg string, g *generatorType) string {
 			if err = d.Parser.ParseMapValue(i); err != nil {
 				return res, err
 			}
-			res.%[2]s, err = d.decode_%[3]s()
+			res.%[2]s, err = d.decode%[3]s()
 			if err != nil {
 				return res, err
 			}`, f.encodedName, f.fieldName, ftyp.funcName())
 	}
 	res += `
 		default:
-			if err = util.SkipValue(d.Parser); err != nil {
+			if err = genutil.SkipValue(d.Parser); err != nil {
 				return res, err
 			}
 		}
@@ -443,7 +443,7 @@ func generateStructFunc(basePkg string, g *generatorType) string {
 
 func generateAliasFunc(basePkg string, g *generatorType) string {
 	return fmt.Sprintf(`
-	v, err := d.decode_%s()
+	v, err := d.decode%s()
 	return %s(v), err`, g.subType.funcName(), g.typeName(basePkg))
 }
 
