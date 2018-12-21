@@ -9,6 +9,9 @@ import (
 )
 
 func TestDecoderDecodeType(t *testing.T) {
+	// var ex exampleJSONUnmarshaler
+	// json.Unmarshaler(&ex).UnmarshalJSON([]byte("2"))
+
 	date := time.Date(2016, 12, 12, 01, 01, 01, 0, time.UTC)
 	err := errors.New("error")
 
@@ -235,6 +238,9 @@ func TestDecoderDecodeType(t *testing.T) {
 
 		// struct -> ptr
 		{struct{ A int }{42}, &struct{ A int }{42}},
+
+		// bytes -> json unmarshaler
+		{"fake json", &exampleJSONUnmarshaler{[]byte("fake json")}},
 	}
 
 	for _, test := range tests {
@@ -419,4 +425,13 @@ func TestStreamRencode(t *testing.T) {
 			}
 		})
 	}
+}
+
+type exampleJSONUnmarshaler struct {
+	b []byte
+}
+
+func (ex *exampleJSONUnmarshaler) UnmarshalJSON(b []byte) error {
+	ex.b = b
+	return nil
 }

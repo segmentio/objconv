@@ -26,6 +26,14 @@ type TFloat64 float64
 type TString string
 type TBytes []byte
 
+type exampleJSONMarshaler struct {
+	b []byte
+}
+
+func (ex *exampleJSONMarshaler) MarshalJSON() ([]byte, error) {
+	return ex.b, nil
+}
+
 func TestEncoder(t *testing.T) {
 	now := time.Now()
 	err := errors.New("error")
@@ -163,6 +171,9 @@ func TestEncoder(t *testing.T) {
 				},
 			},
 		},
+
+		// json marshaler -> bytes
+		{&exampleJSONMarshaler{b: []byte("fake json")}, "fake json"},
 	}
 
 	for _, test := range tests {
